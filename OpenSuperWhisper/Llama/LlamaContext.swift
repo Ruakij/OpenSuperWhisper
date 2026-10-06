@@ -196,7 +196,7 @@ public final class LlamaContext {
         }
     }
 
-    /// Minimal ChatML-style fallback (Qwen2.5 uses ChatML) if no template is available.
+    /// Minimal ChatML-style fallback (Qwen uses ChatML) if no template is available.
     private func fallbackTemplate(system: String, user: String) -> String {
         return """
         <|im_start|>system

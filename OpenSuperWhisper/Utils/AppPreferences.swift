@@ -500,7 +500,7 @@ final class AppPreferences {
 
     // Which built-in GGUF the local cleanup backend loads. Stored as the file name so an entry
     // that disappears from `LLMModelManager.availableModels` degrades to the default instead of
-    // crashing. Unset means the small model everyone already has downloaded.
+    // crashing. Unset means the default model.
     @UserDefault(key: "builtInModelFileName", defaultValue: LLMModelManager.defaultModel.fileName)
     var builtInModelFileName: String
 

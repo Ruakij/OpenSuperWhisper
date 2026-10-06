@@ -14,8 +14,8 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
 
     enum BuiltInLlamaError: Error { case modelNotReady }
 
-    /// Release the inference context (~1.2 GB resident, model + KV cache) after this long with no
-    /// cleanup. An occasional dictation shouldn't hold a second model in RAM next to Whisper's own
+    /// Release the inference context (1-4 GB resident by model, weights + KV cache) after this
+    /// long with no cleanup. An occasional dictation shouldn't hold a second model in RAM next to Whisper's own
     /// ~1 GB for the whole session; a burst of dictations still shares one load.
     private static let idleUnloadDelay: TimeInterval = 5 * 60
 

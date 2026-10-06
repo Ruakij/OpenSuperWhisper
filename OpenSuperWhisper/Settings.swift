@@ -431,7 +431,7 @@ class SettingsViewModel: ObservableObject {
         didSet {
             AppPreferences.shared.aiBackend = aiBackend
             if llmCleanupInUse { testLLMConnection() }
-            // Warm the ~1 GB context now, while the user is here in Settings, so their first
+            // Warm the 1-4 GB context now, while the user is here in Settings, so their first
             // dictation doesn't wait several seconds for it. Released again after an idle spell.
             if aiBackend == "builtin" { BuiltInLlamaBackend.shared.preload() }
         }
@@ -948,9 +948,10 @@ class SettingsViewModel: ObservableObject {
         self.aiPostProcessingPrompt = prefs.aiPostProcessingPrompt
         self.aiPostProcessingClosing = prefs.aiPostProcessingClosing
         self.aiPostProcessingTranslation = prefs.aiPostProcessingTranslation
-        self.builtInModelFileName = prefs.builtInModelFileName
-        self.builtInModelDownloaded =
-            LLMModelManager.shared.isModelDownloaded(name: prefs.builtInModelFileName)
+        // Resolved, so a stored model that has left the list shows as the default it falls back to.
+        let builtInModelFileName = LLMModelManager.model(fileName: prefs.builtInModelFileName).fileName
+        self.builtInModelFileName = builtInModelFileName
+        self.builtInModelDownloaded = LLMModelManager.shared.isModelDownloaded(name: builtInModelFileName)
         self.removeFillerWords = prefs.removeFillerWords
         self.fillerWordsPattern = prefs.fillerWordsPattern
         self.postRecordHookEnabled = prefs.postRecordHookEnabled
@@ -2293,8 +2294,8 @@ struct SettingsView: View {
                 }
                 .controlSize(.small)
                 Text("""
-                    Apache-2.0. One-time download, no server needed. The bigger model follows \
-                    instructions far more reliably; the smaller one is quicker and lighter.
+                    Apache-2.0. One-time download, no server needed. Bigger models follow \
+                    instructions more reliably; smaller ones are quicker and lighter.
                     """)
                     .scaledFont(size: 11).foregroundColor(STheme.hint)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2324,7 +2325,7 @@ struct SettingsView: View {
 
     private var backendHint: LocalizedStringKey {
         switch viewModel.aiBackend {
-        case "builtin": return "A Qwen2.5 model running on this Mac"
+        case "builtin": return "A Qwen3.5 model running on this Mac"
         case "remote": return "Any OpenAI-compatible server"
         default: return "Your local Ollama server"
         }

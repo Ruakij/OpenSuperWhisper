@@ -71,39 +71,54 @@ struct LLMModelDescriptor {
 class LLMModelManager {
     static let shared = LLMModelManager()
 
-    /// Default built-in cleanup model: Qwen2.5-1.5B-Instruct, GGUF Q4_K_M.
-    /// Qwen2.5 is licensed Apache-2.0 (https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/blob/main/LICENSE),
-    /// so it is safe to bundle/download for a zero-setup local backend.
-    /// Source: official Qwen first-party GGUF repo. Filename casing is exact —
-    /// HF is case-sensitive and a wrong case is a silent 404 (verified 2026-06-27:
-    /// HTTP 200, 1,117,320,736 bytes).
-    static let defaultModel = LLMModelDescriptor(
-        displayName: "Qwen2.5 1.5B Instruct (Q4_K_M)",
-        fileName: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        downloadURL: URL(string: "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true")!,
-        approxBytes: 1_117_320_736
-    )
-
-    /// The bigger option. 1.5B is fine at punctuation but fails at anything needing real
-    /// instruction-following — it will happily obey an instruction it was asked to translate, or
-    /// rewrite a dictated letter in English. 7B handles both.
+    /// Built-in cleanup models: Qwen3.5, licensed Apache-2.0 (https://huggingface.co/Qwen/Qwen3.5-2B),
+    /// as single-file GGUFs from unsloth/Qwen3.5-*-GGUF. Picked from a local benchmark (M4 Pro,
+    /// llama.cpp, the shipped prompt, greedy decoding); RAM and time per cleanup below are from
+    /// that run. File names and byte sizes verified against the HF API on 2026-10-06; HF is
+    /// case-sensitive and a wrong case is a silent 404.
     ///
-    /// Q3_K_M and not the usual Q4_K_M for one practical reason: every Q4 and larger quant of the
-    /// 7B is **split across multiple GGUF files** in the official repo, and the downloader here
-    /// handles one file per model. Q3_K_M is the largest single-file quant, and a 7B at Q3 is well
-    /// clear of a 1.5B at Q4. Apache-2.0, same first-party Qwen repo (verified 2026-08-11: single
-    /// file, 3.81 GB).
-    static let largeModel = LLMModelDescriptor(
-        displayName: "Qwen2.5 7B Instruct (Q3_K_M)",
-        fileName: "qwen2.5-7b-instruct-q3_k_m.gguf",
-        downloadURL: URL(string: "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q3_k_m.gguf?download=true")!,
-        approxBytes: 3_808_391_040
+    /// Every entry takes the empty think block as prefill: with thinking on, these models loop
+    /// for 17-34 s on a cleanup instead of answering within about a second.
+    private static let noThinking = "<think>\n\n</think>\n\n"
+
+    /// ~1.1 GB RAM, ~0.4 s.
+    static let tinyModel = LLMModelDescriptor(
+        displayName: "Qwen3.5 0.8B - fastest, least accurate",
+        fileName: "Qwen3.5-0.8B-Q8_0.gguf",
+        downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q8_0.gguf?download=true")!,
+        approxBytes: 811_843_840,
+        assistantPrefill: noThinking
     )
 
-    /// Everything offered in Settings, smallest first. Only models whose licence allows shipping a
-    /// one-click download: Qwen2.5 is Apache-2.0 at 0.5B/1.5B/7B/14B — but **not** at 3B, which is
-    /// under the non-commercial Qwen Research licence despite being the obvious middle step.
-    static let availableModels: [LLMModelDescriptor] = [defaultModel, largeModel]
+    /// ~1.6 GB RAM, ~0.5 s.
+    static let defaultModel = LLMModelDescriptor(
+        displayName: "Qwen3.5 2B - recommended",
+        fileName: "Qwen3.5-2B-Q4_K_M.gguf",
+        downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf?download=true")!,
+        approxBytes: 1_280_835_840,
+        assistantPrefill: noThinking
+    )
+
+    /// ~3.3 GB RAM, ~1.2 s.
+    static let mediumModel = LLMModelDescriptor(
+        displayName: "Qwen3.5 4B - more accurate, ~3 GB RAM",
+        fileName: "Qwen3.5-4B-Q4_K_M.gguf",
+        downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf?download=true")!,
+        approxBytes: 2_740_937_888,
+        assistantPrefill: noThinking
+    )
+
+    /// ~3.8 GB RAM, ~2.1 s.
+    static let largeModel = LLMModelDescriptor(
+        displayName: "Qwen3.5 9B - most accurate, ~4 GB RAM, slower",
+        fileName: "Qwen3.5-9B-UD-IQ2_M.gguf",
+        downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-UD-IQ2_M.gguf?download=true")!,
+        approxBytes: 3_649_365_216,
+        assistantPrefill: noThinking
+    )
+
+    /// Everything offered in Settings, smallest first.
+    static let availableModels: [LLMModelDescriptor] = [tinyModel, defaultModel, mediumModel, largeModel]
 
     /// The descriptor for a stored file name, falling back to the default so an unknown or stale
     /// preference can never leave the app without a model.
@@ -124,6 +139,7 @@ class LLMModelManager {
 
     private init() {
         createModelsDirectoryIfNeeded()
+        removeUnlistedModels()
     }
 
     private func createModelsDirectoryIfNeeded() {
@@ -134,15 +150,15 @@ class LLMModelManager {
         }
     }
 
-    /// All downloaded .gguf models on disk.
-    func getAvailableModels() -> [URL] {
-        do {
-            return try FileManager.default.contentsOfDirectory(at: modelsDirectory, includingPropertiesForKeys: nil)
-                .filter { $0.pathExtension.lowercased() == "gguf" }
-                .sorted { $0.lastPathComponent < $1.lastPathComponent }
-        } catch {
-            print("Failed to get available LLM models: \(error)")
-            return []
+    /// Deletes GGUFs in this directory that belong to no listed model, such as one dropped from
+    /// `availableModels` by an update: nothing can select or delete it any more, and these are
+    /// gigabytes.
+    private func removeUnlistedModels() {
+        let listed = Set(Self.availableModels.map(\.fileName))
+        let files = (try? FileManager.default.contentsOfDirectory(at: modelsDirectory, includingPropertiesForKeys: nil)) ?? []
+        for file in files where file.pathExtension.lowercased() == "gguf" && !listed.contains(file.lastPathComponent) {
+            print("Removing unlisted LLM model: \(file.lastPathComponent)")
+            try? FileManager.default.removeItem(at: file)
         }
     }
 
