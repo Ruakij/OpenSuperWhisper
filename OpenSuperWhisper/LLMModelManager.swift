@@ -60,6 +60,12 @@ struct LLMModelDescriptor {
     let downloadURL: URL
     /// Approximate download size in bytes (for UI display).
     let approxBytes: Int64
+    /// Approximate resident memory while loaded, in MB.
+    let ramMB: Int
+    /// Typical time for one dictation cleanup on an M4 Pro, in seconds.
+    let secondsPerDictation: Double
+    /// Score out of 10 from our cleanup benchmark.
+    let qualityScore: Double
     /// Text appended after the chat template's assistant header, as if the model had written it.
     /// Qwen3.5 takes an empty `<think>\n\n</think>\n\n` here: that is how its own template turns
     /// thinking off, and llama.cpp's template call has no switch for it.
@@ -81,39 +87,39 @@ class LLMModelManager {
     /// for 17-34 s on a cleanup instead of answering within about a second.
     private static let noThinking = "<think>\n\n</think>\n\n"
 
-    /// ~1.1 GB RAM, ~0.4 s.
     static let tinyModel = LLMModelDescriptor(
-        displayName: "Qwen3.5 0.8B - fastest, least accurate",
+        displayName: "Qwen3.5 0.8B",
         fileName: "Qwen3.5-0.8B-Q8_0.gguf",
         downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q8_0.gguf?download=true")!,
         approxBytes: 811_843_840,
+        ramMB: 1150, secondsPerDictation: 0.4, qualityScore: 6.8,
         assistantPrefill: noThinking
     )
 
-    /// ~1.6 GB RAM, ~0.5 s.
     static let defaultModel = LLMModelDescriptor(
-        displayName: "Qwen3.5 2B - recommended",
+        displayName: "Qwen3.5 2B",
         fileName: "Qwen3.5-2B-Q4_K_M.gguf",
         downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf?download=true")!,
         approxBytes: 1_280_835_840,
+        ramMB: 1650, secondsPerDictation: 0.5, qualityScore: 7.6,
         assistantPrefill: noThinking
     )
 
-    /// ~3.3 GB RAM, ~1.2 s.
     static let mediumModel = LLMModelDescriptor(
-        displayName: "Qwen3.5 4B - more accurate, ~3 GB RAM",
+        displayName: "Qwen3.5 4B",
         fileName: "Qwen3.5-4B-Q4_K_M.gguf",
         downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf?download=true")!,
         approxBytes: 2_740_937_888,
+        ramMB: 3300, secondsPerDictation: 1.2, qualityScore: 8.2,
         assistantPrefill: noThinking
     )
 
-    /// ~3.8 GB RAM, ~2.1 s.
     static let largeModel = LLMModelDescriptor(
-        displayName: "Qwen3.5 9B - most accurate, ~4 GB RAM, slower",
+        displayName: "Qwen3.5 9B",
         fileName: "Qwen3.5-9B-UD-IQ2_M.gguf",
         downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-UD-IQ2_M.gguf?download=true")!,
         approxBytes: 3_649_365_216,
+        ramMB: 3850, secondsPerDictation: 2.1, qualityScore: 8.2,
         assistantPrefill: noThinking
     )
 

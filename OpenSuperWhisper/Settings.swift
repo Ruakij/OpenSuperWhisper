@@ -2263,16 +2263,51 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder private var builtInCleanupFields: some View {
-        SRow(title: "Model", indented: true) {
-            Picker("", selection: $viewModel.builtInModelFileName) {
-                ForEach(LLMModelManager.availableModels, id: \.fileName) { model in
-                    Text(model.displayName).tag(model.fileName)
+    private func builtInModelRow(_ model: LLMModelDescriptor) -> some View {
+        let selected = model.fileName == viewModel.builtInModelFileName
+        // Beyond a quarter of physical memory the model competes with the apps being dictated into.
+        let tight = Double(model.ramMB) * 1_048_576 > Double(ProcessInfo.processInfo.physicalMemory) / 4
+        // Relative to the fastest listed model: absolute times depend on the Mac.
+        let fastest = LLMModelManager.availableModels.map(\.secondsPerDictation).min() ?? model.secondsPerDictation
+        let speed = max(1, Int((5 * fastest / model.secondsPerDictation).rounded()))
+        let speedDots = String(repeating: "\u{25CF}", count: speed) + String(repeating: "\u{25CB}", count: 5 - speed)
+        let ram = ByteCountFormatter.string(fromByteCount: Int64(model.ramMB) * 1_048_576, countStyle: .memory)
+        let download = ByteCountFormatter.string(fromByteCount: model.approxBytes, countStyle: .file)
+        return Button { viewModel.builtInModelFileName = model.fileName } label: {
+            HStack(spacing: 8) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .foregroundColor(selected ? STheme.accent : STheme.hint)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(model.displayName).scaledFont(size: 12).foregroundColor(STheme.text)
+                        if model.fileName == LLMModelManager.defaultModel.fileName { STag("Recommended") }
+                        if tight {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(STheme.warn)
+                                .help("Needs more than a quarter of this Mac's memory")
+                        }
+                    }
+                    Text("Speed \(speedDots)  \u{00B7}  Quality \(String(format: "%.1f", model.qualityScore))/10  \u{00B7}  \(ram) RAM  \u{00B7}  \(download) download")
+                        .scaledFont(size: 10).foregroundColor(STheme.hint)
                 }
+                Spacer(minLength: 0)
             }
-            .labelsHidden()
-            .fixedSize()
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 6).fill(selected ? STheme.accentSoft : Color.clear))
+            .opacity(tight ? 0.6 : 1)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder private var builtInCleanupFields: some View {
+        SRow(title: "Model",
+             hint: "Speed measured on an M4 Pro, quality from our cleanup benchmark. This Mac has \(ByteCountFormatter.string(fromByteCount: Int64(ProcessInfo.processInfo.physicalMemory), countStyle: .memory)) of memory.",
+             indented: true) { EmptyView() }
+        VStack(spacing: 2) {
+            ForEach(LLMModelManager.availableModels, id: \.fileName) { builtInModelRow($0) }
+        }
+        .padding(.leading, 16)
         HStack(spacing: 8) {
             if viewModel.builtInModelDownloaded {
                 Text("✓ Model ready — runs on-device")
