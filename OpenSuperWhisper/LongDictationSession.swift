@@ -207,15 +207,21 @@ final class LongDictationSession {
         tempFiles.append(url)
         defer { try? FileManager.default.removeItem(at: url) }
 
-        var raw: String
+        var raw = ""
         do {
             try LongDictationCore.wavData(samples: samples, sampleRate: sampleRate).write(to: url)
-            raw = try await TranscriptionService.shared.transcribeAudio(
-                url: url, settings: settings, modelOverride: modelOption)
+            for attempt in 1...2 {
+                do {
+                    raw = try await TranscriptionService.shared.transcribeAudio(
+                        url: url, settings: settings, modelOverride: modelOption)
+                    break
+                } catch where attempt == 1 && !cancelled {
+                    Diag.mark("longDictation.chunk transcription failed, retrying: \(error.localizedDescription)")
+                }
+            }
         } catch {
             Diag.mark("longDictation.chunk transcription failed: \(error.localizedDescription)")
             failed = true
-            raw = ""
         }
         guard !cancelled else { return }
         raw = raw == TranscriptionResult.noSpeech ? "" : AppPreferences.shared.cleanTranscription(raw)
