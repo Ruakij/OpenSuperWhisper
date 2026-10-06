@@ -29,4 +29,17 @@ jobs:
       - name: Make run.sh executable
         run: chmod +x ./run.sh
       - name: Build with run.sh
-        run: ./run.sh build 
+        run: ./run.sh build
+      # Ad-hoc signed, so macOS asks for permissions again on every new build and Gatekeeper
+      # blocks the first launch (right-click -> Open, or `xattr -dr com.apple.quarantine`).
+      - name: Package app
+        run: |
+          APP=build/Build/Products/Debug/OpenSuperWhisper.app
+          codesign --force --deep --sign - --entitlements OpenSuperWhisper/OpenSuperWhisper.entitlements "$APP"
+          ditto -c -k --keepParent "$APP" OpenSuperWhisper.zip
+      - name: Upload app
+        uses: actions/upload-artifact@v7
+        with:
+          name: OpenSuperWhisper-${{ github.sha }}
+          path: OpenSuperWhisper.zip
+          retention-days: 14
