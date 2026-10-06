@@ -150,6 +150,49 @@ final class CleanupBenchmarkModel: ObservableObject {
     }
 }
 
+/// Word-level diff of a cleanup, in reading order: removed tokens come before the added tokens
+/// that replace them. Punctuation is a token of its own so "kubectl" -> "kubectl." is one addition.
+enum CleanupDiff {
+    enum Kind: Equatable { case same, removed, added }
+
+    struct Segment: Equatable {
+        let text: String
+        let kind: Kind
+    }
+
+    static func segments(from input: String, to output: String) -> [Segment] {
+        let old = tokens(input), new = tokens(output)
+        let diff = new.difference(from: old)
+        var removed = Set<Int>(), inserted = Set<Int>()
+        for change in diff {
+            switch change {
+            case .remove(let offset, _, _): removed.insert(offset)
+            case .insert(let offset, _, _): inserted.insert(offset)
+            }
+        }
+        var result: [Segment] = []
+        var i = 0, j = 0
+        while i < old.count || j < new.count {
+            if i < old.count, removed.contains(i) {
+                result.append(Segment(text: old[i], kind: .removed))
+                i += 1
+            } else if j < new.count, inserted.contains(j) {
+                result.append(Segment(text: new[j], kind: .added))
+                j += 1
+            } else {
+                result.append(Segment(text: new[j], kind: .same))
+                i += 1
+                j += 1
+            }
+        }
+        return result
+    }
+
+    private static func tokens(_ text: String) -> [String] {
+        text.matches(of: #/\w+|[^\w\s]|\s+/#).map { String($0.output) }
+    }
+}
+
 struct CleanupBenchmarkView: View {
     let onClose: () -> Void
 
@@ -185,6 +228,9 @@ struct CleanupBenchmarkView: View {
                 .scaledFont(size: 11)
                 .foregroundColor(STheme.hint)
                 .fixedSize(horizontal: false, vertical: true)
+            Text("\(Text("Removed").foregroundColor(.red).strikethrough()), \(Text("added").foregroundColor(STheme.ok)) by the cleanup.")
+                .scaledFont(size: 11)
+                .foregroundColor(STheme.hint)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
@@ -221,12 +267,8 @@ struct CleanupBenchmarkView: View {
                     }
                     .scaledFont(size: 11)
                     .foregroundColor(STheme.hint)
-                    Text(result.input)
-                        .scaledFont(size: 11)
-                        .foregroundColor(STheme.hint)
-                    Text(result.output)
+                    Text(Self.diffText(result))
                         .scaledFont(size: 12)
-                        .foregroundColor(STheme.textBright)
                     if result.output == result.input {
                         Text("Returned unchanged: the cleanup failed, its output was rejected, or there was nothing to fix.")
                             .scaledFont(size: 11)
@@ -263,6 +305,27 @@ struct CleanupBenchmarkView: View {
         .controlSize(.small)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+    private static func diffText(_ result: CleanupBenchmarkModel.SampleResult) -> AttributedString {
+        var text = AttributedString()
+        for segment in CleanupDiff.segments(from: result.input, to: result.output) {
+            var part = AttributedString(segment.text)
+            part.foregroundColor = STheme.textBright
+            // Whitespace edits are noise next to the word edits, so spaces always render plain.
+            if !segment.text.allSatisfy(\.isWhitespace) {
+                switch segment.kind {
+                case .same: break
+                case .removed:
+                    part.foregroundColor = .red
+                    part.strikethroughStyle = .single
+                case .added:
+                    part.foregroundColor = STheme.ok
+                }
+            }
+            text += part
+        }
+        return text
     }
 
     private static func format(_ seconds: Double) -> String {
