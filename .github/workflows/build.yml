@@ -30,12 +30,33 @@ jobs:
         run: chmod +x ./run.sh
       - name: Build with run.sh
         run: ./run.sh build
-      # Ad-hoc signed, so macOS asks for permissions again on every new build and Gatekeeper
-      # blocks the first launch (right-click -> Open, or `xattr -dr com.apple.quarantine`).
-      - name: Package app
+        env:
+          OSW_CONFIGURATION: Release
+      # Signed with a fixed self-signed certificate: macOS ties the Accessibility grant to it, so
+      # the grant survives updates. Not notarized, so Gatekeeper still blocks the first launch
+      # (right-click -> Open, or `xattr -dr com.apple.quarantine`). Without the secrets (forks),
+      # the app stays ad-hoc signed and needs the permissions again after every build.
+      - name: Sign and package app
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
         run: |
-          APP=build/Build/Products/Debug/OpenSuperWhisper.app
-          codesign --force --deep --sign - --entitlements OpenSuperWhisper/OpenSuperWhisper.entitlements "$APP"
+          APP=build/Build/Products/Release/OpenSuperWhisper.app
+          if [[ -n "$CERT_P12" ]]; then
+            KC="$RUNNER_TEMP/signing.keychain-db"
+            echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security create-keychain -p ci "$KC"
+            security unlock-keychain -p ci "$KC"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k ci "$KC"
+            security list-keychains -d user -s "$KC" $(security list-keychains -d user | xargs)
+            # Untrusted self-signed certificate, so codesign finds it only by hash, not by name.
+            IDENTITY=$(security find-identity -p codesigning "$KC" | awk '/\)/ {print $2; exit}')
+            ./Scripts/dev-codesign.sh "$APP" "$IDENTITY"
+            codesign -dr - "$APP" 2>&1 | grep "certificate leaf"
+          else
+            codesign --force --deep --sign - --entitlements OpenSuperWhisper/OpenSuperWhisper.entitlements "$APP"
+          fi
           ditto -c -k --keepParent "$APP" OpenSuperWhisper.zip
       - name: Upload app
         uses: actions/upload-artifact@v7
