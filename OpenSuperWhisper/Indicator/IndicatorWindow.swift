@@ -802,8 +802,8 @@ struct IndicatorWindow: View {
                             + Text(streaming.confirmedText.isEmpty ? "" : " ")
                             + Text(streaming.volatileText).foregroundColor(.secondary))
                             .scaledFont(size: 14)
-                            .fixedSize(horizontal: false, vertical: true)
                             .frame(width: 300, alignment: .leading)
+                            .captionTail(maxHeight: (14 * 1.25 * 4 * scale).rounded())
                         if anyIndicatorButton {
                             Spacer(minLength: 8)
                             indicatorControls
@@ -1149,8 +1149,7 @@ struct IndicatorWindow: View {
                     + Text(streaming.confirmedText.isEmpty ? "" : " ")
                     + Text(streaming.volatileText).foregroundColor(.secondary))
                     .scaledFont(size: 13)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .captionTail(maxHeight: (13 * 1.25 * 3 * scale).rounded())
             }
         // The symbol sits on the same line as the words it belongs to, not up in the band. Up
         // there it read as an orphan on a line of its own, with the message stranded below it.

@@ -272,6 +272,8 @@ public struct RecordingBubble: View {
                             .contentTransition(.opacity)
                             .fixedSize(horizontal: caption == nil, vertical: true)
                             .frame(maxWidth: caption == nil ? nil : 300, alignment: .leading)
+                            // Four lines of caption (about 1.25 x the font size each).
+                            .captionTail(maxHeight: caption == nil ? .infinity : (textSize * 0.85 * 1.25 * 4).rounded())
                     }
                 }
             }
@@ -441,6 +443,38 @@ struct CountdownOutline: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + settle) {
                     visible = true
                     withAnimation(.linear(duration: max(0.1, duration - settle))) { remaining = 0 }
+                }
+            }
+    }
+}
+
+public extension View {
+    /// A live caption grows for as long as the user speaks, and a bubble that grows with it runs
+    /// off the screen. Up to `maxHeight` this hugs the text; past it the text stays pinned to the
+    /// bottom, so the newest words are always the ones in view, and the oldest fade out at the top
+    /// rather than being cut through mid-line.
+    func captionTail(maxHeight: CGFloat) -> some View {
+        modifier(CaptionTail(maxHeight: maxHeight))
+    }
+}
+
+private struct CaptionTail: ViewModifier {
+    let maxHeight: CGFloat
+    @State private var overflows = false
+
+    func body(content: Content) -> some View {
+        content
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: Bool.self) { $0.size.height > maxHeight + 0.5 } action: { overflows = $0 }
+            // Fixed rather than a maxHeight frame: a flexible frame takes whatever height the
+            // window offers, and the window is sized from this very measurement.
+            .frame(height: overflows ? maxHeight : nil, alignment: .bottom)
+            .clipped()
+            .mask {
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                        .frame(height: overflows ? maxHeight * 0.3 : 0)
+                    Color.black
                 }
             }
     }
