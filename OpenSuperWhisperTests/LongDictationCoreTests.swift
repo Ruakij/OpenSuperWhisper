@@ -37,13 +37,25 @@ final class LongDictationCoreTests: XCTestCase {
         XCTAssertEqual(cut?.hard, false)
     }
 
+    func testNoisyMicrophoneStillCutsAtAQuieterGap() {
+        // Background around -31 dBFS, the gap around -39 dBFS: both above the -40 dB setting.
+        let background: (Double, Float) -> [Float] = { s, amp in
+            (0..<Int(s * Double(self.sr))).map { _ in self.noise() * amp }
+        }
+        let talk: (Double) -> [Float] = { s in zip(self.speech(s), background(s, 0.05)).map(+) }
+        let samples = talk(31) + background(0.6, 0.02) + talk(10)
+        let cut = Core.findCut(samples: samples, params)
+        XCTAssertEqual(seconds(cut?.at ?? 0), 31.3, accuracy: 0.05)
+        XCTAssertEqual(cut?.hard, false)
+    }
+
     func testWaitsBeforeTheTargetAndBeforeMaxWithoutAPause() {
         XCTAssertNil(Core.findCut(samples: speech(10) + silence(1) + speech(5), params))
         XCTAssertNil(Core.findCut(samples: speech(38), params))
     }
 
     func testCutsAtTheQuietestPointWithoutAPause() {
-        let samples = speech(40) + speech(0.4, amp: 0.02) + speech(10)
+        let samples = speech(40) + speech(0.4, amp: 0.05) + speech(10)
         let cut = Core.findCut(samples: samples, params)
         XCTAssertEqual(seconds(cut?.at ?? 0), 40.2, accuracy: 0.25)
         XCTAssertLessThanOrEqual(cut?.at ?? 0, 45 * sr)

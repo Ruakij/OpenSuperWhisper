@@ -121,6 +121,11 @@ enum LongDictationCore {
     /// 20 ms frames below `silenceDb` that lasts `minGapMs` and reaches past the target. Without
     /// such a run, waits until `maxSeconds` and then cuts at the middle of the quietest
     /// `minGapMs` window in [target, max]; that cut is `hard`, as it can split a word.
+    ///
+    /// On a noisy microphone no frame may reach `silenceDb`, so the threshold rises to 6 dB over
+    /// the noise floor (10th percentile of the searched frames), but stays 10 dB under their
+    /// median so speech never counts as a pause, and at most -20 dB. It never drops below
+    /// `silenceDb`, so a pause found at the configured threshold is still found.
     static func findCut(samples: [Float], _ p: CutParameters) -> (at: Int, hard: Bool)? {
         let frameLen = p.sampleRate * frameMs / 1000
         guard frameLen > 0 else { return nil }
@@ -132,7 +137,11 @@ enum LongDictationCore {
         let gapFrames = max(1, (p.minGapMs + frameMs - 1) / frameMs)
         let searchEnd = min(frames, maxFrame)
         let energies = frameEnergies(samples, frameLen: frameLen, count: searchEnd)
-        let threshold = silenceThreshold(p.silenceDb)
+        let sorted = energies.sorted()
+        let threshold = sorted.isEmpty ? silenceThreshold(p.silenceDb)
+            : max(silenceThreshold(p.silenceDb),
+                  min(sorted[sorted.count / 10] * silenceThreshold(6), sorted[sorted.count / 2] * silenceThreshold(-10),
+                      silenceThreshold(-20)))
 
         var runStart: Int?
         for f in 0..<searchEnd {
