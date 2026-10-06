@@ -871,8 +871,9 @@ struct IndicatorWindow: View {
         }
         // Without a fixed width the HStack takes whatever the window offers and the trailing
         // Spacer eats it, so a waveform plus two buttons stretched into a mostly empty bar.
-        // Fixing the horizontal size collapses the Spacer to its 8pt minimum.
-        .fixedSize(horizontal: bubbleWidth == nil, vertical: false)
+        // Fixing the horizontal size collapses the Spacer to its 8pt minimum. Fixing the
+        // vertical one sizes the bubble from its content, never from the window's current height.
+        .fixedSize(horizontal: bubbleWidth == nil, vertical: true)
         .padding(.horizontal, isNotchMode ? 22 : 16 * scale)
         .padding(.vertical, isNotchMode ? 10 : 7 * scale)
         // Width must be set *before* the background so the bubble itself fills it (not just the

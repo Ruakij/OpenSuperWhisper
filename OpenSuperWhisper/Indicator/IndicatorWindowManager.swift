@@ -213,17 +213,18 @@ class IndicatorWindowManager: IndicatorViewDelegate {
 
     /// Sizes the indicator window to its SwiftUI content, *non-animated*. This replaces
     /// NSHostingView's `.preferredContentSize` auto-resize, whose animated variant recurses into
-    /// layout and overflows the main-thread stack on macOS 26 (#11/#15/#19). `setContentSize`
-    /// snaps in a single pass, so no SwiftUI animation can ever drive a window resize.
+    /// layout and overflows the main-thread stack on macOS 26 (#11/#15/#19). One non-animated
+    /// `setFrame` snaps size and position together, so no SwiftUI animation can ever drive a
+    /// window resize and the window never shows the new size at the old position.
     private func resizeToContent(_ size: CGSize) {
         guard let window, size.width > 1, size.height > 1 else { return }
         let newSize = NSSize(width: ceil(size.width), height: ceil(size.height))
-        let current = window.contentRect(forFrameRect: window.frame).size
-        if abs(current.width - newSize.width) > 0.5 || abs(current.height - newSize.height) > 0.5 {
-            window.setContentSize(newSize)
-        }
+        var frame = window.frameRect(forContentRect: NSRect(origin: window.frame.origin, size: newSize))
         if let screen = window.screen ?? NSScreen.main {
-            reposition(window: window, screen: screen)
+            frame.origin = placedOrigin(for: frame.size, on: screen)
+        }
+        if frame != window.frame {
+            window.setFrame(frame, display: true, animate: false)
         }
     }
 
@@ -284,8 +285,14 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     }
 
     private func reposition(window: NSWindow, screen: NSScreen) {
-        let w = window.frame.width
-        let h = window.frame.height
+        window.setFrameOrigin(placedOrigin(for: window.frame.size, on: screen))
+    }
+
+    /// Where a window of `size` goes for the current anchor, recorded as the origin `reposition`
+    /// asked for so the resulting move is not taken for a drag.
+    private func placedOrigin(for size: NSSize, on screen: NSScreen) -> NSPoint {
+        let w = size.width
+        let h = size.height
         let screenFrame = screen.frame
         let x = max(screenFrame.minX, min(anchorCenterX - w / 2, screenFrame.maxX - w))
         // Notch mode pins the top edge (grows down); everything else pins the bottom (grows up).
@@ -294,7 +301,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
             : max(screenFrame.minY, min(anchorBottomY, screenFrame.maxY - h))
         let origin = NSPoint(x: x, y: y)
         lastPlacedOrigin = origin
-        window.setFrameOrigin(origin)
+        return origin
     }
 
     /// Briefly shows the indicator at the configured position (without recording) so the user

@@ -460,26 +460,25 @@ public extension View {
 
 private struct CaptionTail: ViewModifier {
     let maxHeight: CGFloat
-    @State private var height: CGFloat = 0
 
-    private var overflows: Bool { height > maxHeight + 0.5 }
-
+    // Pure layout with no measured state, so a new line is placed and clipped in the same pass
+    // it arrives in.
     func body(content: Content) -> some View {
         content
             .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
-            // Pinned to the bottom by an offset rather than the frame alignment, so a new line can
-            // slide in. Only the offset is animated: it moves pixels, never the window size.
-            .animation(.easeOut(duration: 0.25)) { $0.offset(y: overflows ? maxHeight - height : 0) }
-            // Fixed rather than a maxHeight frame: a flexible frame takes whatever height the
-            // window offers, and the window is sized from this very measurement.
-            .frame(height: overflows ? maxHeight : nil, alignment: .top)
+            .frame(maxHeight: maxHeight, alignment: .bottom)
+            // A flexible frame takes whatever height it is offered, and the window is sized from
+            // this view, so it is asked for its ideal height: the text, capped at `maxHeight`.
+            .fixedSize(horizontal: false, vertical: true)
             .clipped()
             .mask {
-                VStack(spacing: 0) {
-                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
-                        .frame(height: overflows ? maxHeight * 0.3 : 0)
-                    Color.black
+                // Read in the same pass as the layout, so the fade appears exactly when capped.
+                GeometryReader { proxy in
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                            .frame(height: proxy.size.height >= maxHeight - 0.5 ? maxHeight * 0.3 : 0)
+                        Color.black
+                    }
                 }
             }
     }
