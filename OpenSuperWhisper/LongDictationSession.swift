@@ -26,9 +26,9 @@ final class LongDictationSession {
     /// Raw text of a chunk that ended in a hard cut, waiting to be spliced with the next chunk,
     /// which repeats the end of its audio.
     private var heldRaw: String?
-    /// Whisper prompt context for the next chunk: the field text at record start, then the tail
-    /// of the previous chunk, so names and spelling stay the same across cuts.
-    private var promptContext: String?
+    /// The tail of the previous chunk, Whisper prompt context for the next one so names and
+    /// spelling stay the same across cuts. The first chunk gets the field text instead.
+    private var previousTail: String?
     private var parts: [String] = []
     private var turns: [LLMTurn] = []
     private var insertedParts = 0
@@ -79,7 +79,6 @@ final class LongDictationSession {
             transcription: "", duration: 0, status: .failed, progress: 0, sourceFileURL: nil,
             sourceAppName: context.appName, sourceWindowTitle: context.windowTitle,
             sourceURL: context.fullURL, modelUsed: modelOption?.displayName)
-        promptContext = settings.focusedText
     }
 
     /// Whether the recording has to end through `finish` rather than the normal path: some
@@ -218,7 +217,12 @@ final class LongDictationSession {
 
         var raw = ""
         var chunkSettings = settings
-        chunkSettings.focusedText = promptContext
+        if let previousTail {
+            // Our own transcript, not text read from the field, so the surrounding-text setting
+            // does not apply to it.
+            chunkSettings.focusedText = previousTail
+            chunkSettings.useSurroundingTextAsContext = true
+        }
         do {
             try LongDictationCore.wavData(samples: samples, sampleRate: sampleRate).write(to: url)
             for attempt in 1...2 {
@@ -236,7 +240,7 @@ final class LongDictationSession {
         }
         guard !cancelled else { return }
         raw = raw == TranscriptionResult.noSpeech ? "" : AppPreferences.shared.cleanTranscription(raw)
-        if !raw.isEmpty { promptContext = SourceCapture.tail(of: raw, upTo: raw.count) }
+        if !raw.isEmpty { previousTail = SourceCapture.tail(of: raw, upTo: raw.count) }
         await feed(raw, holdBack: hardCut)
     }
 
