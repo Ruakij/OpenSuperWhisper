@@ -48,6 +48,9 @@ final class DictationPipeline: ObservableObject {
         let modelOption: DictationModelOption?
         /// This take was started by the submit mouse button, so press Return after inserting (#50).
         let submitAfterInsert: Bool
+        /// A long dictation already transcribed and cleaned in chunks while recording. Its text
+        /// replaces the transcription and LLM steps; `tempURL` is still the full audio for history.
+        let longDictation: LongDictationSession?
     }
 
     /// Dictations waiting in the queue plus the one currently being processed. Drives optional
@@ -76,8 +79,10 @@ final class DictationPipeline: ObservableObject {
 
         discarding = true
         for item in queue {
+            item.longDictation?.cancel()
             discardAudio(item.tempURL)
         }
+        current?.longDictation?.cancel()
         queue.removeAll()
         refreshPendingCount()
         transcriptionService.cancelTranscription()
@@ -85,6 +90,7 @@ final class DictationPipeline: ObservableObject {
 
     private var queue: [PendingDictation] = []
     private var inFlight = false
+    private var current: PendingDictation?
     private var seqCounter = 0
     private var loopTask: Task<Void, Never>?
 
@@ -99,7 +105,7 @@ final class DictationPipeline: ObservableObject {
     /// `seq` is monotonic and assigned here, so append order == recording-start order.
     func enqueue(tempURL: URL?, startedAt: Date, streamedFallback: String,
                  context: ContextSnapshot, modelOption: DictationModelOption?,
-                 submitAfterInsert: Bool = false) {
+                 submitAfterInsert: Bool = false, longDictation: LongDictationSession? = nil) {
         seqCounter += 1
         queue.append(PendingDictation(
             id: UUID(),
@@ -109,7 +115,8 @@ final class DictationPipeline: ObservableObject {
             streamedFallback: streamedFallback,
             context: context,
             modelOption: modelOption,
-            submitAfterInsert: submitAfterInsert))
+            submitAfterInsert: submitAfterInsert,
+            longDictation: longDictation))
         refreshPendingCount()
         startLoopIfNeeded()
     }
@@ -121,7 +128,9 @@ final class DictationPipeline: ObservableObject {
             guard let self else { return }
             while let next = self.dequeue() {
                 self.inFlight = true
+                self.current = next
                 await self.process(next)
+                self.current = nil
                 self.inFlight = false
                 self.refreshPendingCount()
             }
@@ -155,14 +164,29 @@ final class DictationPipeline: ObservableObject {
         pendingCount = queue.count + (inFlight ? 1 : 0)
     }
 
-    private func process(_ item: PendingDictation) async {
+    /// The transcription settings for a clip recorded in `context`.
+    static func transcriptionSettings(for context: ContextSnapshot) -> Settings {
         var settings = Settings()
-        settings.focusedText = item.context.focusedText
+        settings.focusedText = context.focusedText
         settings.selectedLanguage = KeyboardLanguage.language(for: settings.selectedLanguage,
-                                                              resolved: item.context.keyboardLanguage)
+                                                              resolved: context.keyboardLanguage)
+        return settings
+    }
+
+    private func process(_ item: PendingDictation) async {
+        let settings = Self.transcriptionSettings(for: item.context)
         do {
             let rawText: String
-            if let clip = item.tempURL {
+            // What is left to insert of a long dictation that pasted parts live; nil otherwise.
+            var longDictationRest: String?
+            let longDictationResult = await item.longDictation?.result()
+            // A chunk that failed loses its words, so the whole file is transcribed again,
+            // unless parts are already pasted and would be doubled.
+            let chunked = item.longDictation.map { !$0.failed || $0.pastedLive || discarding } ?? false
+            if chunked, let longDictationResult {
+                rawText = longDictationResult.full
+                longDictationRest = longDictationResult.rest
+            } else if let clip = item.tempURL {
                 if let transcribeOverride {
                     rawText = try await transcribeOverride(clip, settings)
                 } else {
@@ -190,7 +214,8 @@ final class DictationPipeline: ObservableObject {
 
             let modelUsed = transcriptionService.lastUsedModel?.displayName ?? ModelCatalog.activeOption()?.displayName
             let wasFallback = transcriptionService.lastUsedFallback
-            var text = AppPreferences.shared.cleanTranscription(rawText)
+            // A long dictation's chunks are filler-cleaned already.
+            var text = chunked ? rawText : AppPreferences.shared.cleanTranscription(rawText)
             // The engine's own output, before the dictionary rules and any LLM cleanup, kept
             // for the post-record hook. Tracked alongside `text` rather than read from
             // `rawText` at the end, because the short-clip fallback below replaces the basis
@@ -219,13 +244,19 @@ final class DictationPipeline: ObservableObject {
             // app-aware formatting rules are keyed off the app that was frontmost when the clip was
             // RECORDED — the app the user was dictating into — not whatever is frontmost now that
             // the background queue got to it. (parallel-recording)
-            text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID,
-                                                  translating: settings.translateToEnglish)
+            if !chunked {
+                text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID,
+                                                      translating: settings.translateToEnglish)
+            }
 
             // Trailing "press enter" voice command (opt-in): strip it and remember to press Return
-            // after insertion, submitting the message/prompt.
-            let (strippedText, spokenSubmit) = AppPreferences.shared.stripSubmitCommand(text)
+            // after insertion, submitting the message/prompt. Of a long dictation only the text
+            // inserted here counts: a command already pasted live stays text and presses nothing.
+            let (strippedText, fullSubmit) = AppPreferences.shared.stripSubmitCommand(text)
             text = strippedText
+            let toInsertParsed = longDictationRest.map { AppPreferences.shared.stripSubmitCommand($0) }
+            let toInsert = toInsertParsed?.text ?? text
+            let spokenSubmit = toInsertParsed?.submit ?? fullSubmit
             // Either route asks for the same thing: send Return once the text is in.
             let shouldSubmit = spokenSubmit || item.submitAfterInsert
             let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -267,7 +298,8 @@ final class DictationPipeline: ObservableObject {
                 discardAudio(item.tempURL)
             }
 
-            let pasteTargetMissing = hasText ? insertText(text, targetBundleID: item.context.bundleID) : false
+            let pasteTargetMissing = hasText && !toInsert.isEmpty
+                ? insertText(toInsert, targetBundleID: item.context.bundleID) : false
             if hasText {
                 PostRecordHook.runIfEnabled(text: text, rawText: engineText,
                                             bundleID: item.context.bundleID,

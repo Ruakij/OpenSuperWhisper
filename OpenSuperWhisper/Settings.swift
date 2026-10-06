@@ -358,6 +358,44 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var longDictationEnabled: Bool {
+        didSet { AppPreferences.shared.longDictationEnabled = longDictationEnabled }
+    }
+
+    @Published var longDictationChunkSeconds: Double {
+        didSet {
+            AppPreferences.shared.longDictationChunkSeconds = longDictationChunkSeconds
+            if longDictationMaxChunkSeconds < longDictationChunkSeconds {
+                longDictationMaxChunkSeconds = longDictationChunkSeconds
+            }
+        }
+    }
+
+    @Published var longDictationMaxChunkSeconds: Double {
+        didSet {
+            if longDictationMaxChunkSeconds < longDictationChunkSeconds {
+                longDictationMaxChunkSeconds = longDictationChunkSeconds
+            }
+            AppPreferences.shared.longDictationMaxChunkSeconds = longDictationMaxChunkSeconds
+        }
+    }
+
+    @Published var longDictationMinGapMs: Int {
+        didSet { AppPreferences.shared.longDictationMinGapMs = longDictationMinGapMs }
+    }
+
+    @Published var longDictationSilenceDb: Double {
+        didSet { AppPreferences.shared.longDictationSilenceDb = longDictationSilenceDb }
+    }
+
+    @Published var longDictationContextChunks: Int {
+        didSet { AppPreferences.shared.longDictationContextChunks = longDictationContextChunks }
+    }
+
+    @Published var longDictationLivePaste: Bool {
+        didSet { AppPreferences.shared.longDictationLivePaste = longDictationLivePaste }
+    }
+
     @Published var useAsianAutocorrect: Bool {
         didSet {
             AppPreferences.shared.useAsianAutocorrect = useAsianAutocorrect
@@ -930,6 +968,13 @@ class SettingsViewModel: ObservableObject {
         self.remoteFallbackEnabled = prefs.remoteFallbackEnabled
         self.remoteFallbackModel = prefs.remoteFallbackModel
         self.liveTranscriptionEnabled = prefs.liveTranscriptionEnabled
+        self.longDictationEnabled = prefs.longDictationEnabled
+        self.longDictationChunkSeconds = prefs.longDictationChunkSeconds
+        self.longDictationMaxChunkSeconds = prefs.longDictationMaxChunkSeconds
+        self.longDictationMinGapMs = prefs.longDictationMinGapMs
+        self.longDictationSilenceDb = prefs.longDictationSilenceDb
+        self.longDictationContextChunks = prefs.longDictationContextChunks
+        self.longDictationLivePaste = prefs.longDictationLivePaste
         self.useAsianAutocorrect = prefs.useAsianAutocorrect
         self.modifierOnlyHotkey = ModifierKey(rawValue: prefs.modifierOnlyHotkey) ?? .none
         self.mouseButtonHotkey = MouseButton(rawValue: prefs.mouseButtonHotkey) ?? .none
@@ -2984,6 +3029,58 @@ struct SettingsView: View {
                                 .foregroundColor(STheme.hint)
                                 .frame(width: 34, alignment: .trailing)
                         }
+                    }
+                }
+            }
+
+            SSection(title: "Long dictation") {
+                SRow(title: "Process long dictations in chunks",
+                     hint: "While recording, the audio is cut at pauses and each part is transcribed and cleaned in the background, so stopping leaves only the last part to wait for") {
+                    SToggle(isOn: $viewModel.longDictationEnabled)
+                }
+                if viewModel.longDictationEnabled {
+                    SRow(title: "Chunk length", hint: "A cut is looked for once this much audio is buffered",
+                         indented: true) {
+                        Stepper("\(Int(viewModel.longDictationChunkSeconds)) s",
+                                value: $viewModel.longDictationChunkSeconds, in: 10...120, step: 5)
+                            .scaledFont(size: 12, design: .monospaced)
+                            .foregroundColor(STheme.text)
+                    }
+                    SRow(title: "Longest chunk", hint: "Without a pause, the audio is cut at its quietest point by here",
+                         indented: true) {
+                        Stepper("\(Int(viewModel.longDictationMaxChunkSeconds)) s",
+                                value: $viewModel.longDictationMaxChunkSeconds,
+                                in: viewModel.longDictationChunkSeconds...180, step: 5)
+                            .scaledFont(size: 12, design: .monospaced)
+                            .foregroundColor(STheme.text)
+                    }
+                    SRow(title: "Shortest pause", hint: "How long a silence has to last to be cut at",
+                         indented: true) {
+                        Stepper("\(viewModel.longDictationMinGapMs) ms",
+                                value: $viewModel.longDictationMinGapMs, in: 100...1500, step: 50)
+                            .scaledFont(size: 12, design: .monospaced)
+                            .foregroundColor(STheme.text)
+                    }
+                    SRow(title: "Silence level",
+                         hint: "Audio below this counts as a pause. Raise it if the microphone has a loud noise floor and no cut is found",
+                         indented: true) {
+                        Stepper("\(Int(viewModel.longDictationSilenceDb)) dBFS",
+                                value: $viewModel.longDictationSilenceDb, in: -60...(-20), step: 1)
+                            .scaledFont(size: 12, design: .monospaced)
+                            .foregroundColor(STheme.text)
+                    }
+                    SRow(title: "Context for AI cleanup",
+                         hint: "Up to this many earlier parts go to the cleanup model with each new one; the built-in model drops the oldest when they do not fit. More is slower",
+                         indented: true) {
+                        Stepper("\(viewModel.longDictationContextChunks)",
+                                value: $viewModel.longDictationContextChunks, in: 0...8)
+                            .scaledFont(size: 12, design: .monospaced)
+                            .foregroundColor(STheme.text)
+                    }
+                    SRow(title: "Paste each part as it is ready",
+                         hint: "Inserts text while still recording instead of all at the end",
+                         indented: true) {
+                        SToggle(isOn: $viewModel.longDictationLivePaste)
                     }
                 }
             }

@@ -15,7 +15,7 @@ class AudioRecorder: NSObject, ObservableObject {
     private var audioPlayer: AVAudioPlayer?
     private var notificationSound: NSSound?
     private let temporaryDirectory: URL
-    private var currentRecordingURL: URL?
+    private(set) var currentRecordingURL: URL?
     private var notificationObserver: Any?
     private var microphoneChangeObserver: Any?
     private var connectionCheckTimer: DispatchSourceTimer?

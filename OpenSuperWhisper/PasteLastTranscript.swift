@@ -82,7 +82,7 @@ enum PasteLastTranscript {
     }
 
     @MainActor
-    private static func modifiersAreHeld() -> Bool {
+    static func modifiersAreHeld() -> Bool {
         !NSEvent.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty
     }
 }

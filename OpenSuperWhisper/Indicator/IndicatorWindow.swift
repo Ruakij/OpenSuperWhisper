@@ -50,6 +50,8 @@ class IndicatorViewModel: ObservableObject {
     private var hideTimer: Timer?
     private var confirmCancelTimer: Timer?
     private var liveStreamingActive = false
+    /// Cuts and processes this take in chunks while it records (long dictation), when enabled.
+    private var longDictation: LongDictationSession?
     private var cancellables = Set<AnyCancellable>()
     
     private let recordingStore: RecordingStore
@@ -156,6 +158,15 @@ class IndicatorViewModel: ObservableObject {
             recorder.startRecording()
         }
 
+        longDictation?.cancel()
+        longDictation = nil
+        if AppPreferences.shared.longDictationEnabled {
+            let session = LongDictationSession(context: Self.contextSnapshot(),
+                                               modelOption: ModelCatalog.activeOption())
+            session.start()
+            longDictation = session
+        }
+
         // Live transcription (Parakeet only): stream in parallel with the WAV recorder so the
         // indicator can show the text as the user speaks. Falls back to the file pass on stop.
         // Skipped while ANY transcription is in flight — the background dictation pipeline OR the
@@ -236,6 +247,24 @@ class IndicatorViewModel: ObservableObject {
 
         let outcome = recorder.stopRecording()
         let tempURL = outcome.url
+        let session = longDictation
+        longDictation = nil
+        // Some audio is already cut off and processed, so this take finishes in chunks too.
+        // Otherwise the session is dropped and the take goes the normal way.
+        if let session, let tempURL, session.takesOverFinish {
+            session.finish(fileURL: tempURL)
+            DictationPipeline.shared.enqueue(
+                tempURL: tempURL,
+                startedAt: recordingStartedAt ?? Date(),
+                streamedFallback: "",
+                context: Self.contextSnapshot(),
+                modelOption: ModelCatalog.activeOption(),
+                submitAfterInsert: submitAfterInsert,
+                longDictation: session)
+            delegate?.didFinishDecoding()
+            return
+        }
+        session?.cancel()
         if tempURL == nil {
             // The live-transcription tap and the recorder are separate consumers of the
             // microphone, so one can come back empty while the other heard everything. When it
@@ -265,12 +294,7 @@ class IndicatorViewModel: ObservableObject {
         // recording — the next recording's captureFrontmost / model switch hasn't run yet) so the
         // history row and the transcription model stay accurate even though the clip is transcribed
         // later, in the background. (parallel-recording, #model-snapshot)
-        let ctx = RecordingContext.shared
-        let snapshot = DictationPipeline.ContextSnapshot(
-            appName: ctx.appName, bundleID: ctx.bundleID,
-            windowTitle: ctx.windowTitle, fullURL: ctx.fullURL,
-            keyboardLanguage: ctx.keyboardLanguage,
-            focusedText: ctx.focusedText)
+        let snapshot = Self.contextSnapshot()
         let modelOption = ModelCatalog.activeOption()
 
         // Hand the clip to the background pipeline: it transcribes, saves and pastes on a serial
@@ -286,6 +310,16 @@ class IndicatorViewModel: ObservableObject {
 
         // Free the indicator right away so the next hotkey press starts a fresh recording.
         delegate?.didFinishDecoding()
+    }
+
+    /// The record-start context `RecordingContext.captureFrontmost` captured for this take.
+    private static func contextSnapshot() -> DictationPipeline.ContextSnapshot {
+        let ctx = RecordingContext.shared
+        return DictationPipeline.ContextSnapshot(
+            appName: ctx.appName, bundleID: ctx.bundleID,
+            windowTitle: ctx.windowTitle, fullURL: ctx.fullURL,
+            keyboardLanguage: ctx.keyboardLanguage,
+            focusedText: ctx.focusedText)
     }
 
     static func applyPostProcessing(_ text: String) -> String {
@@ -326,6 +360,8 @@ class IndicatorViewModel: ObservableObject {
         resetCancelConfirmation()
         isLatched = false
         recordingStartedAt = nil
+        longDictation?.cancel()
+        longDictation = nil
         hideTimer?.invalidate()
         hideTimer = nil
         cancellables.removeAll()
@@ -335,6 +371,8 @@ class IndicatorViewModel: ObservableObject {
         hideTimer?.invalidate()
         hideTimer = nil
         recorder.cancelRecording()
+        longDictation?.cancel()
+        longDictation = nil
         if liveStreamingActive {
             liveStreamingActive = false
             Task { await StreamingTranscriptionController.shared.cancel() }

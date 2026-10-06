@@ -316,6 +316,35 @@ final class AppPreferences {
     @UserDefault(key: "liveTranscriptionEnabled", defaultValue: false)
     var liveTranscriptionEnabled: Bool
 
+    /// Long dictation: while recording, cut the audio at pauses and transcribe and clean each
+    /// chunk in the background, so stopping leaves only the last chunk to process. Opt-in.
+    @UserDefault(key: "longDictationEnabled", defaultValue: false)
+    var longDictationEnabled: Bool
+
+    /// Chunk length at which a cut is looked for (seconds, 10-120).
+    @UserDefault(key: "longDictationChunkSeconds", defaultValue: 30.0)
+    var longDictationChunkSeconds: Double
+
+    /// Without a pause, the chunk is cut here at its quietest point (seconds, >= chunk length).
+    @UserDefault(key: "longDictationMaxChunkSeconds", defaultValue: 45.0)
+    var longDictationMaxChunkSeconds: Double
+
+    /// Shortest pause that counts as a place to cut (milliseconds, 100-1500).
+    @UserDefault(key: "longDictationMinGapMs", defaultValue: 300)
+    var longDictationMinGapMs: Int
+
+    /// Level below which audio counts as a pause (dBFS, -60 to -20). Raised for noisy mics.
+    @UserDefault(key: "longDictationSilenceDb", defaultValue: -40.0)
+    var longDictationSilenceDb: Double
+
+    /// How many earlier cleaned parts the LLM sees as context for the next one (0-3).
+    @UserDefault(key: "longDictationContextChunks", defaultValue: 1)
+    var longDictationContextChunks: Int
+
+    /// Insert each cleaned part as soon as it is ready instead of all text at the end.
+    @UserDefault(key: "longDictationLivePaste", defaultValue: false)
+    var longDictationLivePaste: Bool
+
     @UserDefault(key: "hasCompletedOnboarding", defaultValue: false)
     var hasCompletedOnboarding: Bool
     
