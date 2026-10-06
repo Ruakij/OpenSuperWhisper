@@ -87,13 +87,9 @@ final class StreamingTranscriptionController: ObservableObject {
         self.manager = manager
 
         updatesTask = Task { [weak self] in
-            for await _ in updates {
-                let confirmed = await manager.confirmedTranscript
-                let volatile = await manager.volatileTranscript
-                await MainActor.run {
-                    self?.confirmedText = confirmed
-                    self?.volatileText = volatile
-                }
+            for await update in updates {
+                let chunk = update.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                await MainActor.run { self?.appendChunk(chunk) }
             }
         }
 
@@ -131,6 +127,18 @@ final class StreamingTranscriptionController: ObservableObject {
             throw error
         }
         isRunning = true
+    }
+
+    /// Each update is the text of one new chunk of audio, not a revision of the previous one
+    /// (`finish()` joins them all). The manager's own `confirmedTranscript`/`volatileTranscript`
+    /// overwrite a low-confidence chunk with the next one: unconfirmed words drop out of them, and
+    /// a silent chunk empties them, which would swap the caption back to the waveform. Every
+    /// chunk is kept here: the newest stays dimmed and joins the confirmed part when the next one
+    /// arrives with words in it.
+    private func appendChunk(_ chunk: String) {
+        guard !chunk.isEmpty else { return }
+        confirmedText = liveCaption
+        volatileText = chunk
     }
 
     /// Undoes a start() that got as far as its tasks but never reached a running engine, so the
