@@ -23,6 +23,9 @@ final class LongDictationSession {
     /// A chunk failed to transcribe, so its words are missing from `parts`.
     private(set) var failed = false
     private var pending = ""
+    /// Whisper prompt context for the next chunk: the field text at record start, then the tail
+    /// of the previous chunk, so names and spelling stay the same across cuts.
+    private var promptContext: String?
     private var parts: [String] = []
     private var turns: [LLMTurn] = []
     private var insertedParts = 0
@@ -73,6 +76,7 @@ final class LongDictationSession {
             transcription: "", duration: 0, status: .failed, progress: 0, sourceFileURL: nil,
             sourceAppName: context.appName, sourceWindowTitle: context.windowTitle,
             sourceURL: context.fullURL, modelUsed: modelOption?.displayName)
+        promptContext = settings.focusedText
     }
 
     /// Whether the recording has to end through `finish` rather than the normal path: some
@@ -208,12 +212,14 @@ final class LongDictationSession {
         defer { try? FileManager.default.removeItem(at: url) }
 
         var raw = ""
+        var chunkSettings = settings
+        chunkSettings.focusedText = promptContext
         do {
             try LongDictationCore.wavData(samples: samples, sampleRate: sampleRate).write(to: url)
             for attempt in 1...2 {
                 do {
                     raw = try await TranscriptionService.shared.transcribeAudio(
-                        url: url, settings: settings, modelOverride: modelOption)
+                        url: url, settings: chunkSettings, modelOverride: modelOption)
                     break
                 } catch where attempt == 1 && !cancelled {
                     Diag.mark("longDictation.chunk transcription failed, retrying: \(error.localizedDescription)")
@@ -225,6 +231,7 @@ final class LongDictationSession {
         }
         guard !cancelled else { return }
         raw = raw == TranscriptionResult.noSpeech ? "" : AppPreferences.shared.cleanTranscription(raw)
+        if !raw.isEmpty { promptContext = SourceCapture.tail(of: raw, upTo: raw.count) }
 
         let carried = LongDictationCore.carry(pending: pending, chunk: raw)
         pending = carried.pending
