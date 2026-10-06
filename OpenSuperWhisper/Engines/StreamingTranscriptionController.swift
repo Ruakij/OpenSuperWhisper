@@ -37,6 +37,7 @@ final class StreamingTranscriptionController: ObservableObject {
     private var updatesTask: Task<Void, Never>?
     private var feederTask: Task<Void, Never>?
     private var bufferContinuation: AsyncStream<AVAudioPCMBuffer>.Continuation?
+    private var configurationObserver: NSObjectProtocol?
     private(set) var isRunning = false
     /// Bumped by every start()/cancel()/finish(). `start()` captures its value and bails out if
     /// it changes mid-setup — a stop can land before `isRunning` is even true (so cancel/finish
@@ -103,30 +104,52 @@ final class StreamingTranscriptionController: ObservableObject {
             }
         }
 
+        do {
+            try tapAndStart(feeding: bufferContinuation)
+        } catch {
+            await abandonStart(manager)
+            throw error
+        }
+        isRunning = true
+        configurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: audioEngine, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.restartAfterConfigurationChange() }
+        }
+    }
+
+    /// The engine stops itself on a route or format change and only posts a notification, the
+    /// same trap SpectrumAnalyzer documents: without a restart the caption stays empty for the rest
+    /// of the take while the file pass still gets everything.
+    private func restartAfterConfigurationChange() {
+        guard isRunning, let bufferContinuation else { return }
+        Diag.mark("streaming.engine configuration changed (running=\(audioEngine.isRunning)); reinstalling tap")
+        audioEngine.inputNode.removeTap(onBus: 0)
+        do {
+            try tapAndStart(feeding: bufferContinuation)
+        } catch {
+            Diag.mark("streaming.restart failed \(error.localizedDescription); caption off for this take")
+        }
+    }
+
+    private func tapAndStart(feeding bufferContinuation: AsyncStream<AVAudioPCMBuffer>.Continuation) throws {
         // `format: nil`, for the reason SpectrumAnalyzer spells out: a format read here goes stale
         // while the recorder is still taking the device, and the tap is refused. The manager
         // converts whatever arrives. The exception is caught for the same reason too — raised
         // inside this main-actor task, it would leave the app to crash on the next click.
         let input = audioEngine.inputNode
-        do {
-            try ObjCExceptionError.catching {
-                input.installTap(onBus: 0, bufferSize: 4096, format: nil) { buffer, _ in
-                    bufferContinuation.yield(buffer)
-                }
+        try ObjCExceptionError.catching {
+            input.installTap(onBus: 0, bufferSize: 4096, format: nil) { buffer, _ in
+                bufferContinuation.yield(buffer)
             }
-        } catch {
-            await abandonStart(manager)
-            throw error
         }
         do {
             try ObjCExceptionError.catching { audioEngine.prepare() }
             try audioEngine.start()
         } catch {
             input.removeTap(onBus: 0)
-            await abandonStart(manager)
             throw error
         }
-        isRunning = true
     }
 
     /// Each update is the text of one new chunk of audio, not a revision of the previous one
@@ -173,10 +196,12 @@ final class StreamingTranscriptionController: ObservableObject {
     }
 
     private func stopAudio() {
-        if audioEngine.isRunning {
-            audioEngine.inputNode.removeTap(onBus: 0)
-            audioEngine.stop()
-        }
+        // Unconditional: an engine stopped by a configuration change reports not running but
+        // still holds the tap, and the next start's installTap would raise on it.
+        audioEngine.inputNode.removeTap(onBus: 0)
+        audioEngine.stop()
+        if let configurationObserver { NotificationCenter.default.removeObserver(configurationObserver) }
+        configurationObserver = nil
         bufferContinuation?.finish()
         bufferContinuation = nil
         feederTask?.cancel()

@@ -22,6 +22,7 @@ final class SpectrumAnalyzer: ObservableObject {
 
     private let engine = AVAudioEngine()
     private var isRunning = false
+    private var configurationObserver: NSObjectProtocol?
 
     private let fftSize = 1024
     private let log2n: vDSP_Length
@@ -55,7 +56,27 @@ final class SpectrumAnalyzer: ObservableObject {
         guard !isRunning, fftSetup != nil else { return }
         guard Self.shouldRun(layout: IndicatorLayout.load(from: AppPreferences.shared.indicatorLayout))
         else { return }
+        guard tapAndStart() else { return }
+        isRunning = true
+        configurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.restartAfterConfigurationChange() }
+        }
+    }
 
+    /// A route or format change (Bluetooth switching to its headset profile, the default input
+    /// changing under the recorder) makes AVAudioEngine stop itself and only post this
+    /// notification. Left alone, the tap never fires again while `AVAudioRecorder` carries on:
+    /// a flat bubble over a take that still transcribes fine.
+    private func restartAfterConfigurationChange() {
+        guard isRunning else { return }
+        Diag.mark("spectrum.engine configuration changed (running=\(engine.isRunning)); reinstalling tap")
+        engine.inputNode.removeTap(onBus: 0)
+        if !tapAndStart() { stop() }
+    }
+
+    private func tapAndStart() -> Bool {
         let input = engine.inputNode
 
         // `format: nil` rather than a format read a moment ago, and this is the fix rather than a
@@ -84,21 +105,24 @@ final class SpectrumAnalyzer: ObservableObject {
             }
         } catch {
             Diag.mark("spectrum.installTap raised \(error.localizedDescription); visualiser off for this take")
-            return
+            return false
         }
 
         do {
             try ObjCExceptionError.catching { engine.prepare() }
             try engine.start()
-            isRunning = true
+            return true
         } catch {
             input.removeTap(onBus: 0)
             print("SpectrumAnalyzer: couldn't start the audio engine: \(error)")
+            return false
         }
     }
 
     func stop() {
         guard isRunning else { return }
+        if let configurationObserver { NotificationCenter.default.removeObserver(configurationObserver) }
+        configurationObserver = nil
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         isRunning = false
