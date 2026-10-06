@@ -31,6 +31,11 @@ final class LongDictationSession {
     private var pollTask: Task<Void, Never>?
     private var finishTask: Task<(full: String, rest: String), Never>?
     private var tempFiles: [URL] = []
+    /// Chunks cut but not yet transcribed and cleaned, reported while recording.
+    private var outstanding = 0 {
+        didSet { onOutstandingChange?(outstanding) }
+    }
+    var onOutstandingChange: ((Int) -> Void)?
     private var cancelled = false
     /// Set once the recording stopped: from then on parts wait for the pipeline, which inserts
     /// them in recording order after any dictation queued before this one.
@@ -75,6 +80,7 @@ final class LongDictationSession {
     /// returns the joined text once every chunk is done.
     func finish(fileURL url: URL) {
         finishing = true
+        onOutstandingChange = nil
         let poller = pollTask
         poller?.cancel()
         pollTask = nil
@@ -110,6 +116,7 @@ final class LongDictationSession {
     /// Drops everything: no more chunks, no live paste, temp files removed.
     func cancel() {
         cancelled = true
+        onOutstandingChange = nil
         pollTask?.cancel()
         pollTask = nil
         finishTask?.cancel()
@@ -147,7 +154,11 @@ final class LongDictationSession {
     }
 
     private func enqueueChunk(_ samples: [Float], sampleRate: Int) {
-        enqueue { session in await session.processChunk(samples, sampleRate: sampleRate) }
+        outstanding += 1
+        enqueue { session in
+            await session.processChunk(samples, sampleRate: sampleRate)
+            session.outstanding -= 1
+        }
     }
 
     private func processChunk(_ samples: [Float], sampleRate: Int) async {

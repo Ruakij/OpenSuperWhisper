@@ -52,6 +52,8 @@ class IndicatorViewModel: ObservableObject {
     private var liveStreamingActive = false
     /// Cuts and processes this take in chunks while it records (long dictation), when enabled.
     private var longDictation: LongDictationSession?
+    /// Long dictation parts waiting for transcription while recording; shown when above one.
+    @Published var partsBehind = 0
     private var cancellables = Set<AnyCancellable>()
     
     private let recordingStore: RecordingStore
@@ -160,9 +162,11 @@ class IndicatorViewModel: ObservableObject {
 
         longDictation?.cancel()
         longDictation = nil
+        partsBehind = 0
         if AppPreferences.shared.longDictationEnabled {
             let session = LongDictationSession(context: Self.contextSnapshot(),
                                                modelOption: ModelCatalog.activeOption())
+            session.onOutstandingChange = { [weak self] in self?.partsBehind = $0 }
             session.start()
             longDictation = session
         }
@@ -687,8 +691,10 @@ struct IndicatorWindow: View {
             return queued > 1 ? String(localized: "Transcribing… · \(queued - 1) queued")
                               : String(localized: "Transcribing…")
         }
-        return queued > 0 ? String(localized: "Recording… · \(queued) queued")
-                          : String(localized: "Recording…")
+        let label = queued > 0 ? String(localized: "Recording… · \(queued) queued")
+                               : String(localized: "Recording…")
+        let behind = viewModel.partsBehind
+        return behind > 1 ? label + String(localized: " · \(behind) parts behind") : label
     }
 
     /// The pill's centre elements (waveform / label) in the user's configured order.
@@ -811,7 +817,8 @@ struct IndicatorWindow: View {
                                                  meterHeight: meterHeight,
                                                  isBlinking: viewModel.isBlinking,
                                                  isLatched: viewModel.isLatched,
-                                                 queued: pipeline.pendingCount)
+                                                 queued: pipeline.pendingCount,
+                                                 partsBehind: viewModel.partsBehind)
                         }
                         if !layout.trailing.isEmpty {
                             Spacer(minLength: 8)
@@ -822,7 +829,8 @@ struct IndicatorWindow: View {
                                                          meterHeight: meterHeight,
                                                          isBlinking: viewModel.isBlinking,
                                                          isLatched: viewModel.isLatched,
-                                                         queued: pipeline.pendingCount)
+                                                         queued: pipeline.pendingCount,
+                                                         partsBehind: viewModel.partsBehind)
                                 }
                             }
                         }

@@ -11,6 +11,8 @@ struct IndicatorElementView: View {
     /// Hands-free (Space-latched) recording: the dot swells, goes solid and pulses.
     var isLatched = false
     var queued = 0
+    /// Long dictation parts still waiting for transcription while recording.
+    var partsBehind = 0
     /// The editor's preview has no manager to call, so its buttons do nothing.
     var isInteractive = true
 
@@ -95,7 +97,8 @@ struct IndicatorElementView: View {
         if isDecoding {
             return queued > 1 ? "Transcribing… · \(queued - 1) queued" : "Transcribing…"
         }
-        return queued > 0 ? "Recording… · \(queued) queued" : "Recording…"
+        let label = queued > 0 ? "Recording… · \(queued) queued" : "Recording…"
+        return partsBehind > 1 ? label + " · \(partsBehind) parts behind" : label
     }
 
     private func button(symbol: String, size: CGFloat, help: String, enabled: Bool = true,
