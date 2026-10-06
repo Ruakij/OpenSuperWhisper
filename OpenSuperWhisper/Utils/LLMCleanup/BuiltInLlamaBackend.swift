@@ -56,18 +56,19 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
         }
     }
 
-    func generate(system: String, user: String) async throws -> String {
-        try await generate(system: system, user: user, model: selectedModel)
+    func generate(system: String, user: String, history: [LLMTurn]) async throws -> String {
+        try await generate(system: system, user: user, history: history, model: selectedModel)
     }
 
-    func generate(system: String, user: String, model: LLMModelDescriptor) async throws -> String {
+    func generate(system: String, user: String, history: [LLMTurn] = [],
+                  model: LLMModelDescriptor) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             inferenceQueue.async { [weak self] in
                 guard let self, let ctx = self.loadContextOnQueue(model) else {
                     continuation.resume(throwing: BuiltInLlamaError.modelNotReady)
                     return
                 }
-                let output = ctx.generate(system: system, user: user,
+                let output = ctx.generate(system: system, user: user, history: history,
                                           assistantPrefill: model.assistantPrefill,
                                           maxTokens: model.maxOutputTokens)
                 self.scheduleIdleUnloadOnQueue()
@@ -101,8 +102,9 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
         var isReady: Bool { LLMModelManager.shared.isModelDownloaded(name: model.fileName) }
         var enforcesLengthRatio: Bool { true }
 
-        func generate(system: String, user: String) async throws -> String {
-            try await BuiltInLlamaBackend.shared.generate(system: system, user: user, model: model)
+        func generate(system: String, user: String, history: [LLMTurn]) async throws -> String {
+            try await BuiltInLlamaBackend.shared.generate(system: system, user: user,
+                                                          history: history, model: model)
         }
     }
 

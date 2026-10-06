@@ -133,7 +133,7 @@ final class AppContextFormattingTests: XCTestCase {
     /// Stand-in for an external backend (Ollama / Remote), which must inherit the opt-out.
     private struct StubBackend: LLMCleanupBackend {
         var isReady = true
-        func generate(system: String, user: String) async throws -> String { "" }
+        func generate(system: String, user: String, history: [LLMTurn]) async throws -> String { "" }
     }
 
     func testExternalBackendsOptOutOfRatioGuard() {

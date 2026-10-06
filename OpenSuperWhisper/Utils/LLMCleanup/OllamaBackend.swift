@@ -12,7 +12,7 @@ struct OllamaBackend: LLMCleanupBackend {
     /// The settings UI uses `checkConnection` for an explicit, user-triggered probe.
     var isReady: Bool { true }
 
-    func generate(system: String, user: String) async throws -> String {
+    func generate(system: String, user: String, history: [LLMTurn]) async throws -> String {
         guard let base = URL(string: endpoint.trimmingCharacters(in: .whitespaces)) else {
             throw URLError(.badURL)
         }
@@ -23,10 +23,7 @@ struct OllamaBackend: LLMCleanupBackend {
             "model": model,
             "stream": false,
             "options": ["temperature": 0],
-            "messages": [
-                ["role": "system", "content": system],
-                ["role": "user", "content": user],
-            ],
+            "messages": LLMTurn.chatMessages(system: system, history: history, user: user),
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

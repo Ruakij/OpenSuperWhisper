@@ -13,7 +13,7 @@ struct RemoteBackend: LLMCleanupBackend {
     /// The settings UI's "Test Connection" does the explicit, user-triggered probe.
     var isReady: Bool { true }
 
-    func generate(system: String, user: String) async throws -> String {
+    func generate(system: String, user: String, history: [LLMTurn]) async throws -> String {
         guard let url = LLMPostProcessor.chatEndpoint(base: endpoint) else {
             throw URLError(.badURL)
         }
@@ -26,10 +26,7 @@ struct RemoteBackend: LLMCleanupBackend {
             "model": model,
             "temperature": 0,
             "stream": false,
-            "messages": [
-                ["role": "system", "content": system],
-                ["role": "user", "content": user],
-            ],
+            "messages": LLMTurn.chatMessages(system: system, history: history, user: user),
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

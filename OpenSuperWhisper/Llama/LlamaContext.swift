@@ -148,64 +148,56 @@ public final class LlamaContext {
 
     // MARK: - Chat prompt formatting
 
-    /// Formats a system+user pair into the model's chat template. Falls back to a
-    /// minimal ChatML-ish template if the model carries no built-in template.
-    private func formatChatPrompt(system: String, user: String) -> String {
-        guard let model else { return fallbackTemplate(system: system, user: user) }
+    /// Formats system, the earlier `history` turns and user into the model's chat template. Falls
+    /// back to a minimal ChatML-ish template if the model carries no built-in template.
+    private func formatChatPrompt(system: String, user: String, history: [LLMTurn] = []) -> String {
+        let turns: [(role: String, content: String)] = [("system", system)]
+            + history.flatMap { [("user", $0.user), ("assistant", $0.assistant)] }
+            + [("user", user)]
+        guard let model else { return fallbackTemplate(turns) }
 
-        // Keep the C strings alive for the duration of the llama_chat_apply_template call.
-        return system.withCString { sysC -> String in
-            user.withCString { usrC -> String in
-                let messages = [
-                    llama_chat_message(role: strdup("system"), content: sysC),
-                    llama_chat_message(role: strdup("user"), content: usrC),
-                ]
-                defer {
-                    free(UnsafeMutableRawPointer(mutating: messages[0].role))
-                    free(UnsafeMutableRawPointer(mutating: messages[1].role))
-                }
-
-                // Use the model's own template (tmpl == nil -> model default).
-                let tmpl: UnsafePointer<CChar>? = llama_model_chat_template(model, nil)
-
-                // First call to size the buffer, then realloc if needed.
-                var bufSize = Int32((system.utf8.count + user.utf8.count) * 2 + 256)
-                var buffer = [CChar](repeating: 0, count: Int(bufSize))
-                var written = messages.withUnsafeBufferPointer { msgPtr in
-                    llama_chat_apply_template(tmpl, msgPtr.baseAddress, msgPtr.count,
-                                              true, &buffer, bufSize)
-                }
-                if written < 0 {
-                    return fallbackTemplate(system: system, user: user)
-                }
-                if written > bufSize {
-                    bufSize = written + 1
-                    buffer = [CChar](repeating: 0, count: Int(bufSize))
-                    written = messages.withUnsafeBufferPointer { msgPtr in
-                        llama_chat_apply_template(tmpl, msgPtr.baseAddress, msgPtr.count,
-                                                  true, &buffer, bufSize)
-                    }
-                    if written < 0 {
-                        return fallbackTemplate(system: system, user: user)
-                    }
-                }
-                let count = Int(min(written, bufSize))
-                return String(decoding: buffer.prefix(count).map { UInt8(bitPattern: $0) },
-                              as: UTF8.self)
+        // The C strings must outlive the llama_chat_apply_template calls.
+        let messages = turns.map { llama_chat_message(role: strdup($0.role), content: strdup($0.content)) }
+        defer {
+            for message in messages {
+                free(UnsafeMutableRawPointer(mutating: message.role))
+                free(UnsafeMutableRawPointer(mutating: message.content))
             }
         }
+
+        // Use the model's own template (tmpl == nil -> model default).
+        let tmpl: UnsafePointer<CChar>? = llama_model_chat_template(model, nil)
+
+        // First call to size the buffer, then realloc if needed.
+        var bufSize = Int32(turns.reduce(0) { $0 + $1.content.utf8.count } * 2 + 256)
+        var buffer = [CChar](repeating: 0, count: Int(bufSize))
+        var written = messages.withUnsafeBufferPointer { msgPtr in
+            llama_chat_apply_template(tmpl, msgPtr.baseAddress, msgPtr.count,
+                                      true, &buffer, bufSize)
+        }
+        if written < 0 {
+            return fallbackTemplate(turns)
+        }
+        if written > bufSize {
+            bufSize = written + 1
+            buffer = [CChar](repeating: 0, count: Int(bufSize))
+            written = messages.withUnsafeBufferPointer { msgPtr in
+                llama_chat_apply_template(tmpl, msgPtr.baseAddress, msgPtr.count,
+                                          true, &buffer, bufSize)
+            }
+            if written < 0 {
+                return fallbackTemplate(turns)
+            }
+        }
+        let count = Int(min(written, bufSize))
+        return String(decoding: buffer.prefix(count).map { UInt8(bitPattern: $0) },
+                      as: UTF8.self)
     }
 
     /// Minimal ChatML-style fallback (Qwen uses ChatML) if no template is available.
-    private func fallbackTemplate(system: String, user: String) -> String {
-        return """
-        <|im_start|>system
-        \(system)<|im_end|>
-        <|im_start|>user
-        \(user)<|im_end|>
-        <|im_start|>assistant
-
-        """
+    private func fallbackTemplate(_ turns: [(role: String, content: String)]) -> String {
+        turns.map { "<|im_start|>\($0.role)\n\($0.content)<|im_end|>\n" }.joined()
+            + "<|im_start|>assistant\n"
     }
 
     // MARK: - Tokenization helpers
@@ -261,8 +253,8 @@ public final class LlamaContext {
 
     /// Runs a single-shot chat completion: formats the prompt, appends `assistantPrefill`, decodes
     /// the prompt tokens, then greedily samples up to `maxTokens` tokens, stopping at EOG.
-    public func generate(system: String, user: String, assistantPrefill: String? = nil,
-                         maxTokens: Int = 512) -> String {
+    public func generate(system: String, user: String, history: [LLMTurn] = [],
+                         assistantPrefill: String? = nil, maxTokens: Int = 512) -> String {
         guard let ctx, let sampler else { return "" }
 
         // Every call is an independent completion, so start from an empty KV cache. This is not
@@ -275,11 +267,19 @@ public final class LlamaContext {
         llama_memory_clear(llama_get_memory(ctx), true)
         llama_sampler_reset(sampler)
 
-        let prompt = formatChatPrompt(system: system, user: user) + (assistantPrefill ?? "")
-        var promptTokens = tokenize(prompt, addSpecial: true)
+        let nCtx = Int(llama_n_ctx(ctx))
+        // History is optional context: drop the oldest turns until the prompt leaves room for the
+        // answer, so the system prompt at the front is never what gets cut.
+        var history = history
+        var promptTokens: [llama_token]
+        while true {
+            let prompt = formatChatPrompt(system: system, user: user, history: history) + (assistantPrefill ?? "")
+            promptTokens = tokenize(prompt, addSpecial: true)
+            if history.isEmpty || promptTokens.count + maxTokens <= nCtx { break }
+            history.removeFirst()
+        }
         guard !promptTokens.isEmpty else { return "" }
 
-        let nCtx = Int(llama_n_ctx(ctx))
         if promptTokens.count >= nCtx {
             // Truncate the prompt if it doesn't fit; leave room for the response.
             promptTokens = Array(promptTokens.suffix(nCtx - 1))

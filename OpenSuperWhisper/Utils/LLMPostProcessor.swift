@@ -13,11 +13,33 @@ protocol LLMCleanupBackend {
     /// original blank-output-only check, so a user who repurposed the instruction on a big model
     /// (condensing, expanding) isn't second-guessed.
     var enforcesLengthRatio: Bool { get }
-    func generate(system: String, user: String) async throws -> String
+    /// `history` goes in as earlier chat turns between the system prompt and `user`.
+    func generate(system: String, user: String, history: [LLMTurn]) async throws -> String
 }
 
 extension LLMCleanupBackend {
     var enforcesLengthRatio: Bool { false }
+
+    func generate(system: String, user: String) async throws -> String {
+        try await generate(system: system, user: user, history: [])
+    }
+}
+
+/// One earlier exchange shown to the model as context: what it was given and what it returned.
+/// Long dictation passes the previous parts this way; as turns they gave the best context in a
+/// benchmark, while the same text in the system prompt leaked into the output of a small model.
+/// Public because `LlamaContext.generate`, which takes it, is.
+public struct LLMTurn: Equatable {
+    let user: String
+    let assistant: String
+
+    /// The role/content message list of the chat APIs: system, the turns, then `user`.
+    static func chatMessages(system: String, history: [LLMTurn], user: String) -> [[String: String]] {
+        [["role": "system", "content": system]]
+            + history.flatMap { [["role": "user", "content": $0.user],
+                                 ["role": "assistant", "content": $0.assistant]] }
+            + [["role": "user", "content": user]]
+    }
 }
 
 /// Result of probing an LLM-cleanup backend for the settings UI.
@@ -56,6 +78,7 @@ enum LLMPostProcessor {
     /// and app-aware formatting (`appContextFormattingEnabled`). Either, both, or neither may run.
     /// `backend` overrides the configured one (the benchmark pins a specific built-in model).
     static func process(_ text: String, bundleID: String?, translating: Bool = false,
+                        history: [LLMTurn] = [],
                         backend: LLMCleanupBackend? = nil) async -> String {
         let prefs = AppPreferences.shared
         let general = prefs.aiPostProcessingEnabled
@@ -80,7 +103,8 @@ enum LLMPostProcessor {
         do {
             // The transcription goes over as-is: everything the model is told lives in the system
             // prompt the user can see and edit.
-            let result = strippingThinking(try await backend.generate(system: system, user: text))
+            let result = strippingThinking(try await backend.generate(system: system, user: text,
+                                                                         history: history))
             // Blank output always falls back to the verbatim transcription. The length-ratio check
             // on top of that runs only for backends that ask for it (the small built-in model), and
             // an active app profile relaxes its shrink floor because those rules condense on
