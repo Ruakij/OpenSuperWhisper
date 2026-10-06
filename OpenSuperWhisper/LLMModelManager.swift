@@ -105,8 +105,18 @@ class LLMModelManager {
         assistantPrefill: noThinking
     )
 
+    /// The 4B at Q3 keeps nearly all of its quality in 450 MB less RAM, for 8 GB Macs.
+    static let compactMediumModel = LLMModelDescriptor(
+        displayName: "Qwen3.5 4B Q3",
+        fileName: "Qwen3.5-4B-Q3_K_M.gguf",
+        downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q3_K_M.gguf?download=true")!,
+        approxBytes: 2_293_388_448,
+        ramMB: 3000, secondsPerDictation: 1.3, qualityScore: 9.0,
+        assistantPrefill: noThinking
+    )
+
     static let mediumModel = LLMModelDescriptor(
-        displayName: "Qwen3.5 4B",
+        displayName: "Qwen3.5 4B Q4",
         fileName: "Qwen3.5-4B-Q4_K_M.gguf",
         downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf?download=true")!,
         approxBytes: 2_740_937_888,
@@ -116,7 +126,7 @@ class LLMModelManager {
 
     /// Everything offered in Settings, smallest first. No 9B: its 2-bit quant scored below the
     /// 4B Q4 while taking more RAM and time.
-    static let availableModels: [LLMModelDescriptor] = [tinyModel, defaultModel, mediumModel]
+    static let availableModels: [LLMModelDescriptor] = [tinyModel, defaultModel, compactMediumModel, mediumModel]
 
     /// The descriptor for a stored file name, falling back to the default so an unknown or stale
     /// preference can never leave the app without a model.
