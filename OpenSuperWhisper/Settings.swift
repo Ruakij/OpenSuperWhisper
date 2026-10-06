@@ -1591,6 +1591,7 @@ struct SettingsView: View {
     @State private var appLanguage = LanguageManager.selected
     @State private var langNeedsRelaunch = false
     @State private var showPunctuationCalibration = false
+    @State private var showCleanupBenchmark = false
     @ObservedObject private var fileDrop = FileDropHandler.shared
 
     /// `initialTab` is for the layout tests, which render every pane in turn (#138).
@@ -1941,6 +1942,10 @@ struct SettingsView: View {
                 },
                 onCancel: { showPunctuationCalibration = false })
             .environment(\.appTextScale, viewModel.textScale)
+        }
+        .sheet(isPresented: $showCleanupBenchmark) {
+            CleanupBenchmarkView(onClose: { showCleanupBenchmark = false })
+                .environment(\.appTextScale, viewModel.textScale)
         }
     }
     
@@ -2468,6 +2473,16 @@ struct SettingsView: View {
                     if viewModel.aiBackend != "builtin" {
                         HStack { Spacer(); llmStatusView }
                             .padding(.leading, 16)
+                    }
+
+                    // Without general cleanup there is no prompt for a sample to go through.
+                    if viewModel.aiPostProcessingEnabled {
+                        SRow(title: "Benchmark",
+                             hint: "Time this backend, or every downloaded built-in model, on sample dictations and compare their output",
+                             indented: true) {
+                            Button("Benchmark") { showCleanupBenchmark = true }
+                                .controlSize(.small)
+                        }
                     }
                 }
                 if viewModel.aiPostProcessingEnabled || viewModel.appContextFormattingEnabled {

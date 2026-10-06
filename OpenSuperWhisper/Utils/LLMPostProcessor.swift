@@ -54,7 +54,9 @@ enum LLMPostProcessor {
     /// Cleans and/or app-formats `text` for the frontmost app identified by `bundleID`. Two
     /// independent capabilities feed one LLM pass: general prose cleanup (`aiPostProcessingEnabled`)
     /// and app-aware formatting (`appContextFormattingEnabled`). Either, both, or neither may run.
-    static func process(_ text: String, bundleID: String?, translating: Bool = false) async -> String {
+    /// `backend` overrides the configured one (the benchmark pins a specific built-in model).
+    static func process(_ text: String, bundleID: String?, translating: Bool = false,
+                        backend: LLMCleanupBackend? = nil) async -> String {
         let prefs = AppPreferences.shared
         let general = prefs.aiPostProcessingEnabled
         let formatting = prefs.appContextFormattingEnabled
@@ -71,7 +73,7 @@ enum LLMPostProcessor {
                                                 translationPrompt: prefs.aiPostProcessingTranslation)
         else { return text }
 
-        let backend = currentBackend()
+        let backend = backend ?? currentBackend()
         guard backend.isReady else { return text }
 
         do {

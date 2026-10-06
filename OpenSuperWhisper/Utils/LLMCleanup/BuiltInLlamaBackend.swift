@@ -57,14 +57,13 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
     }
 
     func generate(system: String, user: String) async throws -> String {
+        try await generate(system: system, user: user, model: selectedModel)
+    }
+
+    func generate(system: String, user: String, model: LLMModelDescriptor) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             inferenceQueue.async { [weak self] in
-                guard let self else {
-                    continuation.resume(throwing: BuiltInLlamaError.modelNotReady)
-                    return
-                }
-                let model = self.selectedModel
-                guard let ctx = self.loadContextOnQueue(model) else {
+                guard let self, let ctx = self.loadContextOnQueue(model) else {
                     continuation.resume(throwing: BuiltInLlamaError.modelNotReady)
                     return
                 }
@@ -77,11 +76,41 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
         }
     }
 
+    /// Loads `model` from scratch, dropping whatever context is loaded, and reports whether it
+    /// loaded. The benchmark times this, so it must not return an already-warm context.
+    func reload(_ model: LLMModelDescriptor) async -> Bool {
+        await withCheckedContinuation { continuation in
+            inferenceQueue.async { [weak self] in
+                guard let self else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                self.context = nil
+                self.loadedFileName = nil
+                let loaded = self.loadContextOnQueue(model) != nil
+                self.scheduleIdleUnloadOnQueue()
+                continuation.resume(returning: loaded)
+            }
+        }
+    }
+
+    /// The cleanup on one particular downloaded model instead of the selected one, so the
+    /// benchmark can compare models through the same `LLMPostProcessor.process` path.
+    struct Pinned: LLMCleanupBackend {
+        let model: LLMModelDescriptor
+        var isReady: Bool { LLMModelManager.shared.isModelDownloaded(name: model.fileName) }
+        var enforcesLengthRatio: Bool { true }
+
+        func generate(system: String, user: String) async throws -> String {
+            try await BuiltInLlamaBackend.shared.generate(system: system, user: user, model: model)
+        }
+    }
+
     // MARK: - inferenceQueue-confined state
 
     /// Returns the cached context, loading it if needed. Must run on `inferenceQueue`.
     ///
-    /// A context is only reused while it belongs to the selected model: switching models in
+    /// A context is only reused while it belongs to the requested model: switching models in
     /// Settings otherwise keeps answering from the previously loaded GGUF until the idle release
     /// happens to fire, which looks exactly like the switch having no effect.
     private func loadContextOnQueue(_ model: LLMModelDescriptor) -> LlamaContext? {
