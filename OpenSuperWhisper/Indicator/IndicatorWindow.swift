@@ -364,7 +364,8 @@ class IndicatorViewModel: ObservableObject {
         resetCancelConfirmation()
         isLatched = false
         recordingStartedAt = nil
-        longDictation?.cancel()
+        // Reached without a user cancel when the recording failed: the text so far stays in history.
+        longDictation?.cancel(keepingHistory: true)
         longDictation = nil
         hideTimer?.invalidate()
         hideTimer = nil

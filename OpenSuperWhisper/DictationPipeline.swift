@@ -108,7 +108,7 @@ final class DictationPipeline: ObservableObject {
                  submitAfterInsert: Bool = false, longDictation: LongDictationSession? = nil) {
         seqCounter += 1
         queue.append(PendingDictation(
-            id: UUID(),
+            id: longDictation?.historyID ?? UUID(),
             seq: seqCounter,
             startedAt: startedAt,
             tempURL: tempURL,
@@ -208,6 +208,7 @@ final class DictationPipeline: ObservableObject {
             // still comes back here, and this is the last point before the text reaches the
             // user's document. Nothing is saved or inserted.
             if discarding {
+                item.longDictation?.discardHistoryEntry()
                 discardAudio(item.tempURL)
                 return
             }
@@ -232,6 +233,7 @@ final class DictationPipeline: ObservableObject {
                     .cleanTranscription(item.streamedFallback)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !fallback.isEmpty else {
+                    item.longDictation?.discardHistoryEntry()
                     discardAudio(item.tempURL)
                     IndicatorWindowManager.shared.flash(.info("No speech detected"))
                     return
@@ -293,8 +295,10 @@ final class DictationPipeline: ObservableObject {
                     id: recordingId, timestamp: timestamp, fileName: fileName,
                     finalURL: finalURL, transcription: text,
                     status: .completed, progress: 1.0, context: item.context,
-                    modelUsed: modelUsed, wasFallback: wasFallback)
+                    modelUsed: modelUsed, wasFallback: wasFallback,
+                    replacing: item.longDictation?.takeOverHistoryEntry() ?? false)
             } else {
+                item.longDictation?.discardHistoryEntry()
                 discardAudio(item.tempURL)
             }
 
@@ -335,13 +339,15 @@ final class DictationPipeline: ObservableObject {
             // button. Otherwise discard. Either way, surface the failure — silent loss is worse.
             if AppPreferences.shared.saveTranscriptionHistory,
                let clip = item.tempURL,
-               let saved = persistFailedRecording(timestamp: item.startedAt, tempURL: clip) {
+               let saved = persistFailedRecording(id: item.id, timestamp: item.startedAt, tempURL: clip) {
                 await storeRecording(
                     id: saved.id, timestamp: saved.timestamp, fileName: saved.fileName,
                     finalURL: saved.url, transcription: "Transcription failed — click ↻ to try again.",
                     status: .failed, progress: 0, context: item.context,
-                    modelUsed: nil, wasFallback: false)
+                    modelUsed: nil, wasFallback: false,
+                    replacing: item.longDictation?.takeOverHistoryEntry() ?? false)
             } else {
+                item.longDictation?.discardHistoryEntry()
                 discardAudio(item.tempURL)
             }
             IndicatorWindowManager.shared.flash(.error("Transcription failed"))
@@ -350,16 +356,17 @@ final class DictationPipeline: ObservableObject {
 
     /// Insert a recording (already at its final URL) into the store with the measured audio duration
     /// and the captured source context (app / window / URL / model used). Moved here from the
-    /// indicator view model so the save path is shared and can't drift.
+    /// indicator view model so the save path is shared and can't drift. `replacing` finalizes the
+    /// row a long dictation already wrote under `id` while recording.
     private func storeRecording(id: UUID, timestamp: Date, fileName: String, finalURL: URL,
                                 transcription: String, status: RecordingStatus, progress: Float,
                                 context: ContextSnapshot,
-                                modelUsed: String?, wasFallback: Bool) async {
+                                modelUsed: String?, wasFallback: Bool, replacing: Bool = false) async {
         // `modelUsed`/`wasFallback` are captured by the caller right after `transcribeAudio`
         // returns — NOT read here, because the `await` below can suspend long enough for another
         // transcription to overwrite them on the shared service. (parallel-recording review)
         let realDuration = await IndicatorViewModel.audioDuration(of: finalURL)
-        recordingStore.addRecording(Recording(
+        let recording = Recording(
             id: id,
             timestamp: timestamp,
             fileName: fileName,
@@ -372,14 +379,18 @@ final class DictationPipeline: ObservableObject {
             sourceWindowTitle: context.windowTitle,
             sourceURL: context.fullURL,
             modelUsed: modelUsed,
-            wasFallback: wasFallback))
+            wasFallback: wasFallback)
+        if replacing {
+            recordingStore.updateRecording(recording)
+        } else {
+            recordingStore.addRecording(recording)
+        }
     }
 
     /// Move a temp recording to its permanent location after a FAILED transcription so the audio
     /// survives and can be re-run from the history list. Returns the saved identity, or nil if the
     /// move failed (then the temp is discarded).
-    private func persistFailedRecording(timestamp: Date, tempURL: URL) -> (id: UUID, timestamp: Date, fileName: String, url: URL)? {
-        let id = UUID()
+    private func persistFailedRecording(id: UUID, timestamp: Date, tempURL: URL) -> (id: UUID, timestamp: Date, fileName: String, url: URL)? {
         let fileName = "\(Int(timestamp.timeIntervalSince1970))-\(id.uuidString.prefix(8)).wav"
         let finalURL = Recording(
             id: id,

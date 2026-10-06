@@ -41,6 +41,14 @@ final class LongDictationSession {
     /// them in recording order after any dictation queued before this one.
     private var finishing = false
 
+    /// The history row written after every cleaned part, so a crash or quit keeps the text so
+    /// far. It stays `.failed` until the pipeline finalizes it under the same id: a leftover is a
+    /// partial take, and an active status would get it deleted at launch as a queue entry without
+    /// a source file. No audio until then; the file name is overwritten at finalization.
+    private let historyEntry: Recording
+    var historyID: UUID { historyEntry.id }
+    private var historySaved = false
+
     /// A tail shorter than this is not worth a transcription; Whisper tends to hallucinate on it.
     private static let minimumTailSeconds = 0.3
 
@@ -57,6 +65,14 @@ final class LongDictationSession {
             silenceDb: min(max(prefs.longDictationSilenceDb, -60), -20))
         contextChunks = min(max(prefs.longDictationContextChunks, 0), 8)
         livePaste = prefs.longDictationLivePaste
+        let id = UUID()
+        let now = Date()
+        historyEntry = Recording(
+            id: id, timestamp: now,
+            fileName: "\(Int(now.timeIntervalSince1970))-\(id.uuidString.prefix(8)).wav",
+            transcription: "", duration: 0, status: .failed, progress: 0, sourceFileURL: nil,
+            sourceAppName: context.appName, sourceWindowTitle: context.windowTitle,
+            sourceURL: context.fullURL, modelUsed: modelOption?.displayName)
     }
 
     /// Whether the recording has to end through `finish` rather than the normal path: some
@@ -114,13 +130,35 @@ final class LongDictationSession {
     }
 
     /// Drops everything: no more chunks, no live paste, temp files removed.
-    func cancel() {
+    /// `keepingHistory` leaves the history row with the text so far, for a take that ended
+    /// without the user asking to throw it away (the recording died).
+    func cancel(keepingHistory: Bool = false) {
         cancelled = true
         onOutstandingChange = nil
         pollTask?.cancel()
         pollTask = nil
         finishTask?.cancel()
         deleteTempFiles()
+        guard !keepingHistory else { return }
+        // The user threw the take away, so its history row goes too, once a write in flight landed.
+        let chain = chain
+        Task {
+            await chain?.value
+            discardHistoryEntry()
+        }
+    }
+
+    /// Whether a history row under `historyID` exists, handing it to the caller: the session no
+    /// longer writes or deletes it. Call after `result()`, which waits for the last write.
+    func takeOverHistoryEntry() -> Bool {
+        defer { historySaved = false }
+        return historySaved
+    }
+
+    /// Deletes the history row written while recording, unless the pipeline took it over.
+    func discardHistoryEntry() {
+        guard takeOverHistoryEntry() else { return }
+        RecordingStore.shared.deleteRecording(historyEntry)
     }
 
     // MARK: - Private
@@ -195,6 +233,7 @@ final class LongDictationSession {
         guard !cancelled else { return }
         turns.append(LLMTurn(user: raw, assistant: cleaned))
         parts.append(cleaned)
+        await saveHistory()
         // A part not pasted here waits for the next live paste or the final insert. Earlier
         // dictations still in the pipeline insert first, and a held modifier (the push-to-talk
         // key) would merge into the synthetic paste.
@@ -213,6 +252,22 @@ final class LongDictationSession {
         }
         lastInsertedEndsInSpace = text.last?.isWhitespace ?? false
         insertedParts = parts.count
+    }
+
+    private func saveHistory() async {
+        guard AppPreferences.shared.saveTranscriptionHistory else { return }
+        var entry = historyEntry
+        entry.transcription = LongDictationCore.joined(parts)
+        do {
+            if historySaved {
+                try await RecordingStore.shared.updateRecordingSync(entry)
+            } else {
+                try await RecordingStore.shared.addRecordingSync(entry)
+                historySaved = true
+            }
+        } catch {
+            Diag.mark("longDictation.history save failed: \(error.localizedDescription)")
+        }
     }
 
     private func deleteTempFiles() {
