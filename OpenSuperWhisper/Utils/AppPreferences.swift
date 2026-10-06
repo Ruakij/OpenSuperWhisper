@@ -449,8 +449,10 @@ final class AppPreferences {
     @UserDefault(key: "removeFillerWords", defaultValue: false)
     var removeFillerWords: Bool
 
-    /// User-editable, case-insensitive regex matching the filler words to remove.
-    @UserDefault(key: "fillerWordsPattern", defaultValue: "\\b(um|uh|uh huh|er|ah|hmm|mm)\\b,?\\s*")
+    /// User-editable, case-insensitive regex matching the filler words to remove. English and
+    /// German fillers, minus the ones that are also German words: "er" (he) never, and "um" only
+    /// when a comma follows, so "um drei" survives.
+    @UserDefault(key: "fillerWordsPattern", defaultValue: "\\b(?:uh huh|uh+|um+(?=,)|erm|ehm|hm+|mm+|mhm|ah|äh+m?|öh+m?|euh)\\b,?\\s*")
     var fillerWordsPattern: String
 
     /// Removes the configured filler words (when enabled) and tidies leftover whitespace.

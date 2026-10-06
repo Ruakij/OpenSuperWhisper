@@ -2454,7 +2454,7 @@ struct SettingsView: View {
             }
 
             SSection(title: "Cleanup") {
-                SRow(title: "Remove filler words", hint: "Strip um, uh, er… before inserting") {
+                SRow(title: "Remove filler words", hint: "Strip um, uh, äh, ähm… before inserting") {
                     SToggle(isOn: $viewModel.removeFillerWords)
                 }
                 if viewModel.removeFillerWords {
