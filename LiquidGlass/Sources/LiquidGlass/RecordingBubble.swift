@@ -460,15 +460,20 @@ public extension View {
 
 private struct CaptionTail: ViewModifier {
     let maxHeight: CGFloat
-    @State private var overflows = false
+    @State private var height: CGFloat = 0
+
+    private var overflows: Bool { height > maxHeight + 0.5 }
 
     func body(content: Content) -> some View {
         content
             .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: Bool.self) { $0.size.height > maxHeight + 0.5 } action: { overflows = $0 }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+            // Pinned to the bottom by an offset rather than the frame alignment, so a new line can
+            // slide in. Only the offset is animated: it moves pixels, never the window size.
+            .animation(.easeOut(duration: 0.25)) { $0.offset(y: overflows ? maxHeight - height : 0) }
             // Fixed rather than a maxHeight frame: a flexible frame takes whatever height the
             // window offers, and the window is sized from this very measurement.
-            .frame(height: overflows ? maxHeight : nil, alignment: .bottom)
+            .frame(height: overflows ? maxHeight : nil, alignment: .top)
             .clipped()
             .mask {
                 VStack(spacing: 0) {
