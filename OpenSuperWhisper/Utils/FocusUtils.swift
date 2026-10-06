@@ -111,14 +111,24 @@ class FocusUtils {
         return NSPoint(x: axPoint.x, y: cocoaY)
     }
     
-    /// Finds the screen that contains the given point (in Cocoa coordinates)
+    /// Finds the screen that contains the given point (in Cocoa coordinates), or the nearest one
     static func screenContaining(point: NSPoint) -> NSScreen? {
-        for screen in NSScreen.screens {
-            if screen.frame.contains(point) {
-                return screen
-            }
+        let screens = NSScreen.screens
+        return nearestFrameIndex(to: point, in: screens.map(\.frame)).map { screens[$0] } ?? NSScreen.main
+    }
+
+    /// The frame containing `point`, else the one closest to it. A point on no frame is common:
+    /// `NSEvent.mouseLocation` on a screen's top row is exactly its `maxY`, which `contains`
+    /// excludes, and a caret can sit in the gap between unevenly sized displays. `NSScreen.main` is
+    /// the wrong answer there: it is the screen with the key window, and clamping the point into
+    /// it lands the bubble in that screen's corner. Pure, for testing.
+    static func nearestFrameIndex(to point: NSPoint, in frames: [CGRect]) -> Int? {
+        if let inside = frames.firstIndex(where: { $0.contains(point) }) { return inside }
+        func distance(_ frame: CGRect) -> CGFloat {
+            hypot(max(frame.minX - point.x, 0, point.x - frame.maxX),
+                  max(frame.minY - point.y, 0, point.y - frame.maxY))
         }
-        return NSScreen.main
+        return frames.indices.min { distance(frames[$0]) < distance(frames[$1]) }
     }
     
     static func getFocusedWindowScreen() -> NSScreen? {

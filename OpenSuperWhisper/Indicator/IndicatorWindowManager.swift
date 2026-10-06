@@ -186,7 +186,9 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         window?.level = .screenSaver
         window?.collectionBehavior = [.fullScreenAuxiliary, .stationary, .canJoinAllSpaces, .ignoresCycle]
 
-        window?.orderFront(nil)
+        // `orderFront` is only guaranteed to bring the window up while this app is active, and it
+        // is inactive whenever the user dictates into another app.
+        window?.orderFrontRegardless()
         return newViewModel
     }
 
