@@ -314,6 +314,19 @@ final class AppContextFormattingTests: XCTestCase {
         XCTAssertFalse(system?.contains("OPENING") ?? true)
     }
 
+    // MARK: - the filler-word sentence follows the filler setting
+
+    func testTheFillerInstructionFollowsTheSetting() {
+        let off = LLMPostProcessor.assembleSystemPrompt(
+            generalCleanup: true, generalPrompt: "OPENING", profile: nil, closingPrompt: "CLOSING")
+        XCTAssertEqual(off, "OPENING\n\nCLOSING")
+
+        let on = LLMPostProcessor.assembleSystemPrompt(
+            generalCleanup: true, generalPrompt: "OPENING", profile: nil, closingPrompt: "CLOSING",
+            removingFillers: true)
+        XCTAssertEqual(on, "OPENING\n\n\(LLMPostProcessor.fillerWordsInstruction)\n\nCLOSING")
+    }
+
     // MARK: - the instruction that only exists while translating
 
     /// The disappearance is the request. Instructions about translating, left in the general
