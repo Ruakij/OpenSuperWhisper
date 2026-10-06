@@ -120,10 +120,8 @@ enum LongDictationCore {
     /// Once at least `targetSeconds` are buffered, cuts at the middle of the first run of
     /// 20 ms frames below `silenceDb` that lasts `minGapMs` and reaches past the target. Without
     /// such a run, waits until `maxSeconds` and then cuts at the middle of the quietest
-    /// `minGapMs` window in [target, max].
-    // ponytail: no audio overlap between chunks, so the hard cut at max length can split a word;
-    // upgrade path is a short overlap plus aligning the two transcripts on their shared words.
-    static func findCut(samples: [Float], _ p: CutParameters) -> Int? {
+    /// `minGapMs` window in [target, max]; that cut is `hard`, as it can split a word.
+    static func findCut(samples: [Float], _ p: CutParameters) -> (at: Int, hard: Bool)? {
         let frameLen = p.sampleRate * frameMs / 1000
         guard frameLen > 0 else { return nil }
         let frames = samples.count / frameLen
@@ -147,13 +145,13 @@ enum LongDictationCore {
                 // Let the run grow to its end (or to what is buffered) before picking its middle.
                 var end = f + 1
                 while end < searchEnd, energies[end] < threshold { end += 1 }
-                return (start + end) / 2 * frameLen
+                return ((start + end) / 2 * frameLen, false)
             }
         }
 
         guard frames >= maxFrame else { return nil }
         let window = min(gapFrames, maxFrame - targetFrame)
-        guard window > 0 else { return maxFrame * frameLen }
+        guard window > 0 else { return (maxFrame * frameLen, true) }
         var best = targetFrame
         var bestSum = Float.greatestFiniteMagnitude
         var sum = energies[targetFrame..<targetFrame + window].reduce(0, +)
@@ -161,7 +159,7 @@ enum LongDictationCore {
             if start > targetFrame { sum += energies[start + window - 1] - energies[start - 1] }
             if sum < bestSum { bestSum = sum; best = start }
         }
-        return (best + window / 2) * frameLen
+        return ((best + window / 2) * frameLen, true)
     }
 
     /// Whether every whole 20 ms frame of `samples` is below `silenceDb`. Whisper invents text
@@ -186,16 +184,61 @@ enum LongDictationCore {
     /// RMS in dBFS compared as mean square: 20*log10(rms) < db  <=>  ms < 10^(db/10).
     private static func silenceThreshold(_ db: Double) -> Float { Float(pow(10, db / 10)) }
 
-    /// Splits off every chunk `findCut` finds in `samples`, in order. What is left after the
-    /// last cut stays uncut and is not returned.
-    static func chunks(samples: [Float], _ p: CutParameters) -> [[Float]] {
-        var rest = samples[...]
-        var out: [[Float]] = []
-        while let cut = findCut(samples: Array(rest), p), cut > 0 {
-            out.append(Array(rest.prefix(cut)))
-            rest = rest.dropFirst(cut)
+    /// Audio a chunk after a hard cut repeats from the end of the previous one, so a word split
+    /// by the cut is whole in at least one of them; `spliceOverlap` drops the doubled words.
+    static let overlapSeconds = 1.0
+
+    /// Splits off every chunk `findCut` finds in `samples`, in order, each with whether its cut
+    /// was hard. After a hard cut the next chunk starts `overlapSeconds` before it. `consumed`
+    /// is where the uncut rest begins, which is not returned.
+    static func chunks(samples: [Float], _ p: CutParameters)
+        -> (chunks: [(samples: [Float], hardCut: Bool)], consumed: Int) {
+        var start = 0
+        var out: [(samples: [Float], hardCut: Bool)] = []
+        while let cut = findCut(samples: Array(samples[start...]), p), cut.at > 0 {
+            out.append((Array(samples[start..<start + cut.at]), cut.hard))
+            let overlap = cut.hard ? min(Int(overlapSeconds * Double(p.sampleRate)), cut.at / 2) : 0
+            start += cut.at - overlap
         }
-        return out
+        return (out, start)
+    }
+
+    // MARK: - Overlap splice
+
+    /// How many words at the end of `previous` and the start of `next` the overlap can span.
+    static let overlapWords = 12
+
+    /// Removes the words two chunks share after a hard cut. Finds the longest run of at least two
+    /// words (compared without case and punctuation) common to the last `overlapWords` words of
+    /// `previous` and the first `overlapWords` of `next`, keeps `previous` up to the end of that
+    /// run and `next` after it, which also drops a word fragment the cut left on either side.
+    /// Without such a run both come back unchanged.
+    static func spliceOverlap(previous: String, next: String) -> (previous: String, next: String) {
+        func words(_ text: String) -> [(range: Range<String.Index>, key: String)] {
+            text.split(whereSeparator: \.isWhitespace).map { word in
+                (word.startIndex..<word.endIndex,
+                 String(word.lowercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }))
+            }
+        }
+        let prev = Array(words(previous).suffix(overlapWords))
+        let allNext = words(next)
+        let nxt = Array(allNext.prefix(overlapWords))
+        var best = (length: 1, prevEnd: 0, nextEnd: 0)
+        for i in prev.indices {
+            for j in nxt.indices {
+                var length = 0
+                while i + length < prev.count, j + length < nxt.count,
+                      !prev[i + length].key.isEmpty, prev[i + length].key == nxt[j + length].key {
+                    length += 1
+                }
+                if length > best.length { best = (length, i + length - 1, j + length - 1) }
+            }
+        }
+        guard best.length >= 2 else { return (previous, next) }
+        let kept = String(previous[..<prev[best.prevEnd].range.upperBound])
+        let after = best.nextEnd + 1 < allNext.count
+            ? String(next[allNext[best.nextEnd + 1].range.lowerBound...]) : ""
+        return (kept, after)
     }
 
     // MARK: - Sentence carry

@@ -33,7 +33,8 @@ final class LongDictationCoreTests: XCTestCase {
     func testCutsInTheMiddleOfTheFirstPauseAfterTheTarget() {
         let samples = speech(20) + silence(0.6) + speech(13) + silence(0.5) + speech(7)
         let cut = Core.findCut(samples: samples, params)
-        XCTAssertEqual(seconds(cut ?? 0), 33.85, accuracy: 0.05)
+        XCTAssertEqual(seconds(cut?.at ?? 0), 33.85, accuracy: 0.05)
+        XCTAssertEqual(cut?.hard, false)
     }
 
     func testWaitsBeforeTheTargetAndBeforeMaxWithoutAPause() {
@@ -43,16 +44,50 @@ final class LongDictationCoreTests: XCTestCase {
 
     func testCutsAtTheQuietestPointWithoutAPause() {
         let samples = speech(40) + speech(0.4, amp: 0.02) + speech(10)
-        let cut = Core.findCut(samples: samples, params) ?? 0
-        XCTAssertEqual(seconds(cut), 40.2, accuracy: 0.25)
-        XCTAssertLessThanOrEqual(cut, 45 * sr)
+        let cut = Core.findCut(samples: samples, params)
+        XCTAssertEqual(seconds(cut?.at ?? 0), 40.2, accuracy: 0.25)
+        XCTAssertLessThanOrEqual(cut?.at ?? 0, 45 * sr)
+        XCTAssertEqual(cut?.hard, true)
     }
 
     func testChunksLeaveTheUncutRest() {
         let samples = speech(33) + silence(0.5) + speech(32) + silence(0.5) + speech(5)
-        let chunks = Core.chunks(samples: samples, params)
-        XCTAssertEqual(chunks.count, 2)
-        XCTAssertEqual(seconds(chunks[0].count), 33.24, accuracy: 0.05)
+        let split = Core.chunks(samples: samples, params)
+        XCTAssertEqual(split.chunks.count, 2)
+        XCTAssertEqual(seconds(split.chunks[0].samples.count), 33.24, accuracy: 0.05)
+        XCTAssertEqual(split.consumed, split.chunks.map(\.samples.count).reduce(0, +))
+    }
+
+    func testChunkAfterAHardCutRepeatsTheOverlap() {
+        let samples = speech(50) + speech(10)
+        let split = Core.chunks(samples: samples, params)
+        XCTAssertEqual(split.chunks.count, 1)
+        XCTAssertTrue(split.chunks[0].hardCut)
+        let overlap = Int(Core.overlapSeconds * Double(sr))
+        XCTAssertEqual(split.consumed, split.chunks[0].samples.count - overlap)
+        XCTAssertEqual(Array(samples[split.consumed..<split.chunks[0].samples.count]),
+                       Array(split.chunks[0].samples.suffix(overlap)))
+    }
+
+    func testSpliceDropsTheDoubledWords() {
+        let r = Core.spliceOverlap(previous: "We met at the station and then", next: "and then we went home.")
+        XCTAssertEqual(r.previous, "We met at the station and then")
+        XCTAssertEqual(r.next, "we went home.")
+    }
+
+    func testSpliceDropsAFragmentOnEitherSide() {
+        var r = Core.spliceOverlap(previous: "We walked to the old sta", next: "to the old station, Then")
+        XCTAssertEqual(r.previous, "We walked to the old")
+        XCTAssertEqual(r.next, "station, Then")
+        r = Core.spliceOverlap(previous: "We walked to the old station", next: "he old station, then home")
+        XCTAssertEqual(r.previous, "We walked to the old station")
+        XCTAssertEqual(r.next, "then home")
+    }
+
+    func testSpliceWithoutSharedWordsKeepsBoth() {
+        let r = Core.spliceOverlap(previous: "First part ends here", next: "here second part begins")
+        XCTAssertEqual(r.previous, "First part ends here")
+        XCTAssertEqual(r.next, "here second part begins")
     }
 
     func testSilentAudioIsSkippedAndAnySoundIsNot() {

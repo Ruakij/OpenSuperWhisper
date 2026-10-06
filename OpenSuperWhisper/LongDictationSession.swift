@@ -23,6 +23,9 @@ final class LongDictationSession {
     /// A chunk failed to transcribe, so its words are missing from `parts`.
     private(set) var failed = false
     private var pending = ""
+    /// Raw text of a chunk that ended in a hard cut, waiting to be spliced with the next chunk,
+    /// which repeats the end of its audio.
+    private var heldRaw: String?
     /// Whisper prompt context for the next chunk: the field text at record start, then the tail
     /// of the previous chunk, so names and spelling stay the same across cuts.
     private var promptContext: String?
@@ -108,9 +111,10 @@ final class LongDictationSession {
             await poller?.value
             if let read = await Self.read(url: url, fromFrame: cutFrame),
                Double(read.samples.count) >= Self.minimumTailSeconds * Double(read.sampleRate) {
-                enqueueChunk(read.samples, sampleRate: read.sampleRate)
+                enqueueChunk(read.samples, sampleRate: read.sampleRate, hardCut: false)
             }
             enqueue { session in
+                await session.feed("", holdBack: false)
                 let rest = session.pending
                 session.pending = ""
                 await session.cleanPart(rest)
@@ -173,12 +177,12 @@ final class LongDictationSession {
         guard let read = await Self.read(url: url, fromFrame: cutFrame) else { return }
         var p = params
         p.sampleRate = read.sampleRate
-        let chunks = await Task.detached { LongDictationCore.chunks(samples: read.samples, p) }.value
+        let split = await Task.detached { LongDictationCore.chunks(samples: read.samples, p) }.value
         guard !cancelled, pollTask != nil else { return }
-        for chunk in chunks {
-            cutFrame += chunk.count
+        cutFrame += split.consumed
+        for chunk in split.chunks {
             cutCount += 1
-            enqueueChunk(chunk, sampleRate: read.sampleRate)
+            enqueueChunk(chunk.samples, sampleRate: read.sampleRate, hardCut: chunk.hardCut)
         }
     }
 
@@ -195,17 +199,18 @@ final class LongDictationSession {
         }
     }
 
-    private func enqueueChunk(_ samples: [Float], sampleRate: Int) {
+    private func enqueueChunk(_ samples: [Float], sampleRate: Int, hardCut: Bool) {
         outstanding += 1
         enqueue { session in
-            await session.processChunk(samples, sampleRate: sampleRate)
+            await session.processChunk(samples, sampleRate: sampleRate, hardCut: hardCut)
             session.outstanding -= 1
         }
     }
 
-    private func processChunk(_ samples: [Float], sampleRate: Int) async {
+    private func processChunk(_ samples: [Float], sampleRate: Int, hardCut: Bool) async {
         guard !LongDictationCore.isSilent(samples: samples, sampleRate: sampleRate,
-                                          silenceDb: params.silenceDb) else { return }
+                                          silenceDb: params.silenceDb)
+        else { return await feed("", holdBack: false) }
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("long-dictation-\(UUID().uuidString).wav")
         tempFiles.append(url)
@@ -232,7 +237,28 @@ final class LongDictationSession {
         guard !cancelled else { return }
         raw = raw == TranscriptionResult.noSpeech ? "" : AppPreferences.shared.cleanTranscription(raw)
         if !raw.isEmpty { promptContext = SourceCapture.tail(of: raw, upTo: raw.count) }
+        await feed(raw, holdBack: hardCut)
+    }
 
+    /// Hands a chunk's raw text to the sentence carry, after splicing it with a held chunk.
+    /// With `holdBack` the text waits for the next chunk instead; empty text flushes a held
+    /// chunk unchanged.
+    private func feed(_ raw: String, holdBack: Bool) async {
+        var raw = raw
+        if let held = heldRaw {
+            heldRaw = nil
+            var previous = held
+            if !raw.isEmpty { (previous, raw) = LongDictationCore.spliceOverlap(previous: held, next: raw) }
+            await carryAndClean(previous)
+        }
+        if holdBack, !raw.isEmpty {
+            heldRaw = raw
+        } else {
+            await carryAndClean(raw)
+        }
+    }
+
+    private func carryAndClean(_ raw: String) async {
         let carried = LongDictationCore.carry(pending: pending, chunk: raw)
         pending = carried.pending
         await cleanPart(carried.complete)
