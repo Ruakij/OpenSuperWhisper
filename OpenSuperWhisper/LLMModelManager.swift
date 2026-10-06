@@ -60,6 +60,12 @@ struct LLMModelDescriptor {
     let downloadURL: URL
     /// Approximate download size in bytes (for UI display).
     let approxBytes: Int64
+    /// Text appended after the chat template's assistant header, as if the model had written it.
+    /// Qwen3.5 takes an empty `<think>\n\n</think>\n\n` here: that is how its own template turns
+    /// thinking off, and llama.cpp's template call has no switch for it.
+    var assistantPrefill: String? = nil
+    /// Generation budget. A model that reasons before answering needs more than a cleanup's worth.
+    var maxOutputTokens: Int = 512
 }
 
 class LLMModelManager {

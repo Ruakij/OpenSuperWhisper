@@ -657,8 +657,8 @@ class SettingsViewModel: ObservableObject {
             }
             do {
                 let fenced = "<<<TEXT\n\(paragraph)\nTEXT>>>"
-                let translated = try await backend.generate(system: system, user: fenced)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let translated = LLMPostProcessor.strippingThinking(
+                    try await backend.generate(system: system, user: fenced))
                     .replacingOccurrences(of: "<<<TEXT", with: "")
                     .replacingOccurrences(of: "TEXT>>>", with: "")
                     .trimmingCharacters(in: .whitespacesAndNewlines)

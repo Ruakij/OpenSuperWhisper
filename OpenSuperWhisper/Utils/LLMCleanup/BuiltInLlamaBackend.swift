@@ -51,7 +51,7 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
         guard isReady else { return }
         inferenceQueue.async { [weak self] in
             guard let self else { return }
-            _ = self.loadContextOnQueue()
+            _ = self.loadContextOnQueue(self.selectedModel)
             self.scheduleIdleUnloadOnQueue()
         }
     }
@@ -59,11 +59,18 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
     func generate(system: String, user: String) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             inferenceQueue.async { [weak self] in
-                guard let self, let ctx = self.loadContextOnQueue() else {
+                guard let self else {
                     continuation.resume(throwing: BuiltInLlamaError.modelNotReady)
                     return
                 }
-                let output = ctx.generate(system: system, user: user)
+                let model = self.selectedModel
+                guard let ctx = self.loadContextOnQueue(model) else {
+                    continuation.resume(throwing: BuiltInLlamaError.modelNotReady)
+                    return
+                }
+                let output = ctx.generate(system: system, user: user,
+                                          assistantPrefill: model.assistantPrefill,
+                                          maxTokens: model.maxOutputTokens)
                 self.scheduleIdleUnloadOnQueue()
                 continuation.resume(returning: output)
             }
@@ -77,10 +84,9 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
     /// A context is only reused while it belongs to the selected model: switching models in
     /// Settings otherwise keeps answering from the previously loaded GGUF until the idle release
     /// happens to fire, which looks exactly like the switch having no effect.
-    private func loadContextOnQueue() -> LlamaContext? {
+    private func loadContextOnQueue(_ model: LLMModelDescriptor) -> LlamaContext? {
         idleUnloadWork?.cancel()
         idleUnloadWork = nil
-        let model = selectedModel
         if let context, loadedFileName == model.fileName { return context }
         guard manager.isModelDownloaded(name: model.fileName) else { return nil }
         context = LlamaContext(modelPath: manager.localURL(for: model.fileName).path)

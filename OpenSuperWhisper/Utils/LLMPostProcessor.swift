@@ -77,8 +77,7 @@ enum LLMPostProcessor {
         do {
             // The transcription goes over as-is: everything the model is told lives in the system
             // prompt the user can see and edit.
-            let raw = try await backend.generate(system: system, user: text)
-            let result = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            let result = strippingThinking(try await backend.generate(system: system, user: text))
             // Blank output always falls back to the verbatim transcription. The length-ratio check
             // on top of that runs only for backends that ask for it (the small built-in model), and
             // an active app profile relaxes its shrink floor because those rules condense on
@@ -199,6 +198,22 @@ enum LLMPostProcessor {
         return sections
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
+    }
+
+    /// The answer part of a reasoning model's output, trimmed. Drops every `<think>...</think>`
+    /// block; everything up to a lone `</think>` (a template that opens the block in the prompt
+    /// leaves only the closing tag in the output); and everything from an unterminated `<think>`
+    /// on, which is a model that ran out of tokens mid-thought and never got to the answer.
+    static func strippingThinking(_ output: String) -> String {
+        var text = output.replacingOccurrences(of: "(?s)<think>.*?</think>", with: "",
+                                               options: .regularExpression)
+        if let close = text.range(of: "</think>", options: .backwards) {
+            text = String(text[close.upperBound...])
+        }
+        if let open = text.range(of: "<think>") {
+            text = String(text[..<open.lowerBound])
+        }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Scripts that write without spaces and pack far more meaning into a character: Han, kana,

@@ -259,9 +259,10 @@ public final class LlamaContext {
 
     // MARK: - Generation
 
-    /// Runs a single-shot chat completion: formats the prompt, decodes the prompt
-    /// tokens, then greedily samples up to `maxTokens` tokens, stopping at EOG.
-    public func generate(system: String, user: String, maxTokens: Int = 512) -> String {
+    /// Runs a single-shot chat completion: formats the prompt, appends `assistantPrefill`, decodes
+    /// the prompt tokens, then greedily samples up to `maxTokens` tokens, stopping at EOG.
+    public func generate(system: String, user: String, assistantPrefill: String? = nil,
+                         maxTokens: Int = 512) -> String {
         guard let ctx, let sampler else { return "" }
 
         // Every call is an independent completion, so start from an empty KV cache. This is not
@@ -274,7 +275,7 @@ public final class LlamaContext {
         llama_memory_clear(llama_get_memory(ctx), true)
         llama_sampler_reset(sampler)
 
-        let prompt = formatChatPrompt(system: system, user: user)
+        let prompt = formatChatPrompt(system: system, user: user) + (assistantPrefill ?? "")
         var promptTokens = tokenize(prompt, addSpecial: true)
         guard !promptTokens.isEmpty else { return "" }
 
