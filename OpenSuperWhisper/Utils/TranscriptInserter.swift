@@ -19,18 +19,21 @@ enum TranscriptInserter {
     ///     the pipeline from the snapshot taken at record start rather than read here: transcription
     ///     runs in the background, so by the time this executes the frontmost app may be a different
     ///     one, and the rule has to be the one for the app the text is going to.
+    ///   - clipboardText: what the clipboard keeps instead of `text`, for a long dictation whose
+    ///     earlier parts were pasted live: `text` is only its tail, the clipboard gets all of it.
     /// - Returns: `true` when insertion was skipped because no editable field was focused, so the
     ///   caller can leave the text on the clipboard and notify ⌘V.
     @MainActor
     @discardableResult
     static func insert(_ text: String, honorAutoPastePreference: Bool,
-                       targetBundleID: String? = nil) -> Bool {
+                       targetBundleID: String? = nil, clipboardText: String? = nil) -> Bool {
         let prefs = AppPreferences.shared
         let rule = AppInsertionRule.rule(for: targetBundleID, in: prefs.appInsertionRules)
 
         // Optional, independent clipboard stash (never the insertion mechanism).
+        let stash = clipboardText ?? text
         if prefs.autoCopyToClipboard {
-            ClipboardUtil.copyToClipboard(text)
+            ClipboardUtil.copyToClipboard(stash)
         }
 
         guard prefs.autoPasteTranscription || !honorAutoPastePreference else { return false }
@@ -56,11 +59,12 @@ enum TranscriptInserter {
             // a report has to be able to say which mechanism ran, and a paste that logged
             // nothing looked exactly like an insertion that never happened.
             log(mechanism: "paste", chunks: 1, pause: 0)
-            if prefs.autoCopyToClipboard {
+            if prefs.autoCopyToClipboard && stash == text {
                 Diag.measure("TextInserter.paste") { TextInserter.paste() }
             } else {
                 // The clipboard is only the paste vehicle here — the user opted out of keeping the
-                // text on it (#44) — so put the previous contents back after the ⌘V lands.
+                // text on it (#44) — so put the previous contents back after the ⌘V lands. With a
+                // separate clipboard text, the previous contents are that text.
                 ClipboardUtil.borrowForPaste(text) {
                     Diag.measure("TextInserter.paste") { TextInserter.paste() }
                 }
@@ -74,7 +78,7 @@ enum TranscriptInserter {
             && Diag.measure("focusedElementIsEditable") { FocusUtils.focusedElementIsEditable() } == false
         if targetMissing {
             if !prefs.autoCopyToClipboard {
-                ClipboardUtil.copyToClipboard(text)
+                ClipboardUtil.copyToClipboard(stash)
             }
             return true
         }

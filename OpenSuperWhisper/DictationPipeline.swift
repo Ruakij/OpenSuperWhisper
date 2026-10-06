@@ -298,8 +298,18 @@ final class DictationPipeline: ObservableObject {
                 discardAudio(item.tempURL)
             }
 
-            let pasteTargetMissing = hasText && !toInsert.isEmpty
-                ? insertText(toInsert, targetBundleID: item.context.bundleID) : false
+            // Of a long dictation pasted live, the clipboard still gets the whole text.
+            let clipboardText = longDictationRest == nil ? nil : IndicatorViewModel.applyPostProcessing(text)
+            let pasteTargetMissing: Bool
+            if hasText && !toInsert.isEmpty {
+                pasteTargetMissing = insertText(toInsert, targetBundleID: item.context.bundleID,
+                                                clipboardText: clipboardText)
+            } else {
+                pasteTargetMissing = false
+                if hasText, let clipboardText, AppPreferences.shared.autoCopyToClipboard {
+                    ClipboardUtil.copyToClipboard(clipboardText)
+                }
+            }
             if hasText {
                 PostRecordHook.runIfEnabled(text: text, rawText: engineText,
                                             bundleID: item.context.bundleID,
@@ -394,9 +404,9 @@ final class DictationPipeline: ObservableObject {
     /// the text on the clipboard and notify ⌘V. When no target is found, typing is skipped. The
     /// insertion policy itself lives in `TranscriptInserter`, shared with the re-paste shortcut.
     @discardableResult
-    private func insertText(_ text: String, targetBundleID: String?) -> Bool {
+    private func insertText(_ text: String, targetBundleID: String?, clipboardText: String?) -> Bool {
         TranscriptInserter.insert(IndicatorViewModel.applyPostProcessing(text),
                                   honorAutoPastePreference: true,
-                                  targetBundleID: targetBundleID)
+                                  targetBundleID: targetBundleID, clipboardText: clipboardText)
     }
 }
