@@ -79,11 +79,11 @@ Models load lazily: browsing engine tabs never triggers a surprise download.
 - 🧹 **Cleaner output** — optional filler-word removal (um, uh…), automatic sentence spacing, and
   "No speech detected" is never pasted.
 - 🤖 **AI cleanup** — optionally tidy punctuation/casing with an LLM: the **built-in** model
-  (Qwen3.5 2B, one-time ~1.3 GB download, no server to run), a local
+  (Qwen3.5 2B, one-time ~1.4 GB download, no server to run), a local
   [Ollama](https://ollama.com) server, or any OpenAI-compatible endpoint. Opt-in; the first two
   stay fully on-device, and the transcription is returned verbatim if the model misbehaves.
-  Pick the on-device model to match the job, from **Qwen3.5 0.8B** (quickest) to **9B** (follows
-  instructions most reliably, ~4 GB RAM). The prompt is yours too — an opening and a closing
+  Pick the on-device model to match the job, from **Qwen3.5 0.8B** (quickest) to **4B** (follows
+  instructions most reliably, ~3.4 GB RAM). The prompt is yours too — an opening and a closing
   instruction, together the entire system prompt with nothing wrapped around them and per-app rules sandwiched in between.
   Each half resets to its shipped text, and **Translate to …** has the model rewrite both in the
   language you dictate, which is what stops it from answering in the prompt's language instead of
