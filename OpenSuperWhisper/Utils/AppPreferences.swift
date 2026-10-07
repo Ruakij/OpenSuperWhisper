@@ -422,13 +422,14 @@ final class AppPreferences {
     @UserDefault(key: "postRecordHookCommand", defaultValue: "")
     var postRecordHookCommand: String
 
-    /// Where the recording indicator appears: "cursor" (default), "top", "center", "bottom".
     /// Multiplier applied on top of the system text size. 1.0 means "exactly what macOS asks
     /// for"; the control exists because following the system alone leaves no room for wanting
     /// this one app bigger than the rest. (#80)
     @UserDefault(key: "textScale", defaultValue: TextScale.default)
     var textScale: Double
 
+    /// Where the recording indicator appears: "cursor" (default), "mouse", "notch", "top",
+    /// "center", "bottom" or "custom".
     @UserDefault(key: "indicatorPosition", defaultValue: "cursor")
     var indicatorPosition: String
 

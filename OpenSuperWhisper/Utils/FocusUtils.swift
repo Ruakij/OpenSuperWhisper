@@ -27,11 +27,33 @@ class FocusUtils {
         return NSEvent.mouseLocation
     }
 
-    /// The indicator only needs the text caret position in "cursor" mode; every
+    /// The indicator only needs the text caret position in "cursor" and "mouse" mode; every
     /// other position anchors to screen geometry. Used to skip the costly AX
     /// caret query (a main-thread hang risk) when it would be discarded anyway.
     static func shouldAnchorToCaret(indicatorPosition: String) -> Bool {
-        return indicatorPosition == "cursor"
+        return indicatorPosition == "cursor" || indicatorPosition == "mouse"
+    }
+
+    /// How far from the mouse the "mouse" mode bubble may sit when the caret is elsewhere.
+    static let mouseNudgeMaxDistance: CGFloat = 150
+
+    /// Where the indicator anchors in "mouse" mode, in Cocoa coordinates: the point of the caret
+    /// anchor closest to the mouse, pulled to within `maxDistance` of it.
+    ///
+    /// When accessibility only knows the focused field, "cursor" mode anchors to the field's top
+    /// edge, which in a tall field or a chat window typed into at the bottom is nowhere near where
+    /// the user is looking. The mouse usually is. Pure, for testing.
+    static func mouseNudgedPoint(anchor: CGRect?, mouse: CGPoint,
+                                 maxDistance: CGFloat = mouseNudgeMaxDistance) -> CGPoint {
+        guard let anchor else { return mouse }
+        let closest = CGPoint(x: min(max(mouse.x, anchor.minX), anchor.maxX),
+                              y: min(max(mouse.y, anchor.minY), anchor.maxY))
+        let dx = closest.x - mouse.x
+        let dy = closest.y - mouse.y
+        let distance = (dx * dx + dy * dy).squareRoot()
+        guard distance > maxDistance else { return closest }
+        let scale = maxDistance / distance
+        return CGPoint(x: mouse.x + dx * scale, y: mouse.y + dy * scale)
     }
 
     /// Where the indicator should anchor in "cursor" mode, in AX (Quartz) coordinates: the text
@@ -109,6 +131,11 @@ class FocusUtils {
         // AX Y=0 is at Cocoa Y=maxY, so we subtract axPoint.y from maxY
         let cocoaY = primaryScreen.frame.maxY - axPoint.y
         return NSPoint(x: axPoint.x, y: cocoaY)
+    }
+
+    /// `convertAXPointToCocoa` for a rect: the AX origin is its top edge, the Cocoa one its bottom.
+    static func convertAXRectToCocoa(_ axRect: CGRect) -> CGRect {
+        CGRect(origin: convertAXPointToCocoa(CGPoint(x: axRect.minX, y: axRect.maxY)), size: axRect.size)
     }
     
     /// Finds the screen that contains the given point (in Cocoa coordinates), or the nearest one

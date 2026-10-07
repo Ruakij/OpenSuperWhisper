@@ -157,7 +157,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
                 let dropped = AppPreferences.shared.indicatorCustomAnchor
                 anchorCenterX = dropped?.x ?? screenFrame.midX
                 anchorBottomY = dropped?.y ?? screenFrame.midY
-            default: // "cursor": sit just above the caret, falling back to a band near the top
+            default: // "cursor"/"mouse": sit just above the point, falling back to a band near the top
                 if let point = point {
                     anchorBottomY = point.y + 20
                     anchorCenterX = point.x
