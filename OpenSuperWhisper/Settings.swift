@@ -336,10 +336,6 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    @Published var indicatorMousePull: String {
-        didSet { AppPreferences.shared.indicatorMousePull = indicatorMousePull }
-    }
-
     @Published var showStopButtonOnIndicator: Bool {
         didSet { AppPreferences.shared.showStopButtonOnIndicator = showStopButtonOnIndicator }
     }
@@ -963,7 +959,6 @@ class SettingsViewModel: ObservableObject {
         self.playSoundOnRecordStart = prefs.playSoundOnRecordStart
         self.startHidden = prefs.startHidden
         self.indicatorPosition = prefs.indicatorPosition
-        self.indicatorMousePull = prefs.indicatorMousePull
         self.indicatorMeterMode = prefs.indicatorMeterMode
         self.textScale = prefs.textScale
         self.submitMouseButtonHotkey = MouseButton(rawValue: prefs.submitMouseButtonHotkey) ?? .none

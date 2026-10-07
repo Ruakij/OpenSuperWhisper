@@ -26,7 +26,6 @@ struct IndicatorLayoutEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             positionRow
-            if viewModel.indicatorPosition == "cursor" { mousePullRow }
             preview
             elementList
             geometryControls
@@ -47,22 +46,6 @@ struct IndicatorLayoutEditor: View {
                 Text("Center").tag("center")
                 Text("Bottom").tag("bottom")
                 Text("Where you drop it").tag("custom")
-            }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .fixedSize()
-        }
-    }
-
-    private var mousePullRow: some View {
-        SRow(title: "Pull toward mouse",
-             hint: "With the mouse away from the text cursor, the bubble moves part of the way toward it, more with a stronger setting. When the app reports the field, the text cursor decides where the bubble sits across it and the mouse only moves it up or down. Apps that only report the focused field, chat windows and browsers among them, get the bubble on the field edge nearest the mouse. Off keeps it on what the app reports.",
-             indented: true) {
-            Picker("", selection: $viewModel.indicatorMousePull) {
-                Text("Off").tag("off")
-                Text("Light").tag("light")
-                Text("Normal").tag("normal")
-                Text("Strong").tag("strong")
             }
             .pickerStyle(.menu)
             .labelsHidden()

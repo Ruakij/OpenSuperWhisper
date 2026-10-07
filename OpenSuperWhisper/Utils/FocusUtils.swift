@@ -34,96 +34,11 @@ class FocusUtils {
         return indicatorPosition == "cursor"
     }
 
-    /// The fraction of the mouse's distance beyond `mouseDeadZone` that "cursor" mode moves the
-    /// bubble toward it, per "pull toward mouse" setting. 0 keeps it where the app says.
-    static func mousePull(_ setting: String) -> CGFloat {
-        switch setting {
-        case "off": return 0
-        case "light": return 0.25
-        case "strong": return 1
-        default: return 0.5 // "normal"
-        }
-    }
-
-    /// Mouse distance, per axis, within which the reported spot is kept as it is.
-    static let mouseDeadZone: CGFloat = 100
-
-    /// Room the bubble needs under a field to hang below it rather than sit above it.
-    static let roomBelowField: CGFloat = 120
-
-    /// Where "cursor" mode puts the bubble, in Cocoa coordinates. `hangsBelow` places the
-    /// bubble's top edge at `point` instead of its bottom edge. `alignWithin` is the field's
-    /// horizontal span the bubble snaps to once its width is known (see `alignedCenterX`).
-    struct Placement: Equatable {
-        var point: CGPoint
-        var hangsBelow = false
-        var alignWithin: ClosedRange<CGFloat>? = nil
-    }
-
-    /// Places the bubble from what the focused app reported (Cocoa rects) and the mouse.
-    ///
-    /// The mouse moves the bubble by `pull` of its distance beyond the dead zone, but only along
-    /// an axis the app said nothing about. A reported field fixes the horizontal position: the
-    /// caret, or the field's left edge where text starts, snapped to a spot along the field, so
-    /// the mouse only moves the bubble vertically. Without a field the caret is all there is, and
-    /// the mouse pulls on both axes.
-    ///
-    /// With only the field reported, its top edge can be far from the text (a chat window typed
-    /// into at the bottom), so the bubble starts on the field edge nearest the mouse, hanging
-    /// below the bottom edge when there is room. Pure, for testing.
-    static func placement(caret: CGRect?, field: CGRect?, mouse: CGPoint, pull: CGFloat,
-                          screen: CGRect?) -> Placement {
-        let span = field.map { $0.minX...$0.maxX }
-        if let caret {
-            let x = span == nil ? pulled(caret.minX, toward: mouse.x, by: pull) : caret.minX
-            return Placement(point: CGPoint(x: x, y: pulled(caret.maxY, toward: mouse.y, by: pull)),
-                             alignWithin: span)
-        }
-        guard let field else { return Placement(point: mouse) }
-        guard pull > 0 else { return Placement(point: CGPoint(x: field.minX, y: field.maxY), alignWithin: span) }
-
-        let roomBelow = field.minY - (screen?.minY ?? -.infinity) >= roomBelowField
-        let mouseLow = mouse.y < field.minY || (mouse.y <= field.maxY && mouse.y < field.midY)
-        if mouseLow, roomBelow {
-            return Placement(point: CGPoint(x: field.minX, y: min(field.minY, pulled(field.minY, toward: mouse.y, by: pull))),
-                             hangsBelow: true, alignWithin: span)
-        }
-        return Placement(point: CGPoint(x: field.minX, y: max(field.maxY, pulled(field.maxY, toward: mouse.y, by: pull))),
-                         alignWithin: span)
-    }
-
-    private static func pulled(_ start: CGFloat, toward target: CGFloat, by pull: CGFloat) -> CGFloat {
-        let distance = abs(target - start)
-        guard distance > mouseDeadZone else { return start }
-        return start + (target > start ? 1 : -1) * pull * (distance - mouseDeadZone)
-    }
-
-    /// The bubble's centre along a field: snapped to evenly spaced spots, from flush left to
-    /// flush right, nearest `target` (the caret). A bubble wider than half the field has only the
-    /// centre, one wider than a third the left, centre and right, and smaller ones more spots, so
-    /// a small bubble on a wide field still lands near the caret. Pure, for testing.
-    static func alignedCenterX(width: CGFloat, within span: ClosedRange<CGFloat>, toward target: CGFloat) -> CGFloat {
-        let fieldWidth = span.upperBound - span.lowerBound
-        let ratio = width / max(fieldWidth, 1)
-        guard ratio <= 0.5 else { return (span.lowerBound + span.upperBound) / 2 }
-        let gaps = CGFloat(Int(1 / ratio))
-        let step = (fieldWidth - width) / gaps
-        let first = span.lowerBound + width / 2
-        let index = min(max(((target - first) / step).rounded(), 0), gaps)
-        return first + index * step
-    }
-
-    /// What the focused text element reported, in AX (Quartz) coordinates. `caret` only when it is
-    /// believable, `field` only when it has an area.
-    struct TextAnchor: Equatable {
-        var caret: CGRect?
-        var field: CGRect?
-    }
-
-    /// Where the focused text element says its caret and its frame are. nil when nothing with a
-    /// text selection is focused, or accessibility cannot place it, leaving the caller to fall
-    /// back to the mouse.
-    static func getTextAnchor() -> TextAnchor? {
+    /// Where the indicator should anchor in "cursor" mode, in AX (Quartz) coordinates: the text
+    /// caret when the focused text element reports a believable one, otherwise that element
+    /// itself. nil when nothing with a text selection is focused, or accessibility cannot place
+    /// it, leaving the caller to fall back to the mouse.
+    static func getCaretRect() -> CGRect? {
         let systemElement = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemElement, axMessagingTimeout)
 
@@ -144,21 +59,20 @@ class FocusUtils {
                                             &range) == .success,
               let range else { return nil }
 
-        return textAnchor(caret: bounds(of: range, in: element), element: frame(of: element))
+        return caretAnchorRect(caret: bounds(of: range, in: element), element: frame(of: element))
     }
 
-    /// Filters what the focused element says about its caret and its own frame.
+    /// Chooses between what the focused element says about its caret and its own frame.
     ///
     /// A successful bounds query is not a believable one. Chrome's address bar answers with an
     /// empty rect at the bottom-left corner of the primary display, wherever its window actually
     /// is, which put the bubble in the corner of a different screen. A real caret has height, so
-    /// one without is dropped and the field is used. Where a caret with height sits is not
+    /// one without is discarded in favour of the field. Where a caret with height sits is not
     /// second-guessed: TextEdit reports a valid one above its text view's own frame. Pure, for
     /// testing.
-    static func textAnchor(caret: CGRect?, element: CGRect?) -> TextAnchor? {
-        let anchor = TextAnchor(caret: caret.flatMap { $0.height > 0 ? $0 : nil },
-                                field: element.flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil })
-        return anchor.caret == nil && anchor.field == nil ? nil : anchor
+    static func caretAnchorRect(caret: CGRect?, element: CGRect?) -> CGRect? {
+        if let caret, caret.height > 0 { return caret }
+        return element.flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil }
     }
 
     private static func bounds(of range: CFTypeRef, in element: AXUIElement) -> CGRect? {
@@ -195,11 +109,6 @@ class FocusUtils {
         // AX Y=0 is at Cocoa Y=maxY, so we subtract axPoint.y from maxY
         let cocoaY = primaryScreen.frame.maxY - axPoint.y
         return NSPoint(x: axPoint.x, y: cocoaY)
-    }
-
-    /// `convertAXPointToCocoa` for a rect: the AX origin is its top edge, the Cocoa one its bottom.
-    static func convertAXRectToCocoa(_ axRect: CGRect) -> CGRect {
-        CGRect(origin: convertAXPointToCocoa(CGPoint(x: axRect.minX, y: axRect.maxY)), size: axRect.size)
     }
     
     /// Finds the screen that contains the given point (in Cocoa coordinates), or the nearest one

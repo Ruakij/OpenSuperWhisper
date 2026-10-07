@@ -13,32 +13,32 @@ final class CaretAnchorRectTests: XCTestCase {
 
     func testChromeOmniboxEmptyCaretFallsBackToTheField() {
         let reported = CGRect(x: 0, y: 1440, width: 0, height: 0)
-        XCTAssertEqual(FocusUtils.textAnchor(caret: reported, element: omnibox), .init(caret: nil, field: omnibox))
+        XCTAssertEqual(FocusUtils.caretAnchorRect(caret: reported, element: omnibox), omnibox)
     }
 
     func testCaretWithHeightIsUsed() {
         let caret = CGRect(x: 4300, y: 80, width: 0, height: 18)
-        XCTAssertEqual(FocusUtils.textAnchor(caret: caret, element: omnibox), .init(caret: caret, field: omnibox))
+        XCTAssertEqual(FocusUtils.caretAnchorRect(caret: caret, element: omnibox), caret)
     }
 
     /// TextEdit reports its caret above the text view's own frame. It is still the right place.
     func testCaretOutsideItsElementIsStillUsed() {
         let textView = CGRect(x: 2936, y: 102, width: 586, height: 382)
         let caret = CGRect(x: 2966.35, y: 88, width: 0, height: 14)
-        XCTAssertEqual(FocusUtils.textAnchor(caret: caret, element: textView)?.caret, caret)
+        XCTAssertEqual(FocusUtils.caretAnchorRect(caret: caret, element: textView), caret)
     }
 
     func testCaretIsUsedWhenTheElementFrameIsUnknown() {
         let caret = CGRect(x: 300, y: 400, width: 0, height: 18)
-        XCTAssertEqual(FocusUtils.textAnchor(caret: caret, element: nil), .init(caret: caret, field: nil))
+        XCTAssertEqual(FocusUtils.caretAnchorRect(caret: caret, element: nil), caret)
     }
 
     func testNoCaretUsesTheElement() {
-        XCTAssertEqual(FocusUtils.textAnchor(caret: nil, element: omnibox), .init(caret: nil, field: omnibox))
+        XCTAssertEqual(FocusUtils.caretAnchorRect(caret: nil, element: omnibox), omnibox)
     }
 
     func testNothingUsableGivesNothing() {
-        XCTAssertNil(FocusUtils.textAnchor(caret: .zero, element: nil))
-        XCTAssertNil(FocusUtils.textAnchor(caret: nil, element: .zero))
+        XCTAssertNil(FocusUtils.caretAnchorRect(caret: .zero, element: nil))
+        XCTAssertNil(FocusUtils.caretAnchorRect(caret: nil, element: .zero))
     }
 }

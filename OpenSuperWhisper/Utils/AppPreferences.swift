@@ -432,11 +432,6 @@ final class AppPreferences {
     @UserDefault(key: "indicatorPosition", defaultValue: "cursor")
     var indicatorPosition: String
 
-    /// How strongly "cursor" mode pulls the bubble toward the mouse: "off", "light", "normal"
-    /// (default) or "strong". See `FocusUtils.mousePull`.
-    @UserDefault(key: "indicatorMousePull", defaultValue: "normal")
-    var indicatorMousePull: String
-
     /// UI theme during the Liquid Glass transition: "system", "legacy", or "liquidGlass".
     /// Read through `ThemeController` / the `UITheme` enum, never compared as a raw string in views.
     @UserDefault(key: "uiTheme", defaultValue: "system")
