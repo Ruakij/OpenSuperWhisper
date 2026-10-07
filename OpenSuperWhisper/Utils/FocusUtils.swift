@@ -34,42 +34,79 @@ class FocusUtils {
         return indicatorPosition == "cursor"
     }
 
-    /// How far from the mouse the "cursor" mode bubble may sit for each "pull toward mouse"
-    /// setting, nil when it does not follow the mouse at all.
-    static func mousePullDistance(_ setting: String) -> CGFloat? {
+    /// The fraction of the mouse's distance beyond `mouseDeadZone` that "cursor" mode moves the
+    /// bubble toward it, per "pull toward mouse" setting. 0 keeps it where the app says.
+    static func mousePull(_ setting: String) -> CGFloat {
         switch setting {
-        case "off": return nil
-        case "light": return 400
-        case "strong": return 0
-        default: return 150 // "normal"
+        case "off": return 0
+        case "light": return 0.25
+        case "strong": return 1
+        default: return 0.5 // "normal"
         }
     }
 
-    /// Where the indicator anchors in "cursor" mode, in Cocoa coordinates: the point of the caret
-    /// anchor closest to the mouse, pulled to within `maxDistance` of it. The anchor's top-left
-    /// corner when `maxDistance` is nil, and the mouse itself when there is no anchor.
-    ///
-    /// When accessibility only knows the focused field, its top edge in a tall field or a chat
-    /// window typed into at the bottom is nowhere near where the user is looking. The mouse
-    /// usually is. Pure, for testing.
-    static func mouseNudgedPoint(anchor: CGRect?, mouse: CGPoint, maxDistance: CGFloat?) -> CGPoint {
-        guard let anchor else { return mouse }
-        guard let maxDistance else { return CGPoint(x: anchor.minX, y: anchor.maxY) }
-        let closest = CGPoint(x: min(max(mouse.x, anchor.minX), anchor.maxX),
-                              y: min(max(mouse.y, anchor.minY), anchor.maxY))
-        let dx = closest.x - mouse.x
-        let dy = closest.y - mouse.y
-        let distance = (dx * dx + dy * dy).squareRoot()
-        guard distance > maxDistance else { return closest }
-        let scale = maxDistance / distance
-        return CGPoint(x: mouse.x + dx * scale, y: mouse.y + dy * scale)
+    /// Mouse distance from the caret within which the caret is trusted as it is.
+    static let mouseDeadZone: CGFloat = 150
+
+    /// Room the bubble needs under a field to hang below it rather than sit above it.
+    static let roomBelowField: CGFloat = 120
+
+    /// Where "cursor" mode puts the bubble, in Cocoa coordinates. `hangsBelow` places the
+    /// bubble's top edge at `point` instead of its bottom edge.
+    struct Placement: Equatable {
+        var point: CGPoint
+        var hangsBelow = false
     }
 
-    /// Where the indicator should anchor in "cursor" mode, in AX (Quartz) coordinates: the text
-    /// caret when the focused text element reports a believable one, otherwise that element
-    /// itself. nil when nothing with a text selection is focused, or accessibility cannot place
-    /// it, leaving the caller to fall back to the mouse.
-    static func getCaretRect() -> CGRect? {
+    /// Places the bubble from what the focused app reported (Cocoa rects) and the mouse.
+    ///
+    /// A reported caret is where the text goes, so the bubble sits on it while the mouse is
+    /// nearby and drifts toward the mouse only by `pull` of the distance beyond the dead zone.
+    /// When the app reports only its field, the field's top edge can be far from the text: a chat
+    /// window typed into at the bottom. Following the mouse into the field would cover the text,
+    /// so the bubble goes to the field edge nearest the mouse, at the mouse's x. Pure, for testing.
+    static func placement(caret: CGRect?, field: CGRect?, mouse: CGPoint, pull: CGFloat,
+                          screen: CGRect?) -> Placement {
+        if let caret {
+            return Placement(point: pulled(CGPoint(x: caret.minX, y: caret.maxY), toward: mouse, by: pull))
+        }
+        guard let field else { return Placement(point: mouse) }
+        guard pull > 0 else { return Placement(point: CGPoint(x: field.minX, y: field.maxY)) }
+
+        let x = min(max(mouse.x, field.minX), field.maxX)
+        let roomBelow = field.minY - (screen?.minY ?? -.infinity) >= roomBelowField
+        if mouse.y < field.minY, roomBelow {
+            return Placement(point: pulled(CGPoint(x: x, y: field.minY), toward: mouse, by: pull), hangsBelow: true)
+        }
+        if mouse.y > field.maxY {
+            return Placement(point: pulled(CGPoint(x: x, y: field.maxY), toward: mouse, by: pull))
+        }
+        if mouse.y < field.midY, roomBelow {
+            return Placement(point: CGPoint(x: x, y: field.minY), hangsBelow: true)
+        }
+        return Placement(point: CGPoint(x: x, y: field.maxY))
+    }
+
+    private static func pulled(_ start: CGPoint, toward mouse: CGPoint, by pull: CGFloat) -> CGPoint {
+        let dx = mouse.x - start.x
+        let dy = mouse.y - start.y
+        let distance = (dx * dx + dy * dy).squareRoot()
+        guard distance > mouseDeadZone else { return start }
+        let scale = pull * (distance - mouseDeadZone) / distance
+        return CGPoint(x: start.x + dx * scale, y: start.y + dy * scale)
+    }
+
+    /// What the focused text element reported, in AX (Quartz) coordinates. `caret` only when it is
+    /// believable, `field` only when it has an area.
+    struct TextAnchor: Equatable {
+        var caret: CGRect?
+        var field: CGRect?
+    }
+
+    /// Where the focused text element says its caret and its frame are. nil when nothing with a
+    /// text selection is focused, or accessibility cannot place it, leaving the caller to fall
+    /// back to the mouse.
+    static func getTextAnchor() -> TextAnchor? {
         let systemElement = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemElement, axMessagingTimeout)
 
@@ -90,20 +127,21 @@ class FocusUtils {
                                             &range) == .success,
               let range else { return nil }
 
-        return caretAnchorRect(caret: bounds(of: range, in: element), element: frame(of: element))
+        return textAnchor(caret: bounds(of: range, in: element), element: frame(of: element))
     }
 
-    /// Chooses between what the focused element says about its caret and its own frame.
+    /// Filters what the focused element says about its caret and its own frame.
     ///
     /// A successful bounds query is not a believable one. Chrome's address bar answers with an
     /// empty rect at the bottom-left corner of the primary display, wherever its window actually
     /// is, which put the bubble in the corner of a different screen. A real caret has height, so
-    /// one without is discarded in favour of the field. Where a caret with height sits is not
+    /// one without is dropped and the field is used. Where a caret with height sits is not
     /// second-guessed: TextEdit reports a valid one above its text view's own frame. Pure, for
     /// testing.
-    static func caretAnchorRect(caret: CGRect?, element: CGRect?) -> CGRect? {
-        if let caret, caret.height > 0 { return caret }
-        return element.flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil }
+    static func textAnchor(caret: CGRect?, element: CGRect?) -> TextAnchor? {
+        let anchor = TextAnchor(caret: caret.flatMap { $0.height > 0 ? $0 : nil },
+                                field: element.flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil })
+        return anchor.caret == nil && anchor.field == nil ? nil : anchor
     }
 
     private static func bounds(of range: CFTypeRef, in element: AXUIElement) -> CGRect? {

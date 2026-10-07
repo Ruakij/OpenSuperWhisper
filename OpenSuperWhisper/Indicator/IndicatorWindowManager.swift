@@ -28,7 +28,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
 
     private init() {}
     
-    func show(nearPoint point: NSPoint? = nil) -> IndicatorViewModel {
+    func show(nearPoint point: NSPoint? = nil, hangingBelow: Bool = false) -> IndicatorViewModel {
         
         KeyboardShortcuts.enable(.escape)
 
@@ -157,8 +157,10 @@ class IndicatorWindowManager: IndicatorViewDelegate {
                 let dropped = AppPreferences.shared.indicatorCustomAnchor
                 anchorCenterX = dropped?.x ?? screenFrame.midX
                 anchorBottomY = dropped?.y ?? screenFrame.midY
-            default: // "cursor": sit just above the caret, falling back to a band near the top
+            default: // "cursor": sit just above (or hang below) the point, falling back to a band near the top
                 if let point = point {
+                    anchorFromTop = hangingBelow
+                    anchorTopY = point.y - 8
                     anchorBottomY = point.y + 20
                     anchorCenterX = point.x
                 } else {

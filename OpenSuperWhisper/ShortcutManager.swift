@@ -315,18 +315,22 @@ class ShortcutManager {
             if self.activeVm == nil {
                 Diag.mark("keyDown → start recording")
                 let cursorPosition = FocusUtils.getCurrentCursorPosition()
-                var caret: CGRect? = nil
+                var text: FocusUtils.TextAnchor? = nil
                 // Only "cursor" mode needs the caret; other positions anchor to
                 // screen geometry, so skip the synchronous AX caret query (a
                 // main-thread hang risk) when its result would be discarded.
                 if FocusUtils.shouldAnchorToCaret(indicatorPosition: AppPreferences.shared.indicatorPosition) {
-                    caret = Diag.measure("getCaretRect") { FocusUtils.getCaretRect() }
+                    text = Diag.measure("getTextAnchor") { FocusUtils.getTextAnchor() }
                 }
-                let indicatorPoint: NSPoint? = FocusUtils.mouseNudgedPoint(
-                    anchor: caret.map(FocusUtils.convertAXRectToCocoa), mouse: cursorPosition,
-                    maxDistance: FocusUtils.mousePullDistance(AppPreferences.shared.indicatorMousePull))
+                let placement = FocusUtils.placement(
+                    caret: text?.caret.map(FocusUtils.convertAXRectToCocoa),
+                    field: text?.field.map(FocusUtils.convertAXRectToCocoa),
+                    mouse: cursorPosition,
+                    pull: FocusUtils.mousePull(AppPreferences.shared.indicatorMousePull),
+                    screen: FocusUtils.screenContaining(point: cursorPosition)?.frame)
+                Diag.mark("indicator anchor: caret \(text?.caret != nil), field \(text?.field != nil), \(placement)")
                 let vm = Diag.measure("IndicatorWindowManager.show") {
-                    IndicatorWindowManager.shared.show(nearPoint: indicatorPoint)
+                    IndicatorWindowManager.shared.show(nearPoint: placement.point, hangingBelow: placement.hangsBelow)
                 }
                 Diag.measure("vm.startRecording") { vm.startRecording() }
                 self.activeVm = vm

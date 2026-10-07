@@ -433,7 +433,7 @@ final class AppPreferences {
     var indicatorPosition: String
 
     /// How strongly "cursor" mode pulls the bubble toward the mouse: "off", "light", "normal"
-    /// (default) or "strong". See `FocusUtils.mousePullDistance`.
+    /// (default) or "strong". See `FocusUtils.mousePull`.
     @UserDefault(key: "indicatorMousePull", defaultValue: "normal")
     var indicatorMousePull: String
 
