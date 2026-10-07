@@ -45,8 +45,8 @@ class FocusUtils {
         }
     }
 
-    /// Mouse distance, per axis, within which the reported spot is kept as it is.
-    static let mouseDeadZone: CGFloat = 150
+    /// Vertical mouse distance within which the reported spot is kept as it is.
+    static let mouseDeadZone: CGFloat = 100
 
     /// Room the bubble needs under a field to hang below it rather than sit above it.
     static let roomBelowField: CGFloat = 120
@@ -62,34 +62,31 @@ class FocusUtils {
 
     /// Places the bubble from what the focused app reported (Cocoa rects) and the mouse.
     ///
-    /// The bubble follows the mouse only along an axis on which the mouse is outside the field,
-    /// and only by `pull` of the distance beyond the dead zone: inside the field, following it
-    /// would cover the text. A mouse below the field moves the bubble straight down, not sideways.
+    /// The text decides the horizontal position: the caret, or the field's left edge where text
+    /// starts, snapped to a spot along the field. The mouse only moves the bubble vertically, by
+    /// `pull` of its distance beyond the dead zone, so the bubble ends up on the line the user is
+    /// looking at without jumping sideways.
     ///
-    /// A reported caret is where the text goes, so it is the starting point. With only the field
-    /// reported, its top edge can be far from the text (a chat window typed into at the bottom),
-    /// so the bubble starts on the field edge nearest the mouse, hanging below the bottom edge
-    /// when there is room. Pure, for testing.
+    /// With only the field reported, its top edge can be far from the text (a chat window typed
+    /// into at the bottom), so the bubble starts on the field edge nearest the mouse, hanging
+    /// below the bottom edge when there is room. Pure, for testing.
     static func placement(caret: CGRect?, field: CGRect?, mouse: CGPoint, pull: CGFloat,
                           screen: CGRect?) -> Placement {
+        let span = field.map { $0.minX...$0.maxX }
         if let caret {
-            let box = field ?? caret
-            return Placement(point: CGPoint(
-                x: (box.minX...box.maxX).contains(mouse.x) ? caret.minX : pulled(caret.minX, toward: mouse.x, by: pull),
-                y: (box.minY...box.maxY).contains(mouse.y) ? caret.maxY : pulled(caret.maxY, toward: mouse.y, by: pull)))
+            return Placement(point: CGPoint(x: caret.minX, y: pulled(caret.maxY, toward: mouse.y, by: pull)),
+                             alignWithin: span)
         }
         guard let field else { return Placement(point: mouse) }
-        guard pull > 0 else { return Placement(point: CGPoint(x: field.minX, y: field.maxY)) }
+        guard pull > 0 else { return Placement(point: CGPoint(x: field.minX, y: field.maxY), alignWithin: span) }
 
-        let x = min(max(mouse.x, field.minX), field.maxX)
-        let span = field.minX...field.maxX
         let roomBelow = field.minY - (screen?.minY ?? -.infinity) >= roomBelowField
         let mouseLow = mouse.y < field.minY || (mouse.y <= field.maxY && mouse.y < field.midY)
         if mouseLow, roomBelow {
-            return Placement(point: CGPoint(x: x, y: min(field.minY, pulled(field.minY, toward: mouse.y, by: pull))),
+            return Placement(point: CGPoint(x: field.minX, y: min(field.minY, pulled(field.minY, toward: mouse.y, by: pull))),
                              hangsBelow: true, alignWithin: span)
         }
-        return Placement(point: CGPoint(x: x, y: max(field.maxY, pulled(field.maxY, toward: mouse.y, by: pull))),
+        return Placement(point: CGPoint(x: field.minX, y: max(field.maxY, pulled(field.maxY, toward: mouse.y, by: pull))),
                          alignWithin: span)
     }
 
@@ -99,10 +96,10 @@ class FocusUtils {
         return start + (target > start ? 1 : -1) * pull * (distance - mouseDeadZone)
     }
 
-    /// The bubble's centre on a field edge: snapped to evenly spaced spots, from flush left to
-    /// flush right, nearest `target`. A bubble wider than half the field has only the centre,
-    /// one wider than a third the left, centre and right, and smaller ones more spots, so a small
-    /// bubble on a wide field still lands near the mouse. Pure, for testing.
+    /// The bubble's centre along a field: snapped to evenly spaced spots, from flush left to
+    /// flush right, nearest `target` (the caret). A bubble wider than half the field has only the
+    /// centre, one wider than a third the left, centre and right, and smaller ones more spots, so
+    /// a small bubble on a wide field still lands near the caret. Pure, for testing.
     static func alignedCenterX(width: CGFloat, within span: ClosedRange<CGFloat>, toward target: CGFloat) -> CGFloat {
         let fieldWidth = span.upperBound - span.lowerBound
         let ratio = width / max(fieldWidth, 1)
