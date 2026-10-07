@@ -323,7 +323,8 @@ class ShortcutManager {
                     caret = Diag.measure("getCaretRect") { FocusUtils.getCaretRect() }
                 }
                 let indicatorPoint: NSPoint? = FocusUtils.mouseNudgedPoint(
-                    anchor: caret.map(FocusUtils.convertAXRectToCocoa), mouse: cursorPosition)
+                    anchor: caret.map(FocusUtils.convertAXRectToCocoa), mouse: cursorPosition,
+                    maxDistance: FocusUtils.mousePullDistance(AppPreferences.shared.indicatorMousePull))
                 let vm = Diag.measure("IndicatorWindowManager.show") {
                     IndicatorWindowManager.shared.show(nearPoint: indicatorPoint)
                 }

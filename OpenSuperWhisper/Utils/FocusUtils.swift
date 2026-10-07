@@ -34,19 +34,27 @@ class FocusUtils {
         return indicatorPosition == "cursor"
     }
 
-    /// How far from the mouse the "cursor" mode bubble may sit when the caret is elsewhere.
-    static let mouseNudgeMaxDistance: CGFloat = 150
+    /// How far from the mouse the "cursor" mode bubble may sit for each "pull toward mouse"
+    /// setting, nil when it does not follow the mouse at all.
+    static func mousePullDistance(_ setting: String) -> CGFloat? {
+        switch setting {
+        case "off": return nil
+        case "light": return 400
+        case "strong": return 0
+        default: return 150 // "normal"
+        }
+    }
 
     /// Where the indicator anchors in "cursor" mode, in Cocoa coordinates: the point of the caret
-    /// anchor closest to the mouse, pulled to within `maxDistance` of it. The mouse itself when
-    /// there is no anchor.
+    /// anchor closest to the mouse, pulled to within `maxDistance` of it. The anchor's top-left
+    /// corner when `maxDistance` is nil, and the mouse itself when there is no anchor.
     ///
     /// When accessibility only knows the focused field, its top edge in a tall field or a chat
     /// window typed into at the bottom is nowhere near where the user is looking. The mouse
     /// usually is. Pure, for testing.
-    static func mouseNudgedPoint(anchor: CGRect?, mouse: CGPoint,
-                                 maxDistance: CGFloat = mouseNudgeMaxDistance) -> CGPoint {
+    static func mouseNudgedPoint(anchor: CGRect?, mouse: CGPoint, maxDistance: CGFloat?) -> CGPoint {
         guard let anchor else { return mouse }
+        guard let maxDistance else { return CGPoint(x: anchor.minX, y: anchor.maxY) }
         let closest = CGPoint(x: min(max(mouse.x, anchor.minX), anchor.maxX),
                               y: min(max(mouse.y, anchor.minY), anchor.maxY))
         let dx = closest.x - mouse.x
