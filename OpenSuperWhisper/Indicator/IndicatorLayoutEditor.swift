@@ -56,7 +56,7 @@ struct IndicatorLayoutEditor: View {
 
     private var mousePullRow: some View {
         SRow(title: "Pull toward mouse",
-             hint: "The text cursor decides where the bubble sits across the field; the mouse only moves it up or down. With the mouse above or below the text cursor, the bubble moves part of the way toward it, more with a stronger setting. Apps that only report the focused field, chat windows and browsers among them, get the bubble on the field edge nearest the mouse. Off keeps it on what the app reports.",
+             hint: "With the mouse away from the text cursor, the bubble moves part of the way toward it, more with a stronger setting. When the app reports the field, the text cursor decides where the bubble sits across it and the mouse only moves it up or down. Apps that only report the focused field, chat windows and browsers among them, get the bubble on the field edge nearest the mouse. Off keeps it on what the app reports.",
              indented: true) {
             Picker("", selection: $viewModel.indicatorMousePull) {
                 Text("Off").tag("off")

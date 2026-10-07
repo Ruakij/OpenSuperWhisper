@@ -45,7 +45,7 @@ class FocusUtils {
         }
     }
 
-    /// Vertical mouse distance within which the reported spot is kept as it is.
+    /// Mouse distance, per axis, within which the reported spot is kept as it is.
     static let mouseDeadZone: CGFloat = 100
 
     /// Room the bubble needs under a field to hang below it rather than sit above it.
@@ -62,10 +62,11 @@ class FocusUtils {
 
     /// Places the bubble from what the focused app reported (Cocoa rects) and the mouse.
     ///
-    /// The text decides the horizontal position: the caret, or the field's left edge where text
-    /// starts, snapped to a spot along the field. The mouse only moves the bubble vertically, by
-    /// `pull` of its distance beyond the dead zone, so the bubble ends up on the line the user is
-    /// looking at without jumping sideways.
+    /// The mouse moves the bubble by `pull` of its distance beyond the dead zone, but only along
+    /// an axis the app said nothing about. A reported field fixes the horizontal position: the
+    /// caret, or the field's left edge where text starts, snapped to a spot along the field, so
+    /// the mouse only moves the bubble vertically. Without a field the caret is all there is, and
+    /// the mouse pulls on both axes.
     ///
     /// With only the field reported, its top edge can be far from the text (a chat window typed
     /// into at the bottom), so the bubble starts on the field edge nearest the mouse, hanging
@@ -74,7 +75,8 @@ class FocusUtils {
                           screen: CGRect?) -> Placement {
         let span = field.map { $0.minX...$0.maxX }
         if let caret {
-            return Placement(point: CGPoint(x: caret.minX, y: pulled(caret.maxY, toward: mouse.y, by: pull)),
+            let x = span == nil ? pulled(caret.minX, toward: mouse.x, by: pull) : caret.minX
+            return Placement(point: CGPoint(x: x, y: pulled(caret.maxY, toward: mouse.y, by: pull)),
                              alignWithin: span)
         }
         guard let field else { return Placement(point: mouse) }

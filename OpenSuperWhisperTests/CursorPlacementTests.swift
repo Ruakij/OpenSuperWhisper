@@ -1,9 +1,10 @@
 import XCTest
 @testable import OpenSuperWhisper
 
-/// "Cursor" mode takes the horizontal position from the text (caret, or the field's left edge)
-/// and lets the mouse move the bubble only vertically, by a share of its distance beyond the dead
-/// zone. Cocoa (bottom-left origin) coordinates.
+/// "Cursor" mode lets the mouse move the bubble, by a share of its distance beyond the dead zone,
+/// only along an axis the app said nothing about: with a field reported, the horizontal position
+/// comes from the text and the mouse moves the bubble only vertically. Cocoa (bottom-left origin)
+/// coordinates.
 final class CursorPlacementTests: XCTestCase {
 
     let screen = CGRect(x: 0, y: 0, width: 2000, height: 1200)
@@ -20,7 +21,15 @@ final class CursorPlacementTests: XCTestCase {
     }
 
     func testCaretNearTheMouseIsUsedAsIs() {
-        XCTAssertEqual(place(caret: caret, mouse: CGPoint(x: 900, y: 450)), .init(point: CGPoint(x: 400, y: 518)))
+        XCTAssertEqual(place(caret: caret, mouse: CGPoint(x: 450, y: 450)), .init(point: CGPoint(x: 400, y: 518)))
+    }
+
+    func testCaretWithoutFieldIsPulledHorizontallyToo() {
+        XCTAssertEqual(place(caret: caret, mouse: CGPoint(x: 900, y: 218)).point, CGPoint(x: 600, y: 418))
+    }
+
+    func testCaretInAFieldIsNotPulledHorizontally() {
+        XCTAssertEqual(place(caret: caret, field: field, mouse: CGPoint(x: 900, y: 518)).point, CGPoint(x: 400, y: 518))
     }
 
     func testFarMouseMovesTheBubbleOnlyVertically() {
