@@ -330,7 +330,8 @@ class ShortcutManager {
                     screen: FocusUtils.screenContaining(point: cursorPosition)?.frame)
                 Diag.mark("indicator anchor: caret \(text?.caret != nil), field \(text?.field != nil), \(placement)")
                 let vm = Diag.measure("IndicatorWindowManager.show") {
-                    IndicatorWindowManager.shared.show(nearPoint: placement.point, hangingBelow: placement.hangsBelow)
+                    IndicatorWindowManager.shared.show(nearPoint: placement.point, hangingBelow: placement.hangsBelow,
+                                                      alignWithin: placement.alignWithin)
                 }
                 Diag.measure("vm.startRecording") { vm.startRecording() }
                 self.activeVm = vm

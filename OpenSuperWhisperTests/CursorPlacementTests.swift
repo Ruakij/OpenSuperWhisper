@@ -2,9 +2,9 @@ import XCTest
 @testable import OpenSuperWhisper
 
 /// "Cursor" mode trusts a reported caret while the mouse is near it and drifts toward a distant
-/// mouse only partly. With just a field reported, the bubble goes to the field edge nearest the
-/// mouse rather than following the mouse into the field and covering the text. Cocoa
-/// (bottom-left origin) coordinates.
+/// mouse only partly, and only along an axis on which the mouse is outside the field. With just
+/// a field reported, the bubble goes to the field edge nearest the mouse rather than following
+/// the mouse into the field and covering the text. Cocoa (bottom-left origin) coordinates.
 final class CursorPlacementTests: XCTestCase {
 
     let screen = CGRect(x: 0, y: 0, width: 2000, height: 1200)
@@ -41,20 +41,52 @@ final class CursorPlacementTests: XCTestCase {
 
     func testMouseLowInTheFieldHangsTheBubbleBelowIt() {
         XCTAssertEqual(place(field: field, mouse: CGPoint(x: 300, y: 250)),
-                       .init(point: CGPoint(x: 300, y: 200), hangsBelow: true))
+                       .init(point: CGPoint(x: 300, y: 200), hangsBelow: true, alignWithin: 100...700))
     }
 
     func testMouseHighInTheFieldSitsTheBubbleAboveIt() {
-        XCTAssertEqual(place(field: field, mouse: CGPoint(x: 300, y: 900)), .init(point: CGPoint(x: 300, y: 1000)))
+        XCTAssertEqual(place(field: field, mouse: CGPoint(x: 300, y: 900)),
+                       .init(point: CGPoint(x: 300, y: 1000), alignWithin: 100...700))
     }
 
     func testNoRoomBelowTheFieldSitsTheBubbleAboveIt() {
         let lowField = CGRect(x: 100, y: 40, width: 600, height: 80)
-        XCTAssertEqual(place(field: lowField, mouse: CGPoint(x: 300, y: 50)), .init(point: CGPoint(x: 300, y: 120)))
+        XCTAssertEqual(place(field: lowField, mouse: CGPoint(x: 300, y: 50)).point, CGPoint(x: 300, y: 120))
     }
 
     func testMouseBesideTheFieldClampsToItsWidth() {
         XCTAssertEqual(place(field: field, mouse: CGPoint(x: 900, y: 900)).point, CGPoint(x: 700, y: 1000))
+    }
+
+    func testCaretStaysWhileTheMouseIsInsideTheField() {
+        XCTAssertEqual(place(caret: caret, field: field, mouse: CGPoint(x: 650, y: 210)).point, CGPoint(x: 400, y: 518))
+    }
+
+    func testMouseBelowTheFieldMovesTheBubbleStraightDown() {
+        let point = place(caret: caret, field: field, mouse: CGPoint(x: 650, y: -232)).point
+        XCTAssertEqual(point.x, 400)
+        XCTAssertEqual(point.y, 518 - 300, accuracy: 0.001)
+    }
+
+    func testFieldOnlyBubbleFollowsAMouseFarBelowOnlyVertically() {
+        let placed = place(field: field, mouse: CGPoint(x: 300, y: -250))
+        XCTAssertEqual(placed.point.x, 300)
+        XCTAssertEqual(placed.point.y, 200 - 150, accuracy: 0.001)
+        XCTAssertTrue(placed.hangsBelow)
+    }
+
+    func testWideBubbleIsCentredOnTheField() {
+        XCTAssertEqual(FocusUtils.alignedCenterX(width: 350, within: 100...700, toward: 120), 400)
+    }
+
+    func testThirdWideBubbleSnapsToLeftCentreOrRight() {
+        XCTAssertEqual(FocusUtils.alignedCenterX(width: 240, within: 100...700, toward: 120), 220)
+        XCTAssertEqual(FocusUtils.alignedCenterX(width: 240, within: 100...700, toward: 450), 400)
+        XCTAssertEqual(FocusUtils.alignedCenterX(width: 240, within: 100...700, toward: 690), 580)
+    }
+
+    func testSmallBubbleGetsMoreSpots() {
+        XCTAssertEqual(FocusUtils.alignedCenterX(width: 120, within: 100...700, toward: 260), 256, accuracy: 0.001)
     }
 
     func testPullSettings() {

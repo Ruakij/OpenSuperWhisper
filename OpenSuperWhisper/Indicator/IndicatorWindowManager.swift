@@ -23,12 +23,16 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     // Notch mode anchors the *top* edge instead (the pill hangs from the screen top, growing down).
     private var anchorFromTop = false
     private var anchorTopY: CGFloat = 0
+    // A field span to snap the bubble's centre to, waiting for the first measured width. Applied
+    // once, so a caption growing mid-recording does not make the bubble jump between spots.
+    private var pendingAlignment: ClosedRange<CGFloat>?
     private var resizeObserver: NSObjectProtocol?
     private var drainObserver: AnyCancellable?
 
     private init() {}
     
-    func show(nearPoint point: NSPoint? = nil, hangingBelow: Bool = false) -> IndicatorViewModel {
+    func show(nearPoint point: NSPoint? = nil, hangingBelow: Bool = false,
+              alignWithin: ClosedRange<CGFloat>? = nil) -> IndicatorViewModel {
         
         KeyboardShortcuts.enable(.escape)
 
@@ -135,6 +139,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
             let screenFrame = screen.frame
 
             anchorFromTop = false
+            pendingAlignment = nil
             switch AppPreferences.shared.indicatorPosition {
             case "notch":
                 // Hang from the very top-center, growing downward — sitting in/around the notch
@@ -163,6 +168,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
                     anchorTopY = point.y - 8
                     anchorBottomY = point.y + 20
                     anchorCenterX = point.x
+                    pendingAlignment = alignWithin
                 } else {
                     anchorBottomY = screenFrame.maxY - 260
                     anchorCenterX = screenFrame.midX
@@ -242,6 +248,10 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         guard let window, size.width > 1, size.height > 1 else { return }
         let newSize = NSSize(width: ceil(size.width), height: ceil(size.height))
         var frame = window.frameRect(forContentRect: NSRect(origin: window.frame.origin, size: newSize))
+        if let span = pendingAlignment {
+            anchorCenterX = FocusUtils.alignedCenterX(width: frame.width, within: span, toward: anchorCenterX)
+            pendingAlignment = nil
+        }
         if let screen = window.screen ?? NSScreen.main {
             frame.origin = placedOrigin(for: frame.size, on: screen)
         }

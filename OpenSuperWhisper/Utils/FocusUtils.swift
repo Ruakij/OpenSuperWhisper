@@ -45,55 +45,73 @@ class FocusUtils {
         }
     }
 
-    /// Mouse distance from the caret within which the caret is trusted as it is.
+    /// Mouse distance, per axis, within which the reported spot is kept as it is.
     static let mouseDeadZone: CGFloat = 150
 
     /// Room the bubble needs under a field to hang below it rather than sit above it.
     static let roomBelowField: CGFloat = 120
 
     /// Where "cursor" mode puts the bubble, in Cocoa coordinates. `hangsBelow` places the
-    /// bubble's top edge at `point` instead of its bottom edge.
+    /// bubble's top edge at `point` instead of its bottom edge. `alignWithin` is the field's
+    /// horizontal span the bubble snaps to once its width is known (see `alignedCenterX`).
     struct Placement: Equatable {
         var point: CGPoint
         var hangsBelow = false
+        var alignWithin: ClosedRange<CGFloat>? = nil
     }
 
     /// Places the bubble from what the focused app reported (Cocoa rects) and the mouse.
     ///
-    /// A reported caret is where the text goes, so the bubble sits on it while the mouse is
-    /// nearby and drifts toward the mouse only by `pull` of the distance beyond the dead zone.
-    /// When the app reports only its field, the field's top edge can be far from the text: a chat
-    /// window typed into at the bottom. Following the mouse into the field would cover the text,
-    /// so the bubble goes to the field edge nearest the mouse, at the mouse's x. Pure, for testing.
+    /// The bubble follows the mouse only along an axis on which the mouse is outside the field,
+    /// and only by `pull` of the distance beyond the dead zone: inside the field, following it
+    /// would cover the text. A mouse below the field moves the bubble straight down, not sideways.
+    ///
+    /// A reported caret is where the text goes, so it is the starting point. With only the field
+    /// reported, its top edge can be far from the text (a chat window typed into at the bottom),
+    /// so the bubble starts on the field edge nearest the mouse, hanging below the bottom edge
+    /// when there is room. Pure, for testing.
     static func placement(caret: CGRect?, field: CGRect?, mouse: CGPoint, pull: CGFloat,
                           screen: CGRect?) -> Placement {
         if let caret {
-            return Placement(point: pulled(CGPoint(x: caret.minX, y: caret.maxY), toward: mouse, by: pull))
+            let box = field ?? caret
+            return Placement(point: CGPoint(
+                x: (box.minX...box.maxX).contains(mouse.x) ? caret.minX : pulled(caret.minX, toward: mouse.x, by: pull),
+                y: (box.minY...box.maxY).contains(mouse.y) ? caret.maxY : pulled(caret.maxY, toward: mouse.y, by: pull)))
         }
         guard let field else { return Placement(point: mouse) }
         guard pull > 0 else { return Placement(point: CGPoint(x: field.minX, y: field.maxY)) }
 
         let x = min(max(mouse.x, field.minX), field.maxX)
+        let span = field.minX...field.maxX
         let roomBelow = field.minY - (screen?.minY ?? -.infinity) >= roomBelowField
-        if mouse.y < field.minY, roomBelow {
-            return Placement(point: pulled(CGPoint(x: x, y: field.minY), toward: mouse, by: pull), hangsBelow: true)
+        let mouseLow = mouse.y < field.minY || (mouse.y <= field.maxY && mouse.y < field.midY)
+        if mouseLow, roomBelow {
+            return Placement(point: CGPoint(x: x, y: min(field.minY, pulled(field.minY, toward: mouse.y, by: pull))),
+                             hangsBelow: true, alignWithin: span)
         }
-        if mouse.y > field.maxY {
-            return Placement(point: pulled(CGPoint(x: x, y: field.maxY), toward: mouse, by: pull))
-        }
-        if mouse.y < field.midY, roomBelow {
-            return Placement(point: CGPoint(x: x, y: field.minY), hangsBelow: true)
-        }
-        return Placement(point: CGPoint(x: x, y: field.maxY))
+        return Placement(point: CGPoint(x: x, y: max(field.maxY, pulled(field.maxY, toward: mouse.y, by: pull))),
+                         alignWithin: span)
     }
 
-    private static func pulled(_ start: CGPoint, toward mouse: CGPoint, by pull: CGFloat) -> CGPoint {
-        let dx = mouse.x - start.x
-        let dy = mouse.y - start.y
-        let distance = (dx * dx + dy * dy).squareRoot()
+    private static func pulled(_ start: CGFloat, toward target: CGFloat, by pull: CGFloat) -> CGFloat {
+        let distance = abs(target - start)
         guard distance > mouseDeadZone else { return start }
-        let scale = pull * (distance - mouseDeadZone) / distance
-        return CGPoint(x: start.x + dx * scale, y: start.y + dy * scale)
+        return start + (target > start ? 1 : -1) * pull * (distance - mouseDeadZone)
+    }
+
+    /// The bubble's centre on a field edge: snapped to evenly spaced spots, from flush left to
+    /// flush right, nearest `target`. A bubble wider than half the field has only the centre,
+    /// one wider than a third the left, centre and right, and smaller ones more spots, so a small
+    /// bubble on a wide field still lands near the mouse. Pure, for testing.
+    static func alignedCenterX(width: CGFloat, within span: ClosedRange<CGFloat>, toward target: CGFloat) -> CGFloat {
+        let fieldWidth = span.upperBound - span.lowerBound
+        let ratio = width / max(fieldWidth, 1)
+        guard ratio <= 0.5 else { return (span.lowerBound + span.upperBound) / 2 }
+        let gaps = CGFloat(Int(1 / ratio))
+        let step = (fieldWidth - width) / gaps
+        let first = span.lowerBound + width / 2
+        let index = min(max(((target - first) / step).rounded(), 0), gaps)
+        return first + index * step
     }
 
     /// What the focused text element reported, in AX (Quartz) coordinates. `caret` only when it is
