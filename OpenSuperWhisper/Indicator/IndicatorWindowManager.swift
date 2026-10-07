@@ -37,6 +37,10 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         drainObserver?.cancel()
         drainObserver = nil
 
+        // The outgoing bubble is about to be replaced, and a message timer still pending on it
+        // would report back as if it were the new one and hide the take just started.
+        viewModel?.delegate = nil
+
         // Create new view model
         let newViewModel = IndicatorViewModel()
         newViewModel.delegate = self
@@ -189,7 +193,23 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         // `orderFront` is only guaranteed to bring the window up while this app is active, and it
         // is inactive whenever the user dictates into another app.
         window?.orderFrontRegardless()
+        logPresentation(of: newViewModel)
         return newViewModel
+    }
+
+    /// Records where the bubble went and whether it became visible, for the case of a recording
+    /// that starts with no bubble on screen.
+    private func logPresentation(of viewModel: IndicatorViewModel) {
+        guard Diag.isEnabled, let window else { return }
+        Diag.mark("indicator ordered front: frame \(window.frame), screen \(window.screen?.frame.debugDescription ?? "none"), "
+            + "visible \(window.isVisible), occluded \(!window.occlusionState.contains(.visible))")
+        Task { @MainActor [weak self, weak viewModel, weak window] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard let self, let viewModel, let window, self.viewModel === viewModel else { return }
+            Diag.mark("indicator after 0.5s: frame \(window.frame), visible \(window.isVisible), "
+                + "occluded \(!window.occlusionState.contains(.visible)), bubble shown \(viewModel.isVisible), "
+                + "content \(window.contentView == nil ? "none" : "set")")
+        }
     }
 
     /// The canvas the window starts on, before SwiftUI has measured anything.
