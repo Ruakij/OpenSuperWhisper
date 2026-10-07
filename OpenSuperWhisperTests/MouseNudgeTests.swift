@@ -1,7 +1,7 @@
 import XCTest
 @testable import OpenSuperWhisper
 
-/// "Mouse" mode keeps the bubble near the caret anchor but no further than a fixed distance from
+/// "Cursor" mode keeps the bubble near the caret anchor but no further than a fixed distance from
 /// the mouse, so a tall field whose caret accessibility cannot place does not put the bubble at
 /// its top edge. Cocoa (bottom-left origin) coordinates.
 final class MouseNudgeTests: XCTestCase {

@@ -27,22 +27,23 @@ class FocusUtils {
         return NSEvent.mouseLocation
     }
 
-    /// The indicator only needs the text caret position in "cursor" and "mouse" mode; every
+    /// The indicator only needs the text caret position in "cursor" mode; every
     /// other position anchors to screen geometry. Used to skip the costly AX
     /// caret query (a main-thread hang risk) when it would be discarded anyway.
     static func shouldAnchorToCaret(indicatorPosition: String) -> Bool {
-        return indicatorPosition == "cursor" || indicatorPosition == "mouse"
+        return indicatorPosition == "cursor"
     }
 
-    /// How far from the mouse the "mouse" mode bubble may sit when the caret is elsewhere.
+    /// How far from the mouse the "cursor" mode bubble may sit when the caret is elsewhere.
     static let mouseNudgeMaxDistance: CGFloat = 150
 
-    /// Where the indicator anchors in "mouse" mode, in Cocoa coordinates: the point of the caret
-    /// anchor closest to the mouse, pulled to within `maxDistance` of it.
+    /// Where the indicator anchors in "cursor" mode, in Cocoa coordinates: the point of the caret
+    /// anchor closest to the mouse, pulled to within `maxDistance` of it. The mouse itself when
+    /// there is no anchor.
     ///
-    /// When accessibility only knows the focused field, "cursor" mode anchors to the field's top
-    /// edge, which in a tall field or a chat window typed into at the bottom is nowhere near where
-    /// the user is looking. The mouse usually is. Pure, for testing.
+    /// When accessibility only knows the focused field, its top edge in a tall field or a chat
+    /// window typed into at the bottom is nowhere near where the user is looking. The mouse
+    /// usually is. Pure, for testing.
     static func mouseNudgedPoint(anchor: CGRect?, mouse: CGPoint,
                                  maxDistance: CGFloat = mouseNudgeMaxDistance) -> CGPoint {
         guard let anchor else { return mouse }

@@ -316,17 +316,14 @@ class ShortcutManager {
                 Diag.mark("keyDown → start recording")
                 let cursorPosition = FocusUtils.getCurrentCursorPosition()
                 var caret: CGRect? = nil
-                // Only "cursor" and "mouse" mode need the caret; other positions anchor to
+                // Only "cursor" mode needs the caret; other positions anchor to
                 // screen geometry, so skip the synchronous AX caret query (a
                 // main-thread hang risk) when its result would be discarded.
-                let position = AppPreferences.shared.indicatorPosition
-                if FocusUtils.shouldAnchorToCaret(indicatorPosition: position) {
+                if FocusUtils.shouldAnchorToCaret(indicatorPosition: AppPreferences.shared.indicatorPosition) {
                     caret = Diag.measure("getCaretRect") { FocusUtils.getCaretRect() }
                 }
-                let indicatorPoint: NSPoint? = position == "mouse"
-                    ? FocusUtils.mouseNudgedPoint(anchor: caret.map(FocusUtils.convertAXRectToCocoa),
-                                                  mouse: cursorPosition)
-                    : caret.map { FocusUtils.convertAXPointToCocoa($0.origin) } ?? cursorPosition
+                let indicatorPoint: NSPoint? = FocusUtils.mouseNudgedPoint(
+                    anchor: caret.map(FocusUtils.convertAXRectToCocoa), mouse: cursorPosition)
                 let vm = Diag.measure("IndicatorWindowManager.show") {
                     IndicatorWindowManager.shared.show(nearPoint: indicatorPoint)
                 }
