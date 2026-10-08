@@ -20,8 +20,21 @@ class AudioRecorder: NSObject, ObservableObject {
     private var microphoneChangeObserver: Any?
     private var connectionCheckTimer: DispatchSourceTimer?
     private var recordingDeviceID: AudioDeviceID?
-    // Keeps audio hardware warm so the first word is never cut off
-    private var primedRecorder: AVAudioRecorder?
+
+    /// The next take's recorder, created and prepared ahead so a key press only has to call
+    /// `record()`: creating one costs 10-50ms, and every word spoken meanwhile is lost. It also
+    /// keeps the audio hardware warm. Only valid for the input device and channel count it was
+    /// prepared for; a start on any other discards it and builds a fresh one.
+    private struct PreparedTake {
+        let recorder: AVAudioRecorder
+        let url: URL
+        let deviceID: AudioDeviceID?
+        let channelCount: Int
+    }
+    /// Filled from a background queue after each take while the next start reads it from
+    /// another, hence the lock.
+    private var preparedTake: PreparedTake?
+    private let preparedTakeLock = NSLock()
 
     /// Holds App Nap off for as long as a recording is running. Nil when nothing is recording.
     ///
@@ -66,7 +79,11 @@ class AudioRecorder: NSObject, ObservableObject {
     
     private func setup() {
         updateCanRecordStatus()
-        primeAudioHardware()
+        // Before anything can start a take, or a fresh clip could look unused.
+        removeUnusedPreparedTakes()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.prepareNextTake()
+        }
 
         notificationObserver = NotificationCenter.default.addObserver(
             forName: .AVCaptureDeviceWasConnected,
@@ -90,6 +107,7 @@ class AudioRecorder: NSObject, ObservableObject {
             queue: .main
         ) { [weak self] _ in
             self?.updateCanRecordStatus()
+            DispatchQueue.global(qos: .userInitiated).async { self?.prepareNextTake() }
         }
     }
     
@@ -97,22 +115,65 @@ class AudioRecorder: NSObject, ObservableObject {
         canRecord = MicrophoneService.shared.getActiveMicrophone() != nil
     }
 
-    /// Pre-warms the audio hardware by creating a prepared (but not recording) AVAudioRecorder.
-    /// Keeping `primedRecorder` alive holds the audio engine in an initialized state,
-    /// eliminating the cold-start delay when the user triggers the first real recording.
-    private func primeAudioHardware() {
-        let primedURL = temporaryDirectory.appendingPathComponent("primed.wav")
-        let settings: [String: Any] = [
+    private static func recorderSettings(channelCount: Int) -> [String: Any] {
+        [
             AVFormatIDKey: Int(kAudioFormatLinearPCM),
             AVSampleRateKey: 16000.0,
-            AVNumberOfChannelsKey: 1,
+            AVNumberOfChannelsKey: channelCount,
             AVLinearPCMBitDepthKey: 32,
             AVLinearPCMIsFloatKey: true
         ]
-        primedRecorder = try? AVAudioRecorder(url: primedURL, settings: settings)
-        primedRecorder?.prepareToRecord()
     }
-    
+
+    /// A UUID suffix keeps each recording's temp file unique. Without it, two recordings started
+    /// in the same wall-clock second share a path, and starting the next recording would truncate
+    /// the previous clip's file while the background pipeline is still reading it to transcribe.
+    /// (parallel-recording)
+    private func newRecordingURL() -> URL {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        return temporaryDirectory.appendingPathComponent("rec-\(timestamp)-\(UUID().uuidString.prefix(8)).wav")
+    }
+
+    /// Prepares the recorder for the next take on the current system input. Off the main thread:
+    /// it touches CoreAudio and AVFoundation, which can stall.
+    private func prepareNextTake() {
+        let channelCount = MicrophoneService.shared.getActiveMicrophone()
+            .map { MicrophoneService.shared.getInputChannelCount(for: $0) } ?? 1
+        let url = newRecordingURL()
+        guard let recorder = try? AVAudioRecorder(url: url, settings: Self.recorderSettings(channelCount: channelCount)),
+              recorder.prepareToRecord()
+        else {
+            try? FileManager.default.removeItem(at: url)
+            return
+        }
+        let take = PreparedTake(recorder: recorder, url: url,
+                                deviceID: MicrophoneService.shared.getCurrentSystemDefaultInputDevice(),
+                                channelCount: channelCount)
+        let replaced = preparedTakeLock.withLock { () -> PreparedTake? in
+            defer { preparedTake = take }
+            return preparedTake
+        }
+        if let replaced { try? FileManager.default.removeItem(at: replaced.url) }
+    }
+
+    private func takePreparedTake() -> PreparedTake? {
+        preparedTakeLock.withLock {
+            defer { preparedTake = nil }
+            return preparedTake
+        }
+    }
+
+    /// A prepared take the app quit before using is a header-only WAV; nothing else in the temp
+    /// directory survives a restart in use, but a real clip is left alone all the same.
+    private func removeUnusedPreparedTakes() {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: temporaryDirectory, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        for file in files where file.lastPathComponent.hasPrefix("rec-") || file.lastPathComponent == "primed.wav" {
+            let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            if size <= 4096 { try? FileManager.default.removeItem(at: file) }
+        }
+    }
+
     private func createTemporaryDirectoryIfNeeded() {
         do {
             try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
@@ -190,17 +251,6 @@ class AudioRecorder: NSObject, ObservableObject {
         // are already protected from being throttled. (#98)
         beginRecordingActivity()
 
-        // A UUID suffix keeps each recording's temp file unique. Without it, two recordings
-        // started in the same wall-clock second share a path — and starting the next recording
-        // would truncate the previous clip's file while the background pipeline is still reading
-        // it to transcribe. (parallel-recording)
-        let timestamp = Int(Date().timeIntervalSince1970)
-        let filename = "rec-\(timestamp)-\(UUID().uuidString.prefix(8)).wav"
-        let fileURL = temporaryDirectory.appendingPathComponent(filename)
-        currentRecordingURL = fileURL
-
-        print("start record file to \(fileURL)")
-
         #if os(macOS)
         if let activeMic = MicrophoneService.shared.getActiveMicrophone() {
             Diag.measure("setAsSystemDefaultInput") {
@@ -222,7 +272,7 @@ class AudioRecorder: NSObject, ObservableObject {
         Diag.mark("recorder.device=\(MicrophoneService.shared.getActiveMicrophone()?.displayName ?? "none") "
             + "requiresConnection=\(requiresConnection)")
         updateRecordingState(isRecording: false, isConnecting: requiresConnection)
-        startRecordingWithRecorder(fileURL: fileURL, monitorConnection: requiresConnection)
+        startRecordingWithRecorder(monitorConnection: requiresConnection)
 
         // After the mic is open: pausing media, ducking and the chime cost ~100ms that used to
         // sit between the key press and the first captured sample. A failed start clears
@@ -239,29 +289,41 @@ class AudioRecorder: NSObject, ObservableObject {
         }
     }
     
-    private func startRecordingWithRecorder(fileURL: URL, monitorConnection: Bool) {
+    private func startRecordingWithRecorder(monitorConnection: Bool) {
         var channelCount = 1
         if let activeMic = MicrophoneService.shared.getActiveMicrophone() {
             channelCount = MicrophoneService.shared.getInputChannelCount(for: activeMic)
             print("Recording with \(channelCount) input channel(s) from \(activeMic.displayName)")
         }
-        
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatLinearPCM),
-            AVSampleRateKey: 16000.0,
-            AVNumberOfChannelsKey: channelCount,
-            AVLinearPCMBitDepthKey: 32,
-            AVLinearPCMIsFloatKey: true
-        ]
-        
+
+        var prepared = takePreparedTake()
+        // The file goes missing when the system cleans the temp directory under an idle app, or
+        // another instance cleans up at launch; recording into it would save nothing.
+        if let take = prepared, take.deviceID != recordingDeviceID || take.channelCount != channelCount
+            || !FileManager.default.fileExists(atPath: take.url.path) {
+            try? FileManager.default.removeItem(at: take.url)
+            prepared = nil
+        }
+        Diag.mark("recorder.preparedTake=\(prepared != nil)")
+
         do {
-            primedRecorder = nil  // release primed recorder just before starting; hardware stays warm
             try Diag.measure("AVAudioRecorder init+record") {
-                audioRecorder = try AVAudioRecorder(url: fileURL, settings: settings)
+                // A prepared recorder can go stale (sleep, a device reset); `record()` says so
+                // by returning false, and a fresh one gets the take instead.
+                if let take = prepared, Self.begin(take.recorder, metering: monitorConnection) {
+                    audioRecorder = take.recorder
+                    currentRecordingURL = take.url
+                } else {
+                    if let take = prepared { try? FileManager.default.removeItem(at: take.url) }
+                    let url = newRecordingURL()
+                    let recorder = try AVAudioRecorder(url: url, settings: Self.recorderSettings(channelCount: channelCount))
+                    audioRecorder = recorder
+                    currentRecordingURL = url
+                    _ = Self.begin(recorder, metering: monitorConnection)
+                }
                 audioRecorder?.delegate = self
-                audioRecorder?.isMeteringEnabled = monitorConnection
-                audioRecorder?.record()
             }
+            print("start record file to \(currentRecordingURL?.path ?? "-")")
             Task { @MainActor in SpectrumAnalyzer.shared.start() }
             if monitorConnection {
                 startConnectionMonitoring()
@@ -278,7 +340,12 @@ class AudioRecorder: NSObject, ObservableObject {
             updateRecordingState(isRecording: false, isConnecting: false)
         }
     }
-    
+
+    private static func begin(_ recorder: AVAudioRecorder, metering: Bool) -> Bool {
+        recorder.isMeteringEnabled = metering
+        return recorder.record()
+    }
+
     /// What a stop produced. A clip and an accidental tap used to be the same `nil`, so a
     /// recording that captured nothing ended as quietly as one the user never meant to make,
     /// and the only signal was noticing afterwards that the words were missing (#117).
@@ -323,7 +390,7 @@ class AudioRecorder: NSObject, ObservableObject {
         Task { @MainActor in SpectrumAnalyzer.shared.stop() }
         stopConnectionMonitoring()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.primeAudioHardware()  // re-prime so the next recording starts instantly too
+            self?.prepareNextTake()
         }
 
         if AppPreferences.shared.pauseMediaOnRecord {
@@ -371,6 +438,9 @@ class AudioRecorder: NSObject, ObservableObject {
             try? FileManager.default.removeItem(at: url)
         }
         currentRecordingURL = nil
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.prepareNextTake()
+        }
     }
     
     
