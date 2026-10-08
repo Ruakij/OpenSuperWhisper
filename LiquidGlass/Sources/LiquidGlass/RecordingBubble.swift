@@ -481,37 +481,19 @@ struct CountdownOutline: View {
 }
 
 public extension View {
-    /// A live caption grows for as long as the user speaks, and a bubble that grows with it runs
-    /// off the screen. Up to `maxHeight` this hugs the text; past it the text stays pinned to the
-    /// bottom, so the newest words are always the ones in view, and the oldest fade out at the top
-    /// rather than being cut through mid-line.
-    func captionTail(maxHeight: CGFloat) -> some View {
-        modifier(CaptionTail(maxHeight: maxHeight))
-    }
-}
-
-private struct CaptionTail: ViewModifier {
-    let maxHeight: CGFloat
-
-    // Pure layout with no measured state, so a new line is placed and clipped in the same pass
-    // it arrives in.
-    func body(content: Content) -> some View {
-        content
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxHeight: maxHeight, alignment: .bottom)
-            // A flexible frame takes whatever height it is offered, and the window is sized from
-            // this view, so it is asked for its ideal height: the text, capped at `maxHeight`.
-            .fixedSize(horizontal: false, vertical: true)
+    /// `RecordingBubble.captionText`'s layout for captions drawn outside the glass bubble: as tall
+    /// as the text up to `RecordingBubble.captionLines`, then pinned to its last lines. The text
+    /// needs a definite width above this, or it measures as one unbroken line.
+    func captionTail(fontSize: CGFloat) -> some View {
+        let font = NSFont.systemFont(ofSize: fontSize)
+        let lineHeight = ceil(font.ascender - font.descender + font.leading)
+        return fixedSize(horizontal: false, vertical: true)
+            .frame(maxHeight: lineHeight * CGFloat(RecordingBubble.captionLines), alignment: .bottom)
             .clipped()
             .mask {
-                // Read in the same pass as the layout, so the fade appears exactly when capped.
-                GeometryReader { proxy in
-                    VStack(spacing: 0) {
-                        LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
-                            .frame(height: proxy.size.height >= maxHeight - 0.5 ? maxHeight * 0.3 : 0)
-                        Color.black
-                    }
-                }
+                LinearGradient(stops: [.init(color: .clear, location: 0),
+                                       .init(color: .black, location: 0.15)],
+                               startPoint: .top, endPoint: .bottom)
             }
     }
 }
