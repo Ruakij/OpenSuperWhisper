@@ -482,13 +482,14 @@ struct CountdownOutline: View {
 
 public extension View {
     /// `RecordingBubble.captionText`'s layout for captions drawn outside the glass bubble: as tall
-    /// as the text up to `RecordingBubble.captionLines`, then pinned to its last lines. The text
-    /// needs a definite width above this, or it measures as one unbroken line.
+    /// as the text up to 2 lines, then pinned to its last lines. The text needs a definite width
+    /// above this, or it measures as one unbroken line. The line count is a literal rather than
+    /// `RecordingBubble.captionLines`, which needs macOS 26 while these captions do not.
     func captionTail(fontSize: CGFloat) -> some View {
         let font = NSFont.systemFont(ofSize: fontSize)
         let lineHeight = ceil(font.ascender - font.descender + font.leading)
         return fixedSize(horizontal: false, vertical: true)
-            .frame(maxHeight: lineHeight * CGFloat(RecordingBubble.captionLines), alignment: .bottom)
+            .frame(maxHeight: lineHeight * 2, alignment: .bottom)
             .clipped()
             .mask {
                 LinearGradient(stops: [.init(color: .clear, location: 0),
