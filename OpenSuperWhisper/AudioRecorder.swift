@@ -310,7 +310,7 @@ class AudioRecorder: NSObject, ObservableObject {
     }
 
     /// Below this, a take is treated as an accidental trigger press rather than a dictation.
-    static let minimumUsableDuration: TimeInterval = 1.0
+    static let minimumUsableDuration: TimeInterval = 0.5
 
     func stopRecording() -> StopOutcome {
         // Runs on the main thread (IndicatorViewModel is @MainActor). AudioQueueStop waits for the
