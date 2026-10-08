@@ -11,7 +11,7 @@ class FluidAudioEngine: TranscriptionEngine {
     private var transcriptionTask: Task<String, Error>?
     private var progressTask: Task<Void, Never>?
 
-    /// When set ("v2"/"v3"), overrides the pref-selected model version — lets the
+    /// When set ("v2", "v3" or "ultra"), overrides the pref-selected model version — lets the
     /// remote local-fallback build an engine for a specific model without mutating
     /// global prefs.
     private let versionOverride: String?
@@ -28,7 +28,7 @@ class FluidAudioEngine: TranscriptionEngine {
     
     func initialize() async throws {
         let versionString = versionOverride ?? AppPreferences.shared.fluidAudioModelVersion
-        let version: AsrModelVersion = versionString == "v2" ? .v2 : .v3
+        let version = AsrModelVersion(preference: versionString)
 
         let models = try await AsrModels.downloadAndLoad(version: version)
         let manager = AsrManager(config: .default)
@@ -152,7 +152,7 @@ class FluidAudioEngine: TranscriptionEngine {
     private func transcribeFileWithBoosting(url: URL, mixedSamples: [Float]?,
                                             boostTerms: [String]) async throws -> String {
         let versionString = AppPreferences.shared.fluidAudioModelVersion
-        let version: AsrModelVersion = versionString == "v2" ? .v2 : .v3
+        let version = AsrModelVersion(preference: versionString)
         let models = try await AsrModels.downloadAndLoad(version: version)
 
         let manager = SlidingWindowAsrManager(config: .default)
@@ -248,3 +248,15 @@ class FluidAudioEngine: TranscriptionEngine {
     }
 }
 
+
+extension AsrModelVersion {
+    /// The model a stored `fluidAudioModelVersion` names. Anything unrecognised loads v3, the
+    /// default, so a preference written by a newer build still finds a model rather than none.
+    init(preference: String) {
+        switch preference {
+        case "v2": self = .v2
+        case "ultra": self = .ultra
+        default: self = .v3
+        }
+    }
+}

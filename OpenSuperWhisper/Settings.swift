@@ -1086,7 +1086,7 @@ class SettingsViewModel: ObservableObject {
     }
     
     func isFluidAudioModelDownloaded(version: String) -> Bool {
-        let asrVersion: AsrModelVersion = version == "v2" ? .v2 : .v3
+        let asrVersion = AsrModelVersion(preference: version)
         
         // Используем правильный путь к кэшу согласно документации:
         // ~/Library/Application Support/FluidAudio/Models/<version-folder>/
@@ -1230,7 +1230,7 @@ class SettingsViewModel: ObservableObject {
         
         downloadTask = Task {
             do {
-                let version: AsrModelVersion = model.version == "v2" ? .v2 : .v3
+                let version = AsrModelVersion(preference: model.version)
                 
                 guard !Task.isCancelled else {
                     await MainActor.run {
@@ -3151,6 +3151,13 @@ struct SettingsFluidAudioModels {
             size: 461
         ),
         SettingsFluidAudioModel(
+            name: "Parakeet Ultra",
+            version: "ultra",
+            isDownloaded: false,
+            description: "Multilingual, 25 languages, most accurate",
+            size: 614
+        ),
+        SettingsFluidAudioModel(
             name: "Parakeet v2",
             version: "v2",
             isDownloaded: false,
@@ -3181,6 +3188,15 @@ struct OnboardingUnifiedModels {
     /// ladder and is not one: all three are large-v3-turbo, and someone who picked "Medium"
     /// expecting the medium model got a compressed large instead.
     static let availableModels = [
+        // First, and preselected wherever it speaks the language (`OnboardingViewModel`): faster
+        // than Whisper and, in its 25 languages, more accurate. It replaces v3 here, which stays
+        // in the engine settings for anyone who already has it.
+        OnboardingUnifiedModel(
+            name: "Parakeet Ultra",
+            isDownloaded: false,
+            description: "Fastest processing and most accurate, 614 MB",
+            type: .parakeet(version: "ultra")
+        ),
         OnboardingUnifiedModel(
             name: "Whisper Large v3 Turbo",
             isDownloaded: false,
@@ -3189,12 +3205,6 @@ struct OnboardingUnifiedModels {
                 url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin?download=true")!,
                 size: 1624
             )
-        ),
-        OnboardingUnifiedModel(
-            name: "Parakeet v3",
-            isDownloaded: false,
-            description: "Fastest processing and accurate",
-            type: .parakeet(version: "v3")
         ),
         OnboardingUnifiedModel(
             name: "Parakeet v2",

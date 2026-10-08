@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // The app-shaped recording bubble, with the Liquid Glass layout constraints baked in:
@@ -265,15 +266,16 @@ public struct RecordingBubble: View {
                                 .transition(.opacity)
                         }
                     case .label:
-                        Text(caption ?? AttributedString(labelText))
-                            // Spotlight's placeholder: regular weight, secondary grey.
-                            .font(.system(size: caption == nil ? textSize : textSize * 0.85))
-                            .foregroundStyle(.primary)
-                            .contentTransition(.opacity)
-                            .fixedSize(horizontal: caption == nil, vertical: true)
-                            .frame(maxWidth: caption == nil ? nil : 300, alignment: .leading)
-                            // Four lines of caption (about 1.25 x the font size each).
-                            .captionTail(maxHeight: caption == nil ? .infinity : (textSize * 0.85 * 1.25 * 4).rounded())
+                        if let caption {
+                            captionText(caption)
+                        } else {
+                            Text(labelText)
+                                // Spotlight's placeholder: regular weight, secondary grey.
+                                .font(.system(size: textSize))
+                                .foregroundStyle(.primary)
+                                .contentTransition(.opacity)
+                                .fixedSize()
+                        }
                     }
                 }
             }
@@ -282,6 +284,36 @@ public struct RecordingBubble: View {
         .padding(.trailing, (bar * 0.42).rounded())
         .padding(.vertical, (6 * size).rounded())
         .frame(minHeight: bar)
+    }
+
+    /// Lines of live caption the pill grows to before it starts showing only the latest ones.
+    static let captionLines = 2
+    static let captionWidth: CGFloat = 300
+
+    /// The live caption: as tall as its text up to `captionLines`, then pinned to its last lines.
+    ///
+    /// The bubble is measured at its ideal size, and a `maxWidth` frame hands that ideal-size
+    /// proposal straight through: the text was measured as one unbroken line, the pill kept its
+    /// one-line height, and the wrapped lines spilled out above and below it, cutting off the
+    /// newest words. A fixed width makes the text measure at the width it is drawn at.
+    private func captionText(_ caption: AttributedString) -> some View {
+        let fontSize = textSize * 0.85
+        let font = NSFont.systemFont(ofSize: fontSize)
+        let lineHeight = ceil(font.ascender - font.descender + font.leading)
+        return Text(caption)
+            .font(.system(size: fontSize))
+            .foregroundStyle(.primary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: Self.captionWidth, alignment: .leading)
+            .frame(maxHeight: lineHeight * CGFloat(Self.captionLines), alignment: .bottom)
+            .clipped()
+            // SwiftUI's line spacing is not quite the font's, so the descenders of the line that
+            // scrolled away peek over the top edge. A short fade hides them.
+            .mask {
+                LinearGradient(stops: [.init(color: .clear, location: 0),
+                                       .init(color: .black, location: 0.15)],
+                               startPoint: .top, endPoint: .bottom)
+            }
     }
 
     /// The record dot, inside the pill. Pulses while listening, steady while transcribing.

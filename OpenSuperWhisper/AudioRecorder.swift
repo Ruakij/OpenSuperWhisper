@@ -123,9 +123,16 @@ class AudioRecorder: NSObject, ObservableObject {
     
     /// The short chime used to confirm a recording state change. Internal rather than private so
     /// the Space latch can reuse it — same class of feedback, same preference.
-    func playNotificationSound() {
+    /// Which chime to play. The end of a take used to reuse the start chime, which sounded like a
+    /// new recording beginning; the stop chime is the same note a fourth lower.
+    enum Chime: String {
+        case start = "notification"
+        case stop = "notification-stop"
+    }
+
+    func playNotificationSound(_ chime: Chime = .start) {
         // Try to play using NSSound first
-        guard let soundURL = Bundle.main.url(forResource: "notification", withExtension: "mp3") else {
+        guard let soundURL = Bundle.main.url(forResource: chime.rawValue, withExtension: "mp3") else {
             print("Failed to find notification sound file")
             // Fall back to system sound if notification.mp3 is not found
             NSSound.beep()
@@ -337,7 +344,7 @@ class AudioRecorder: NSObject, ObservableObject {
         // Only a take that goes on to be transcribed gets the end chime: a brushed key stays as
         // silent as it always was, and a cancel is not a stop.
         if outcome.url != nil, AppPreferences.shared.playSoundOnRecordStart {
-            playNotificationSound()
+            playNotificationSound(.stop)
         }
         return outcome
     }

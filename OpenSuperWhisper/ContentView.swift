@@ -846,6 +846,17 @@ struct PermissionsView: View {
             Spacer()
         }
         .padding()
+        // Rechecks for as long as the banner is up. The manager's own polling follows window key
+        // changes, and the transcriptions tab is built at launch, before onboarding grants the
+        // microphone: the banner kept asking for a permission the app already had until the
+        // button was pressed and read the real status.
+        .task {
+            while !Task.isCancelled {
+                permissionsManager.checkMicrophonePermission()
+                permissionsManager.checkAccessibilityPermission()
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
     }
 }
 

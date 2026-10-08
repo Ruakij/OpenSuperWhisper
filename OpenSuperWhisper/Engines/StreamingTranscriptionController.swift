@@ -57,7 +57,7 @@ final class StreamingTranscriptionController: ObservableObject {
         volatileText = ""
 
         let versionString = AppPreferences.shared.fluidAudioModelVersion
-        let version: AsrModelVersion = versionString == "v2" ? .v2 : .v3
+        let version = AsrModelVersion(preference: versionString)
         let models = try await AsrModels.downloadAndLoad(version: version)
 
         // Small windows so a rough preview appears quickly (the default 11–15s window emits

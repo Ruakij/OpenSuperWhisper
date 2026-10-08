@@ -59,4 +59,20 @@ final class OnboardingModelGateTests: XCTestCase {
         XCTAssertTrue(viewModel.canContinue)
         XCTAssertEqual(AppPreferences.shared.selectedEngine, "remote")
     }
+
+    /// Parakeet Ultra is the suggested model wherever it speaks the language, Whisper elsewhere.
+    func testUltraIsSuggestedOnlyForItsLanguages() {
+        let ultra = OnboardingUnifiedModel(name: "Ultra", isDownloaded: false, description: "",
+                                           type: .parakeet(version: "ultra"))
+        XCTAssertTrue(OnboardingViewModel.isDefaultCandidate(ultra, language: "fr"))
+        XCTAssertTrue(OnboardingViewModel.isDefaultCandidate(ultra, language: "auto"))
+        XCTAssertFalse(OnboardingViewModel.isDefaultCandidate(ultra, language: "ko"))
+    }
+
+    func testUltraComesFirstInOnboarding() {
+        guard case .parakeet(let version) = OnboardingUnifiedModels.availableModels[0].type else {
+            return XCTFail("the first onboarding model should be Parakeet")
+        }
+        XCTAssertEqual(version, "ultra")
+    }
 }

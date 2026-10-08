@@ -9,6 +9,7 @@ import XCTest
 import Carbon
 import ApplicationServices
 import AVFoundation
+import FluidAudio
 @testable import OpenSuperWhisper
 
 final class OpenSuperWhisperTests: XCTestCase {
@@ -319,6 +320,19 @@ final class EngineCapabilitiesTests: XCTestCase {
         let langs = EngineCapabilities.supportedLanguages(engine: "fluidaudio", fluidAudioModelVersion: "v3")
         XCTAssertGreaterThan(langs.count, 1)
         XCTAssertTrue(langs.contains("fr"))
+    }
+
+    func testLanguages_parakeetUltraIsMultilingual() {
+        let langs = EngineCapabilities.supportedLanguages(engine: "fluidaudio", fluidAudioModelVersion: "ultra")
+        XCTAssertTrue(langs.contains("fr"))
+    }
+
+    func testParakeetPreferenceMapsToModelVersion() {
+        XCTAssertEqual(AsrModelVersion(preference: "v2"), .v2)
+        XCTAssertEqual(AsrModelVersion(preference: "v3"), .v3)
+        XCTAssertEqual(AsrModelVersion(preference: "ultra"), .ultra)
+        // A preference this build does not know still loads a model.
+        XCTAssertEqual(AsrModelVersion(preference: "phonon9"), .v3)
     }
 
     func testLanguages_senseVoiceLimitedSet() {
