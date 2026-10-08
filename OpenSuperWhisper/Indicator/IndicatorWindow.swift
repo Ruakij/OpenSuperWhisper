@@ -126,7 +126,23 @@ class IndicatorViewModel: ObservableObject {
         }
     }
     
-    func startRecording() {
+    /// Starts the recorder without waiting for anything else. The hotkey path calls it before the
+    /// caret lookup, the indicator and the context capture, which cost 25-60ms on the main thread
+    /// (more for a browser URL), and every word spoken in that time is lost. False when there is
+    /// no input device; `startRecording` reports that.
+    static func startRecorder() -> Bool {
+        guard MicrophoneService.shared.getActiveMicrophone() != nil else { return false }
+        // Whether the mic needs a connection is decided off the main thread inside
+        // `startRecording()` (it touches AVFoundation/CoreAudio, which can stall); the recorder
+        // then publishes `isConnecting`/`isRecording` and the Combine bindings above flip the
+        // state to `.connecting` when needed. On the main thread that blocking call would sit
+        // where the hotkey tap runs (#freeze).
+        Task.detached { AudioRecorder.shared.startRecording() }
+        return true
+    }
+
+    /// `recorderStarted` when the caller already ran `startRecorder()`.
+    func startRecording(recorderStarted: Bool = false) {
         // No busy check: a previous dictation may still be transcribing in the background
         // (DictationPipeline). Recording is decoupled from transcription, so a new recording
         // can always start — that's the point of parallel recording. (parallel-recording)
@@ -146,18 +162,13 @@ class IndicatorViewModel: ObservableObject {
         RecordingContext.shared.captureFrontmost()
         ContextModelSwitcher.applyForCurrentContext()
 
-        // Show recording immediately and optimistically. Whether the mic needs a
-        // connection is decided off the main thread inside `recorder.startRecording()`
-        // (it touches AVFoundation/CoreAudio, which can stall); the recorder then
-        // publishes `isConnecting`/`isRecording` and the Combine bindings above
-        // flip this to `.connecting` when needed. Querying it here would put that
-        // blocking call on the main thread — and the hotkey tap runs there (#freeze).
+        // Show recording immediately and optimistically; see `startRecorder()`.
         state = .recording
         startBlinking()
         recordingStartedAt = Date()
 
-        Task.detached { [recorder] in
-            recorder.startRecording()
+        if !recorderStarted {
+            _ = Self.startRecorder()
         }
 
         longDictation?.cancel()

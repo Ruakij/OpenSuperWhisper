@@ -314,6 +314,7 @@ class ShortcutManager {
         Task { @MainActor in
             if self.activeVm == nil {
                 Diag.mark("keyDown → start recording")
+                let recorderStarted = IndicatorViewModel.startRecorder()
                 let cursorPosition = FocusUtils.getCurrentCursorPosition()
                 var caret: CGRect? = nil
                 // Only "cursor" mode needs the caret; other positions anchor to
@@ -326,7 +327,7 @@ class ShortcutManager {
                 let vm = Diag.measure("IndicatorWindowManager.show") {
                     IndicatorWindowManager.shared.show(nearPoint: indicatorPoint)
                 }
-                Diag.measure("vm.startRecording") { vm.startRecording() }
+                Diag.measure("vm.startRecording") { vm.startRecording(recorderStarted: recorderStarted) }
                 self.activeVm = vm
                 self.recordingStartedUptime = ProcessInfo.processInfo.systemUptime
                 self.startLatchTapIfEnabled()
