@@ -190,17 +190,6 @@ class AudioRecorder: NSObject, ObservableObject {
         // are already protected from being throttled. (#98)
         beginRecordingActivity()
 
-        if AppPreferences.shared.pauseMediaOnRecord {
-            MediaPlaybackController.shared.pauseMedia()
-        }
-        if AppPreferences.shared.reduceVolumeOnRecord {
-            SystemVolumeController.shared.duck(to: Float32(AppPreferences.shared.reduceVolumeLevel))
-        }
-
-        if AppPreferences.shared.playSoundOnRecordStart {
-            playNotificationSound()
-        }
-
         // A UUID suffix keeps each recording's temp file unique. Without it, two recordings
         // started in the same wall-clock second share a path — and starting the next recording
         // would truncate the previous clip's file while the background pipeline is still reading
@@ -234,6 +223,20 @@ class AudioRecorder: NSObject, ObservableObject {
             + "requiresConnection=\(requiresConnection)")
         updateRecordingState(isRecording: false, isConnecting: requiresConnection)
         startRecordingWithRecorder(fileURL: fileURL, monitorConnection: requiresConnection)
+
+        // After the mic is open: pausing media, ducking and the chime cost ~100ms that used to
+        // sit between the key press and the first captured sample. A failed start clears
+        // `currentRecordingURL`, and nothing would undo the duck for it.
+        guard currentRecordingURL != nil else { return }
+        if AppPreferences.shared.pauseMediaOnRecord {
+            MediaPlaybackController.shared.pauseMedia()
+        }
+        if AppPreferences.shared.reduceVolumeOnRecord {
+            SystemVolumeController.shared.duck(to: Float32(AppPreferences.shared.reduceVolumeLevel))
+        }
+        if AppPreferences.shared.playSoundOnRecordStart {
+            playNotificationSound()
+        }
     }
     
     private func startRecordingWithRecorder(fileURL: URL, monitorConnection: Bool) {
