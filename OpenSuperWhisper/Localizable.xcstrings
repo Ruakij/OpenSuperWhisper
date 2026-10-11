@@ -13981,6 +13981,16 @@
         }
       }
     },
+    "Loaded at launch and kept in memory.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargé au lancement et gardé en mémoire."
+          }
+        }
+      }
+    },
     "Loading the model…": {
       "localizations": {
         "fr": {
@@ -15287,6 +15297,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Réunion produit, termes : sprint, backlog, PR."
+          }
+        }
+      }
+    },
+    "Qwen": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen"
           }
         }
       }
@@ -17087,6 +17107,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "http:// non chiffré, sauf si vous tapez https://."
+          }
+        }
+      }
+    },
+    "Unloads the Qwen model after 5 minutes without a dictation and reloads it when you dictate. Saves memory, but the first cleanup after a break waits a few seconds.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Décharge le modèle Qwen après 5 minutes sans dictée et le recharge quand vous dictez. Économise de la mémoire, mais le premier nettoyage après une pause attend quelques secondes."
           }
         }
       }

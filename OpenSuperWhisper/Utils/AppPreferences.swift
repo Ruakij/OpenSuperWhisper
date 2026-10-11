@@ -596,6 +596,9 @@ final class AppPreferences {
     @UserDefault(key: "builtInModelFileName", defaultValue: LLMModelManager.defaultModel.fileName)
     var builtInModelFileName: String
 
+    @UserDefault(key: "unloadBuiltInModelWhenIdle", defaultValue: true)
+    var unloadBuiltInModelWhenIdle: Bool
+
     // The complete system prompt for the cleanup pass. The app wraps nothing around it and
     // substitutes nothing in it, so this field is the whole contract — including the guardrail
     // that keeps a weak model transforming rather than answering, and the output language.

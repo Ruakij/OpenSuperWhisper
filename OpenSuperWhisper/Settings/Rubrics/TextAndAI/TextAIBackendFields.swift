@@ -40,7 +40,9 @@ struct TextAIBackendFields: View {
         if viewModel.builtInModelDownloaded {
             TextAILine(indented: true) {
                 TextAIOKPill("✓ Model ready, runs on this Mac")
-                TextAIFootnote("Loads on first use (a few seconds), then frees its memory after 5 minutes idle.")
+                TextAIFootnote(viewModel.unloadBuiltInModelWhenIdle
+                               ? "Loads on first use (a few seconds), then frees its memory after 5 minutes idle."
+                               : "Loaded at launch and kept in memory.")
                     .layoutPriority(1)
                 Spacer(minLength: 0)
                 Button("Delete") { viewModel.deleteBuiltInModel() }
@@ -71,6 +73,11 @@ struct TextAIBackendFields: View {
             TextAILine(indented: true) {
                 TextAIFootnote("✕ \(error)", color: STheme.danger)
             }
+        }
+        SettingRow("Free memory when idle",
+                   hint: "Unloads the Qwen model after 5 minutes without a dictation and reloads it when you dictate. Saves memory, but the first cleanup after a break waits a few seconds.",
+                   badge: ("Qwen", .engine), advanced: true, indented: true) {
+            SSwitch(isOn: $viewModel.unloadBuiltInModelWhenIdle)
         }
     }
 

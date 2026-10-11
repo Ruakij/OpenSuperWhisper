@@ -24,6 +24,7 @@ public class TranscriptionService: ObservableObject {
 
     private var currentEngine: TranscriptionEngine?
     private var loadedEngineKind: String?
+    private var engineGeneration = 0
     private var totalDuration: Float = 0.0
 
     /// The model that actually produced the most recent transcription, and whether it
@@ -52,6 +53,17 @@ public class TranscriptionService: ObservableObject {
         progress = 0.0
         isCancelled = false
     }
+
+    public func preloadWhisperEngine() async {
+        await Self.engineGate.wait()
+        defer { Task { await Self.engineGate.signal() } }
+        let preferences = CoreAccess.preferences
+        guard Self.engineKind(forSelectedEngine: preferences.selectedEngine) == .whisper,
+              !preferences.unloadWhisperModelWhenIdle,
+              let modelPath = preferences.selectedWhisperModelPath ?? preferences.selectedModelPath,
+              FileManager.default.fileExists(atPath: modelPath) else { return }
+        await ensureEngineLoaded()
+    }
     
     /// Initialize the engine matching the current preference if it isn't already
     /// active. Called lazily from transcribeAudio, so selecting an engine in
@@ -65,6 +77,7 @@ public class TranscriptionService: ObservableObject {
         engineError = nil
         print("Loading engine: \(selectedEngine)")
 
+        let generation = engineGeneration
         let kind = Self.engineKind(forSelectedEngine: selectedEngine)
         let result = await Task.detached(priority: .userInitiated) { () -> Result<TranscriptionEngine?, Error> in
             let engine: TranscriptionEngine? = await Self.buildEngine(kind)
@@ -76,6 +89,11 @@ public class TranscriptionService: ObservableObject {
                 return .failure(error)
             }
         }.value
+
+        guard generation == engineGeneration else {
+            await ensureEngineLoaded()
+            return
+        }
 
         switch result {
         case .success(let engine):
@@ -178,6 +196,7 @@ public class TranscriptionService: ObservableObject {
     /// load or download anything — that's deferred to next use. Clears any stale
     /// load error, since the invalidated engine gets a fresh attempt next time.
     public func reloadEngine() {
+        engineGeneration += 1
         currentEngine = nil
         loadedEngineKind = nil
         engineError = nil

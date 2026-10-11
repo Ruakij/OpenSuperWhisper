@@ -427,7 +427,12 @@ class SettingsViewModel: ObservableObject {
             AppPreferences.shared.aiPostProcessingEnabled = aiPostProcessingEnabled
             // Surface connectivity right away when the user turns it on, so they aren't left
             // wondering why their cleanup silently does nothing when the server isn't reachable.
-            if aiPostProcessingEnabled { testLLMConnection() }
+            if aiPostProcessingEnabled {
+                testLLMConnection()
+                if aiBackend == "builtin" && !unloadBuiltInModelWhenIdle {
+                    BuiltInLlamaBackend.shared.preload()
+                }
+            }
         }
     }
 
@@ -467,6 +472,15 @@ class SettingsViewModel: ObservableObject {
             builtInModelDownloaded = LLMModelManager.shared.isModelDownloaded(name: builtInModelFileName)
             builtInModelDownloadError = nil
             if builtInModelDownloaded { BuiltInLlamaBackend.shared.preload() }
+        }
+    }
+
+    @Published var unloadBuiltInModelWhenIdle: Bool {
+        didSet {
+            AppPreferences.shared.unloadBuiltInModelWhenIdle = unloadBuiltInModelWhenIdle
+            if !unloadBuiltInModelWhenIdle && llmCleanupInUse && aiBackend == "builtin" {
+                BuiltInLlamaBackend.shared.preload()
+            }
         }
     }
 
@@ -996,6 +1010,7 @@ class SettingsViewModel: ObservableObject {
         self.aiPostProcessingClosing = prefs.aiPostProcessingClosing
         self.aiPostProcessingTranslation = prefs.aiPostProcessingTranslation
         self.builtInModelFileName = prefs.builtInModelFileName
+        self.unloadBuiltInModelWhenIdle = prefs.unloadBuiltInModelWhenIdle
         self.builtInModelDownloaded =
             LLMModelManager.shared.isModelDownloaded(name: prefs.builtInModelFileName)
         self.removeFillerWords = prefs.removeFillerWords
