@@ -76,6 +76,13 @@ final class LlamaContext {
     private var sampler: UnsafeMutablePointer<llama_sampler>?
     private let vocab: OpaquePointer?
 
+    /// Whether the model's chat template has a thinking mode, which `generate` switches off.
+    let supportsThinking: Bool
+
+    /// Assistant-turn prefill that turns thinking off: the empty block is how the Qwen3 and Qwen3.5
+    /// templates render `enable_thinking=false`, and llama.cpp's template call has no switch for it.
+    private static let emptyThinkBlock = "<think>\n\n</think>\n\n"
+
     // llama_backend_init() must be called once per process before loading any model.
     // Use a static token so repeated LlamaContext creations don't re-init the backend.
     private static let backendInit: Void = {
@@ -105,6 +112,8 @@ final class LlamaContext {
         }
         self.model = loadedModel
         self.vocab = llama_model_get_vocab(loadedModel)
+        self.supportsThinking = Self.templateSupportsThinking(
+            llama_model_chat_template(loadedModel, nil).map { String(cString: $0) })
 
         // --- Create the context ---
         var ctxParams = llama_context_default_params()
@@ -258,10 +267,25 @@ final class LlamaContext {
         return llama_vocab_is_eog(vocab, token)
     }
 
+    // MARK: - Thinking
+
+    /// Qwen3-style templates switch reasoning with `enable_thinking`; other reasoning templates
+    /// only mention the tag.
+    static func templateSupportsThinking(_ template: String?) -> Bool {
+        guard let template else { return false }
+        return template.contains("enable_thinking") || template.contains("<think>")
+    }
+
     // MARK: - Generation
 
     /// Runs a single-shot chat completion: formats the prompt, decodes the prompt
     /// tokens, then greedily samples up to `maxTokens` tokens, stopping at EOG.
+    ///
+    /// A model with a thinking mode answers straight away: a cleanup gains little from reasoning
+    /// and would wait many times longer.
+    ///
+    /// Returns "" when the budget runs out before the model finishes: a cut-off reply is never
+    /// better than the text it was meant to improve, and callers treat "" as "use the original".
     func generate(system: String, user: String, maxTokens: Int = 512) -> String {
         guard let ctx, let sampler else { return "" }
 
@@ -275,7 +299,8 @@ final class LlamaContext {
         llama_memory_clear(llama_get_memory(ctx), true)
         llama_sampler_reset(sampler)
 
-        let prompt = formatChatPrompt(system: system, user: user)
+        var prompt = formatChatPrompt(system: system, user: user)
+        if supportsThinking { prompt += Self.emptyThinkBlock }
         var promptTokens = tokenize(prompt, addSpecial: true)
         guard !promptTokens.isEmpty else { return "" }
 
@@ -294,12 +319,16 @@ final class LlamaContext {
         guard batchOK else { return "" }
 
         var generated = 0
+        var finished = false
         let budget = min(maxTokens, max(0, nCtx - promptTokens.count))
         while generated < budget {
             // Sample the next token from the logits of the last decoded position.
             let nextToken = llama_sampler_sample(sampler, ctx, -1)
 
-            if isEndOfGeneration(nextToken) { break }
+            if isEndOfGeneration(nextToken) {
+                finished = true
+                break
+            }
 
             llama_sampler_accept(sampler, nextToken)
             outputBytes.append(contentsOf: pieceBytes(for: nextToken))
@@ -314,6 +343,8 @@ final class LlamaContext {
 
             generated += 1
         }
+
+        guard finished else { return "" }
 
         // One decode over the whole byte run, so multi-byte characters that straddled two tokens
         // survive intact.
