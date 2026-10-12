@@ -429,7 +429,7 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         XCTAssertEqual(prefs.aiRemoteModel, "llama-3.1-8b-instant")
         // A file name on disk: a different default would point existing installs at a model
         // they never downloaded.
-        XCTAssertEqual(prefs.builtInModelFileName, "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+        XCTAssertEqual(prefs.builtInModelFileName, "Qwen3.5-2B-Q4_K_M.gguf")
         // Hand-copied literals (see `ShippedCleanupPrompts`), not the LLMPostProcessor constants
         // the defaults are built from.
         XCTAssertEqual(prefs.aiPostProcessingPrompt, ShippedCleanupPrompts.opening)

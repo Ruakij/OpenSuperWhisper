@@ -112,7 +112,7 @@ struct TextAICleanupGroup: View {
 
     private var backendHint: LocalizedStringKey {
         switch viewModel.aiBackend {
-        case "builtin": return "A Qwen2.5 model running on this Mac."
+        case "builtin": return "A Qwen3.5 model running on this Mac."
         case "remote": return "Any OpenAI-compatible server."
         case "apple": return "Apple's on-device model, built into macOS."
         default: return "Your local Ollama server."
