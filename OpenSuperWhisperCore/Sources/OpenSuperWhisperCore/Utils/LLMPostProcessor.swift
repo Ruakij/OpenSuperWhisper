@@ -81,7 +81,8 @@ public enum LLMPostProcessor {
                                                 profile: prof,
                                                 closingPrompt: prefs.aiPostProcessingClosing,
                                                 translating: translating,
-                                                translationPrompt: prefs.aiPostProcessingTranslation)
+                                                translationPrompt: prefs.aiPostProcessingTranslation,
+                                                removingFillers: prefs.removeFillerWords)
         else { return text }
 
         let backend = currentBackend()
@@ -177,6 +178,15 @@ public enum LLMPostProcessor {
         they are, and do not add anything the original did not say.
         """
 
+    /// Added only while "Remove filler words" is on. The setting's regex catches the fillers it
+    /// lists; the model also drops the ones it cannot, in any language, which the opening
+    /// instruction ("never remove information") would otherwise keep. "er" is not listed because
+    /// it is the German pronoun.
+    static let fillerWordsInstruction = """
+        Drop filler words and hesitations that carry no meaning (um, uh, äh, ähm, and filler uses \
+        of words like "halt" or "also"); they are not information.
+        """
+
     /// Builds the single system prompt for one LLM pass from the two independent contributors.
     /// Returns nil when neither contributes (general cleanup off AND no app profile), signalling
     /// the caller to skip the LLM entirely and return the text untouched.
@@ -184,6 +194,7 @@ public enum LLMPostProcessor {
     /// Assembles the system prompt as the user's own text with the app rules in the middle:
     ///
     ///     opening instruction
+    ///     filler-word sentence               (only while "Remove filler words" is on)
     ///     App-specific formatting rules: …   (only when a profile matches)
     ///     closing instruction
     ///
@@ -230,13 +241,17 @@ public enum LLMPostProcessor {
                                      profile: AppContextProfile?,
                                      closingPrompt: String = "",
                                      translating: Bool = false,
-                                     translationPrompt: String = "") -> String? {
+                                     translationPrompt: String = "",
+                                     removingFillers: Bool = false) -> String? {
         guard generalCleanup || profile != nil else { return nil }
 
         var sections: [String] = []
 
         if generalCleanup {
             sections.append(generalPrompt)
+        }
+        if removingFillers {
+            sections.append(fillerWordsInstruction)
         }
         // Early, next to the contract it qualifies, and gone entirely when translation is off:
         // that disappearance is the whole request. Instructions about translating, left in the
