@@ -22,9 +22,6 @@ enum AppPage: String, CaseIterable, Identifiable {
         case .style: return "pencil.tip"
         }
     }
-
-    /// Pages drawn in the sidebar but not built yet: shown with Soon, not clickable.
-    var isAvailable: Bool { self != .snippets }
 }
 
 /// The rubrics of the settings, in sidebar order.
@@ -110,7 +107,6 @@ final class AppNavigation: ObservableObject {
     }
 
     func go(_ page: AppPage) {
-        guard page.isAvailable else { return }
         self.page = page
     }
 }
