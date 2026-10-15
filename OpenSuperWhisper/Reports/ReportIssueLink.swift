@@ -44,7 +44,7 @@ enum ReportIssueLink {
         lines.append("- Length: \(String(format: "%.1f", report.duration)) s")
         lines.append("- App: \(report.appDetails)")
         lines.append("")
-        if let raw = report.rawText, raw.trimmed != report.finalText.trimmed {
+        if let raw = report.distinctRawText {
             lines += ["**Before cleanup** (the engine's text)"] + fenced(shortened(raw, to: textLimit)) + [""]
             lines += ["**Final text**"] + fenced(shortened(report.finalText, to: textLimit))
         } else {
@@ -84,8 +84,4 @@ enum ReportIssueLink {
 
     private static let unreserved = CharacterSet(
         charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
-}
-
-private extension String {
-    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }

@@ -19467,16 +19467,6 @@
         }
       }
     },
-    "Open a new GitHub issue in your browser with this report's texts filled in": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ouvrir un nouveau ticket GitHub dans votre navigateur, prérempli avec les textes de ce signalement"
-          }
-        }
-      }
-    },
     "Original": {
       "localizations": {
         "fr": {
@@ -19627,16 +19617,6 @@
         }
       }
     },
-    "The zip holds the audio and both texts of every report. A GitHub issue opens in your browser with the texts only, and nothing is posted until you submit it there.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Le zip contient l'audio et les deux textes de chaque signalement. Un ticket GitHub s'ouvre dans votre navigateur avec les textes seulement, et rien n'est publié tant que vous ne l'envoyez pas."
-          }
-        }
-      }
-    },
     "Turn it on": {
       "localizations": {
         "fr": {
@@ -19733,6 +19713,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vous avez obtenu"
+          }
+        }
+      }
+    },
+    "Open a new GitHub issue in your browser. The link it opens carries this report's texts.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir un nouveau ticket GitHub dans votre navigateur. Le lien ouvert contient les textes de ce signalement."
+          }
+        }
+      }
+    },
+    "The zip holds the audio and both texts of every report. A GitHub issue opens in your browser through a link that carries the texts, never the audio; nothing is posted until you submit it there.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le zip contient l'audio et les deux textes de chaque signalement. Un ticket GitHub s'ouvre dans votre navigateur par un lien qui contient les textes, jamais l'audio ; rien n'est publié tant que vous ne l'envoyez pas."
+          }
+        }
+      }
+    },
+    "Original: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original : %@"
+          }
+        }
+      }
+    },
+    "Recent": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Récents"
+          }
+        }
+      }
+    },
+    "No transcriptions yet": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune transcription pour l'instant"
           }
         }
       }

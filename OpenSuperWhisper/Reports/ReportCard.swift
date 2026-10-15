@@ -36,7 +36,7 @@ struct ReportCard: View {
         self._dictionaryEnabled = dictionaryEnabled
         self.addToDictionary = addToDictionary
         self.reports = reports
-        var draft = ReportDraft()
+        var draft = reports.draft(for: recording.id)
         var status = Status.editing
         #if DEBUG
         draft = Self.snapshotDraft ?? draft
@@ -59,9 +59,19 @@ struct ReportCard: View {
                 }
             }
         }
+        .onChange(of: draft) { _, draft in
+            reports.keepDraft(draft, for: recording.id)
+        }
     }
 
+    /// ✕, Esc, a click outside and any other card opening keep what was typed for next time, as
+    /// the Feedback card does: the draft is mirrored into the model as it changes.
     private func close() {
+        navigation.reporting = nil
+    }
+
+    private func cancel() {
+        reports.discardDraft(for: recording.id)
         navigation.reporting = nil
     }
 
@@ -233,7 +243,7 @@ struct ReportCard: View {
                 .layoutPriority(1)
             }
             Spacer(minLength: 0)
-            Button("Cancel", action: close)
+            Button("Cancel", action: cancel)
                 .buttonStyle(.sSecondary)
             Button("Save report", action: save)
                 .buttonStyle(.sPrimary)

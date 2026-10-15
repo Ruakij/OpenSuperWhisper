@@ -95,7 +95,7 @@ struct ReportsCard: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 16) {
-                Text("The zip holds the audio and both texts of every report. A GitHub issue opens in your browser with the texts only, and nothing is posted until you submit it there.")
+                Text("The zip holds the audio and both texts of every report. A GitHub issue opens in your browser through a link that carries the texts, never the audio; nothing is posted until you submit it there.")
                     .scaledFont(size: 12)
                     .foregroundColor(STheme.hint)
                     .fixedSize(horizontal: false, vertical: true)
@@ -154,6 +154,7 @@ struct ReportsCard: View {
 private struct ReportRow: View {
     let report: TranscriptionReport
     let onDelete: () -> Void
+    @State private var showsOriginal = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -175,7 +176,15 @@ private struct ReportRow: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            meta
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                meta
+                if report.distinctRawText != nil {
+                    FeedRowOriginalToggle(isShown: $showsOriginal)
+                }
+            }
+            if showsOriginal, let original = report.distinctRawText {
+                FeedRowOriginalText(original: original)
+            }
         }
         .padding(.vertical, 14)
     }
@@ -188,7 +197,7 @@ private struct ReportRow: View {
                 Label("GitHub issue", systemImage: "arrow.up.right")
             }
             .buttonStyle(.sSecondary)
-            .help("Open a new GitHub issue in your browser with this report's texts filled in")
+            .help("Open a new GitHub issue in your browser. The link it opens carries this report's texts.")
             Button(action: onDelete) {
                 Image(systemName: "trash")
             }

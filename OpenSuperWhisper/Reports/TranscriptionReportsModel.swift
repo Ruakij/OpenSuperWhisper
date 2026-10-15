@@ -9,6 +9,9 @@ final class TranscriptionReportsModel: ObservableObject {
     static let shared = TranscriptionReportsModel(store: RecordingStore.shared)
 
     @Published private(set) var reports: [TranscriptionReport] = []
+    /// What a Report card held when it was closed by ✕, Esc or a click outside, by recording, so
+    /// reopening it finds the comment still there. Cancel and Save drop it. Memory only.
+    private var drafts: [UUID: ReportDraft] = [:]
 
     private let store: RecordingStore
     private let appDetails: @MainActor () -> String
@@ -42,7 +45,20 @@ final class TranscriptionReportsModel: ObservableObject {
         guard let report = draft.report(for: recording, languageSetting: languageSetting(),
                                         appDetails: appDetails()) else { return }
         try await store.saveReport(report, audioFrom: recording.url)
+        drafts[recording.id] = nil
         await refresh()
+    }
+
+    func draft(for recordingID: UUID) -> ReportDraft {
+        drafts[recordingID] ?? ReportDraft()
+    }
+
+    func keepDraft(_ draft: ReportDraft, for recordingID: UUID) {
+        drafts[recordingID] = draft == ReportDraft() ? nil : draft
+    }
+
+    func discardDraft(for recordingID: UUID) {
+        drafts[recordingID] = nil
     }
 
     func delete(_ report: TranscriptionReport) async {
