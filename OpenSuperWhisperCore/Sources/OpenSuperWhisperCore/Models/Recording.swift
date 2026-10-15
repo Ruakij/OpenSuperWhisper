@@ -34,6 +34,12 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
     /// True when this transcription came from the remote engine's local fallback (the
     /// server was unreachable). The history row tints the model label to flag it.
     public var wasFallback: Bool = false
+    /// The text as the engine handed it back (its dictionary rules already applied), before the
+    /// filler words came out and the AI cleanup ran. Kept so a cleanup that rewrote too much can
+    /// be undone from the history, and so a report can show both (#168). Kept even when nothing
+    /// changed it, so "same text" and "never kept" stay apart. nil for imports and reruns, whose
+    /// text is the engine's own, and for rows older than the column.
+    public var rawTranscription: String? = nil
 
     public var isRegeneration: Bool = false
 
@@ -41,7 +47,8 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
                 duration: TimeInterval, status: RecordingStatus, progress: Float,
                 sourceFileURL: String? = nil, sourceAppName: String? = nil,
                 sourceWindowTitle: String? = nil, sourceURL: String? = nil,
-                modelUsed: String? = nil, wasFallback: Bool = false, isRegeneration: Bool = false) {
+                modelUsed: String? = nil, wasFallback: Bool = false, rawTranscription: String? = nil,
+                isRegeneration: Bool = false) {
         self.id = id
         self.timestamp = timestamp
         self.fileName = fileName
@@ -55,12 +62,13 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
         self.sourceURL = sourceURL
         self.modelUsed = modelUsed
         self.wasFallback = wasFallback
+        self.rawTranscription = rawTranscription
         self.isRegeneration = isRegeneration
     }
 
     enum CodingKeys: String, CodingKey {
         case id, timestamp, fileName, transcription, duration, status, progress, sourceFileURL
-        case sourceAppName, sourceWindowTitle, sourceURL, modelUsed, wasFallback
+        case sourceAppName, sourceWindowTitle, sourceURL, modelUsed, wasFallback, rawTranscription
     }
 
     public static func == (lhs: Recording, rhs: Recording) -> Bool {
@@ -68,6 +76,7 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
                lhs.status == rhs.status &&
                lhs.progress == rhs.progress &&
                lhs.transcription == rhs.transcription &&
+               lhs.rawTranscription == rhs.rawTranscription &&
                lhs.isRegeneration == rhs.isRegeneration
     }
 
@@ -108,6 +117,7 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
         static let sourceURL = Column(CodingKeys.sourceURL)
         static let modelUsed = Column(CodingKeys.modelUsed)
         static let wasFallback = Column(CodingKeys.wasFallback)
+        static let rawTranscription = Column(CodingKeys.rawTranscription)
     }
 }
 
@@ -116,7 +126,8 @@ public class RecordingStore: ObservableObject {
     public static let shared = RecordingStore(storageRoot: CoreAccess.storageRoot)
 
     @Published private(set) var recordings: [Recording] = []
-    private let dbQueue: DatabaseQueue
+    /// Internal rather than private so the reports (TranscriptionReport.swift) share the file.
+    let dbQueue: DatabaseQueue
     private var retentionTimer: Timer?
 
     init(storageRoot appDirectory: URL) {
@@ -219,6 +230,19 @@ public class RecordingStore: ObservableObject {
                 }
             }
         }
+
+        // Nullable, so every existing row reads as "no original kept" and an older build that
+        // opens the file afterwards still inserts and updates without knowing the column.
+        migrator.registerMigration("v6_add_raw_transcription") { db in
+            let columnNames = try db.columns(in: Recording.databaseTableName).map { $0.name }
+            if !columnNames.contains("rawTranscription") {
+                try db.alter(table: Recording.databaseTableName) { t in
+                    t.add(column: "rawTranscription", .text)
+                }
+            }
+        }
+
+        migrator.registerMigration("v7_add_transcription_reports", migrate: TranscriptionReport.createTable)
 
         return migrator
     }
@@ -329,7 +353,9 @@ public class RecordingStore: ObservableObject {
     
     public static let recordingProgressDidUpdateNotification = Notification.Name("RecordingStore.recordingProgressDidUpdate")
     
-    func updateRecordingProgressOnlySync(_ id: UUID, transcription: String, progress: Float, status: RecordingStatus, isRegeneration: Bool? = nil, modelUsed: String? = nil, wasFallback: Bool? = nil) async {
+    /// - Parameter clearsRawTranscription: the new text is the engine's own (a rerun), so the
+    ///   original kept from the dictation no longer goes with it.
+    func updateRecordingProgressOnlySync(_ id: UUID, transcription: String, progress: Float, status: RecordingStatus, isRegeneration: Bool? = nil, modelUsed: String? = nil, wasFallback: Bool? = nil, clearsRawTranscription: Bool = false) async {
         do {
             _ = try await dbQueue.write { db -> Int in
                 var assignments = [
@@ -342,6 +368,9 @@ public class RecordingStore: ObservableObject {
                 }
                 if let wasFallback {
                     assignments.append(Recording.Columns.wasFallback.set(to: wasFallback))
+                }
+                if clearsRawTranscription {
+                    assignments.append(Recording.Columns.rawTranscription.set(to: nil))
                 }
                 return try Recording
                     .filter(Recording.Columns.id == id)
@@ -361,6 +390,9 @@ public class RecordingStore: ObservableObject {
                 if let wasFallback {
                     updated.wasFallback = wasFallback
                 }
+                if clearsRawTranscription {
+                    updated.rawTranscription = nil
+                }
                 recordings[index] = updated
             }
 
@@ -378,6 +410,9 @@ public class RecordingStore: ObservableObject {
             }
             if let wasFallback {
                 userInfo["wasFallback"] = wasFallback
+            }
+            if clearsRawTranscription {
+                userInfo["clearsRawTranscription"] = true
             }
 
             await MainActor.run {

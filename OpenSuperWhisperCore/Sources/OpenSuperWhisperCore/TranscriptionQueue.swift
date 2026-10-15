@@ -310,7 +310,8 @@ public class TranscriptionQueue: ObservableObject {
                     status: .completed,
                     isRegeneration: false,
                     modelUsed: modelUsed,
-                    wasFallback: wasFallback
+                    wasFallback: wasFallback,
+                    clearsRawTranscription: true
                 )
 
             } catch {

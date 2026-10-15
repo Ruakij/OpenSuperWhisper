@@ -63,7 +63,8 @@ final class RecordingMigrationTests: CoreTestCase {
 
     func testMigrationIdentifiersInOrder() {
         XCTAssertEqual(RecordingStore.makeMigrator().migrations,
-                       ["v1", "v2_add_status", "v3_add_source_context", "v4_add_model_used", "v5_add_was_fallback"])
+                       ["v1", "v2_add_status", "v3_add_source_context", "v4_add_model_used", "v5_add_was_fallback",
+                        "v6_add_raw_transcription", "v7_add_transcription_reports"])
     }
 
     // MARK: - Schema
@@ -125,18 +126,38 @@ final class RecordingMigrationTests: CoreTestCase {
         return copy
     }
 
-    /// Opening it is what every user's launch does today: nothing may be migrated, rewritten or
-    /// lost, whatever the status of the row.
-    func testDatabaseFrom0133OpensUnchanged() throws {
+    /// Opening it is what every user's first launch of this build does: the two migrations
+    /// added since (#168) run, and nothing else is rewritten or lost, whatever the status of
+    /// the row. Every existing row reads its new column as NULL.
+    func testDatabaseFrom0133UpgradesWithEveryRowKept() throws {
         let queue = try RecordingStore.openDatabase(at: copyOfFixture())
         let before = try Self.dump(queue)
-        XCTAssertEqual(try Self.appliedMigrations(queue), RecordingStore.makeMigrator().migrations)
+        XCTAssertEqual(try Self.appliedMigrations(queue), Array(RecordingStore.makeMigrator().migrations.prefix(5)))
 
         _ = try RecordingStore(databaseQueue: queue)
 
-        XCTAssertEqual(try Self.dump(queue), before)
+        XCTAssertEqual(try Self.appliedMigrations(queue), RecordingStore.makeMigrator().migrations)
         XCTAssertEqual(try Self.columns(queue), Self.expectedColumns)
         XCTAssertEqual(try Self.indexes(queue), Self.expectedIndexes)
+        XCTAssertEqual(try Self.tableSQL(queue), Self.expectedTableSQL)
+        XCTAssertEqual(try queue.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM transcription_reports") }, 0)
+        XCTAssertEqual(try queue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM recordings WHERE rawTranscription IS NOT NULL")
+        }, 0)
+        // The rows themselves, column for column, as they were before the upgrade.
+        let oldColumns = Self.expectedColumns.prefix(13).map { $0.split(separator: "|")[1] }.joined(separator: ", ")
+        XCTAssertEqual(try Self.rows(queue, columns: oldColumns), before.filter { $0.hasPrefix("recordings: ") })
+    }
+
+    /// Opening the upgraded file again, as every later launch does, changes nothing.
+    func testUpgradedDatabaseFrom0133OpensUnchanged() throws {
+        let queue = try RecordingStore.openDatabase(at: copyOfFixture())
+        _ = try RecordingStore(databaseQueue: queue)
+        let upgraded = try Self.dump(queue)
+
+        _ = try RecordingStore(databaseQueue: queue)
+
+        XCTAssertEqual(try Self.dump(queue), upgraded)
     }
 
     func testDatabaseFrom0133MapsBackToTheSameRecordings() async throws {
@@ -179,6 +200,7 @@ final class RecordingMigrationTests: CoreTestCase {
         let queue = try DatabaseQueue()
         let store = try RecordingStore(databaseQueue: queue)
         var recording = RecordingMigrationFixture.rows[3]
+        recording.rawTranscription = "hello world ça marche"
         recording.isRegeneration = true
         try await queue.write { db in try recording.insert(db) }
 
@@ -224,6 +246,35 @@ final class RecordingMigrationTests: CoreTestCase {
             modelUsed: nil, wasFallback: false))
     }
 
+    /// 0.14.2 and older know nothing of the new column and table. Opened by one after an
+    /// upgrade (a user going back a version), the file must still take their inserts and updates,
+    /// which name only the columns those builds know, and keep the original already stored.
+    func testOlderBuildCanStillWriteToTheUpgradedFile() throws {
+        let queue = try DatabaseQueue()
+        _ = try RecordingStore(databaseQueue: queue)
+        var kept = RecordingMigrationFixture.rows[3]
+        kept.rawTranscription = "hello world"
+        try queue.write { db in try kept.insert(db) }
+        let id = UUID(uuidString: "00000000-0000-4000-8000-0000000000B1")!
+
+        try queue.write { db in
+            try db.execute(sql: """
+                INSERT INTO recordings (id, timestamp, fileName, transcription, duration, status, progress,
+                                        sourceFileURL, sourceAppName, sourceWindowTitle, sourceURL, modelUsed, wasFallback)
+                VALUES (?, '2026-10-01 10:00:00.000', 'older.wav', 'From 0.14.2', 2, 'completed', 1,
+                        NULL, NULL, NULL, NULL, 'Parakeet v3', 0)
+                """, arguments: [id])
+            try db.execute(sql: "UPDATE recordings SET transcription = 'Edited', progress = 1 WHERE id = ?",
+                           arguments: [kept.id])
+        }
+
+        let rows = try fetchAll(queue)
+        XCTAssertNil(rows.first { $0.id == id }?.rawTranscription)
+        let edited = try XCTUnwrap(rows.first { $0.id == kept.id })
+        XCTAssertEqual(edited.transcription, "Edited")
+        XCTAssertEqual(edited.rawTranscription, "hello world")
+    }
+
     private func fetchAll(_ queue: DatabaseQueue) throws -> [Recording] {
         try queue.read { db in try Recording.fetchAll(db) }
     }
@@ -245,6 +296,7 @@ final class RecordingMigrationTests: CoreTestCase {
         "10|sourceURL|TEXT|0||0",
         "11|modelUsed|TEXT|0||0",
         "12|wasFallback|BOOLEAN|1|0|0",
+        "13|rawTranscription|TEXT|0||0",
     ]
 
     /// Index name, uniqueness, and indexed columns with their collation.
@@ -262,7 +314,7 @@ final class RecordingMigrationTests: CoreTestCase {
         "duration" DOUBLE NOT NULL, "status" TEXT NOT NULL DEFAULT 'completed', \
         "progress" DOUBLE NOT NULL DEFAULT 1.0, "sourceFileURL" TEXT, "sourceAppName" TEXT, \
         "sourceWindowTitle" TEXT, "sourceURL" TEXT, "modelUsed" TEXT, \
-        "wasFallback" BOOLEAN NOT NULL DEFAULT 0)
+        "wasFallback" BOOLEAN NOT NULL DEFAULT 0, "rawTranscription" TEXT)
         """
 
     // MARK: - Helpers
@@ -287,6 +339,13 @@ final class RecordingMigrationTests: CoreTestCase {
                     .map { "\($0["name"] as String):\($0["coll"] as String)" }
                 return "\(name)|\(index["unique"] as Int)|\(columns.joined(separator: ","))"
             }.sorted()
+        }
+    }
+
+    /// The recordings rows over the given columns only, in the format of `dump`.
+    private static func rows(_ queue: DatabaseQueue, columns: String) throws -> [String] {
+        try queue.read { db in
+            try Row.fetchAll(db, sql: "SELECT \(columns) FROM recordings ORDER BY 1").map { "recordings: \($0.description)" }
         }
     }
 
@@ -335,6 +394,7 @@ final class RecordingMigrationTests: CoreTestCase {
         XCTAssertEqual(actual.sourceURL, expected.sourceURL, label, file: file, line: line)
         XCTAssertEqual(actual.modelUsed, expected.modelUsed, label, file: file, line: line)
         XCTAssertEqual(actual.wasFallback, expected.wasFallback, label, file: file, line: line)
+        XCTAssertEqual(actual.rawTranscription, expected.rawTranscription, label, file: file, line: line)
         XCTAssertEqual(actual.isRegeneration, expected.isRegeneration, label, file: file, line: line)
     }
 }
