@@ -1458,9 +1458,7 @@ extension TranscriptionSettings {
             customDictionaryEnabled: prefs.customDictionaryEnabled,
             customDictionaryBoostEnabled: prefs.customDictionaryBoostEnabled,
             customDictionaryEntries: prefs.customDictionaryEntries,
-            useSurroundingTextAsContext: prefs.useSurroundingTextAsContext,
-            snippetTriggers: prefs.snippetsEnabled && prefs.snippetsBoostEnabled
-                ? SnippetExpander.boostTerms(prefs.snippets) : [])
+            useSurroundingTextAsContext: prefs.useSurroundingTextAsContext)
     }
 }
 

@@ -288,7 +288,9 @@ class ContentViewModel: ObservableObject {
 
                 do {
                     print("start decoding...")
-                    let rawText = try await transcriptionService.transcribeAudio(url: tempURL, settings: Settings())
+                    var settings = Settings()
+                    settings.snippetTriggers = AppPreferences.shared.dictationSnippetTriggers
+                    let rawText = try await transcriptionService.transcribeAudio(url: tempURL, settings: settings)
                     let cleanedText = AppPreferences.shared.cleanTranscription(rawText)
                     // Optional LLM cleanup (no-op when disabled; returns the raw text on failure).
                     // App-aware formatting keys off the app captured at record-start, not the
@@ -362,7 +364,7 @@ class ContentViewModel: ObservableObject {
                         try? FileManager.default.removeItem(at: tempURL)
                     }
 
-                    print("Transcription result: \(text)")
+                    print("Transcription result: \(text.count) characters")
                 } catch {
                     print("Error transcribing audio: \(error)")
                     // Preserve temp recording so user can retry

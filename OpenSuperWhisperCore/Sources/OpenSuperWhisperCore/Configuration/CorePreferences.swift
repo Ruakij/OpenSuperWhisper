@@ -17,11 +17,6 @@ public protocol CorePreferences: AnyObject, Sendable {
     var customDictionaryBoostEnabled: Bool { get }
     var customDictionaryEntries: [CustomDictionaryEntry] { get }
 
-    // Snippets
-    var snippetsEnabled: Bool { get }
-    var snippetsBoostEnabled: Bool { get }
-    var snippets: [Snippet] { get }
-
     // Remote server
     var remoteServerURL: String { get }
     var remoteServerModel: String { get set }

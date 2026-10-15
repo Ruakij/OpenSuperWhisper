@@ -21,7 +21,8 @@ public struct TranscriptionSettings: Sendable {
     public var customDictionaryEntries: [CustomDictionaryEntry]
     public var useSurroundingTextAsContext: Bool
     /// The snippet triggers to bias recognition toward, already gated by the host's snippet
-    /// switches: snippets themselves are expanded by the host after the cleanup model, not here.
+    /// switches. Set per clip, and only for a dictation: snippets are expanded by the host after
+    /// the cleanup model, and nothing expands them in a dropped file or a CLI run.
     public var snippetTriggers: [String]
     /// The field's contents at record-start, set per clip by the pipeline rather than read from
     /// preferences: it belongs to one dictation, not to the app's standing configuration.

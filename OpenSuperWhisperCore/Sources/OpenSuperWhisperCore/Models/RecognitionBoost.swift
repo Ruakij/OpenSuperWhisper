@@ -6,6 +6,10 @@ import Foundation
 /// triggers (#167). A snippet only fires when its trigger is heard word for word, so helping the
 /// model hear it is worth having, but boosting is off by default for both: on Parakeet any boost
 /// at all moves the file pass from the offline decoder to the sliding-window one.
+///
+/// Snippet triggers come with the clip (`TranscriptionSettings.snippetTriggers`) rather than from
+/// the preferences, because only a dictation expands them: a dropped file or a CLI run would
+/// otherwise be pushed toward phrases nothing then replaces.
 public enum RecognitionBoost {
 
     /// Both lists, the dictionary first, without repeating a term that differs only in case.
@@ -16,13 +20,10 @@ public enum RecognitionBoost {
 }
 
 extension CorePreferences {
-    /// What the engines reading preferences directly (Parakeet's file pass, the live preview)
-    /// should boost. `TranscriptionSettings.recognitionBoostTerms` is the same for a clip.
-    public var recognitionBoostTerms: [String] {
-        let dictionary = customDictionaryEnabled && customDictionaryBoostEnabled
+    /// The dictionary's terms when its boost is on, for the engines that read preferences
+    /// directly (Parakeet's file pass, the live preview).
+    public var dictionaryBoostTerms: [String] {
+        customDictionaryEnabled && customDictionaryBoostEnabled
             ? CustomDictionary.boostTerms(entries: customDictionaryEntries) : []
-        let snippets = snippetsEnabled && snippetsBoostEnabled
-            ? SnippetExpander.boostTerms(self.snippets) : []
-        return RecognitionBoost.terms(dictionary: dictionary, snippets: snippets)
     }
 }

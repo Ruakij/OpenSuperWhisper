@@ -357,6 +357,12 @@ final class AppPreferences {
         }
     }
 
+    /// The triggers a dictation boosts, when snippets and their boost are on. Set on the clip by
+    /// the dictation paths only (see `RecognitionBoost`).
+    var dictationSnippetTriggers: [String] {
+        snippetsEnabled && snippetsBoostEnabled ? SnippetExpander.boostTerms(snippets) : []
+    }
+
     /// The dictation with its snippet triggers expanded, when snippets are on. Run on the text
     /// the cleanup model returns, never before it (see `SnippetExpander`). The dictionary rules
     /// are passed along because they ran first and may have rewritten part of a trigger.

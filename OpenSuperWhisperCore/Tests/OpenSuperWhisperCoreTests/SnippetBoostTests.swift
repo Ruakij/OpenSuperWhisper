@@ -65,29 +65,16 @@ final class SnippetBoostTests: CoreTestCase {
 
     // MARK: - Preferences
 
-    func testPreferencesBoostTriggersOnlyWithBothSwitchesOn() {
+    /// The dictionary half the engines reading preferences add to a clip's snippet triggers.
+    func testPreferencesBoostTheDictionaryOnlyWithBothSwitchesOn() {
         let prefs = CoreTestEnvironment.preferences
-        prefs.snippets = [email]
-
-        prefs.snippetsEnabled = true
-        prefs.snippetsBoostEnabled = false
-        XCTAssertEqual(prefs.recognitionBoostTerms, [], "the boost is opt-in")
-
-        prefs.snippetsBoostEnabled = true
-        XCTAssertEqual(prefs.recognitionBoostTerms, ["my email"])
-
-        prefs.snippetsEnabled = false
-        XCTAssertEqual(prefs.recognitionBoostTerms, [], "snippets off boost nothing")
-    }
-
-    func testPreferencesCombineTheDictionaryAndTheSnippets() {
-        let prefs = CoreTestEnvironment.preferences
-        prefs.customDictionaryEnabled = true
-        prefs.customDictionaryBoostEnabled = true
         prefs.customDictionaryEntries = [CustomDictionaryEntry(original: "git hub", replacement: "GitHub")]
-        prefs.snippetsBoostEnabled = true
-        prefs.snippets = [email]
-        XCTAssertEqual(prefs.recognitionBoostTerms, ["GitHub", "my email"])
+        prefs.customDictionaryEnabled = true
+        XCTAssertEqual(prefs.dictionaryBoostTerms, [])
+        prefs.customDictionaryBoostEnabled = true
+        XCTAssertEqual(prefs.dictionaryBoostTerms, ["GitHub"])
+        prefs.customDictionaryEnabled = false
+        XCTAssertEqual(prefs.dictionaryBoostTerms, [])
     }
 
     // MARK: - Stored format
@@ -105,6 +92,35 @@ final class SnippetBoostTests: CoreTestCase {
         XCTAssertEqual(snippets.map(\.trigger), ["my email", "sign off"])
         XCTAssertEqual(snippets.map(\.expansion), ["", "Max"])
         XCTAssertEqual(snippets[0].id.uuidString, "5B1D7C0E-6A2B-4F3C-9D8E-1A2B3C4D5E6F")
+    }
+
+    /// A snippet stored without an id keeps the same one from read to read, or the page would
+    /// take it for a new snippet every time.
+    func testAMissingIdIsTheSameOnEveryRead() throws {
+        let json = Data(#"[{"trigger":"sign off","expansion":"Max"},{"trigger":"my email","expansion":"m@x"}]"#.utf8)
+        let first = try JSONDecoder().decode([Snippet].self, from: json)
+        let second = try JSONDecoder().decode([Snippet].self, from: json)
+        XCTAssertEqual(first.map(\.id), second.map(\.id))
+        XCTAssertNotEqual(first[0].id, first[1].id)
+    }
+
+    // MARK: - What makes a trigger
+
+    func testATriggerNeedsALetterOrADigit() {
+        XCTAssertFalse(Snippet(trigger: "@", expansion: "at").isComplete)
+        XCTAssertFalse(Snippet(trigger: " -> ", expansion: "→").isComplete)
+        XCTAssertTrue(Snippet(trigger: "c++", expansion: "C++").isComplete)
+        XCTAssertTrue(Snippet(trigger: "42", expansion: "the answer").isComplete)
+    }
+
+    /// Two triggers with the same key fire on the same words, so the editor refuses the second.
+    func testTriggersThatMatchTheSameWordsShareAKey() {
+        let key = Snippet(trigger: "sign off").triggerKey
+        XCTAssertEqual(Snippet(trigger: "  Sign off! ").triggerKey, key)
+        XCTAssertEqual(Snippet(trigger: "SIGN-OFF").triggerKey, key)
+        XCTAssertEqual(Snippet(trigger: "sign   off.").triggerKey, key)
+        XCTAssertNotEqual(Snippet(trigger: "sign of").triggerKey, key)
+        XCTAssertEqual(Snippet(trigger: "l’adresse").triggerKey, Snippet(trigger: "L'adresse").triggerKey)
     }
 
     /// A later version may add fields; this one reads what it knows.

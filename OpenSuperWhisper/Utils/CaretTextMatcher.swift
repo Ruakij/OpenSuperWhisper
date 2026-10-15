@@ -17,8 +17,10 @@ enum CaretTextMatcher {
     ///     "Paris" from "Tomorrow", but the rest of the text can.
     ///   - adjustCase: false where a capital mid-sentence is the spelling, see `adjustsCase(language:)`.
     ///     The final mark and the spaces are still fitted.
+    ///   - keepsFinalMark: the text ends with something the user wrote word for word (a
+    ///     snippet, #167), so its last mark is part of it rather than the engine's period.
     static func fit(_ text: String, into field: TextAroundCaret, properNouns: Set<String> = [],
-                    adjustCase: Bool = true) -> String {
+                    adjustCase: Bool = true, keepsFinalMark: Bool = false) -> String {
         let core = trimmingHorizontalSpace(text)
         guard !core.isEmpty else { return text }
 
@@ -37,7 +39,7 @@ enum CaretTextMatcher {
             .union(capitalisedWords(in: core))
         var fitted = adjustCase
             ? matchingCase(core, before: before, replacing: selected, properNouns: nouns) : core
-        if continuesSentence(after) { fitted = droppingFinalMark(fitted) }
+        if continuesSentence(after) && !keepsFinalMark { fitted = droppingFinalMark(fitted) }
         if needsLeadingSpace(before: before, dictation: fitted) { fitted = " " + fitted }
         if needsTrailingSpace(dictation: fitted, after: after) { fitted += " " }
         return leading + fitted + trailing

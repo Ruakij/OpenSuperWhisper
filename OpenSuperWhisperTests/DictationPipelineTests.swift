@@ -179,4 +179,76 @@ final class DictationPipelineTests: XCTestCase {
         XCTAssertEqual(box.order, [], "nothing to transcribe means the engine is not called")
         XCTAssertEqual(pipeline.pendingCount, 0)
     }
+
+    // MARK: - Snippets (#167)
+
+    private final class SnippetRun {
+        var cleanupSaw: [String] = []
+        var inserted: [String] = []
+        var agentReplies: [(text: String, id: String, send: Bool)] = []
+    }
+
+    /// Runs one dictation whose engine heard `heard` and whose cleanup model returns `cleaned`,
+    /// with snippets on and every side effect replaced: no history, no paste, no Return, no hook.
+    private func runSnippetDictation(heard: String, cleaned: String,
+                                     agentReplyID: String? = nil) async -> SnippetRun {
+        let scratch = ScratchPreferences()
+        defer { scratch.restore() }
+        let prefs = AppPreferences.shared
+        prefs.saveTranscriptionHistory = false
+        prefs.autoPasteTranscription = false
+        prefs.autoCopyToClipboard = false
+        prefs.submitOnVoiceCommand = true
+        prefs.snippets = [Snippet(trigger: "sign off", expansion: "Best,\nMax")]
+
+        let pipeline = DictationPipeline.shared
+        let run = SnippetRun()
+        pipeline.transcribeOverride = { _, _ in heard }
+        pipeline.cleanupOverride = { text in
+            run.cleanupSaw.append(text)
+            return cleaned
+        }
+        pipeline.agentReplyOverride = { run.agentReplies.append(($0, $1, $2)) }
+        pipeline.deliverOverride = { text, _ in
+            run.inserted.append(text)
+            return .inserted
+        }
+        defer {
+            pipeline.transcribeOverride = nil
+            pipeline.cleanupOverride = nil
+            pipeline.agentReplyOverride = nil
+            pipeline.deliverOverride = nil
+        }
+
+        var context = DictationPipeline.ContextSnapshot()
+        context.agentReplyID = agentReplyID
+        pipeline.enqueue(tempURL: URL(fileURLWithPath: "/tmp/osw-pipeline-snippet.wav"), startedAt: Date(),
+                         streamedFallback: "", context: context, modelOption: nil)
+        var waited = 0
+        while pipeline.isProcessing && waited < 500 {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+            waited += 1
+        }
+        return run
+    }
+
+    /// The cleanup model sees the trigger, never the snippet's text, and the expansion is made
+    /// on what it returned once "press enter" is off the end.
+    func testASnippetIsExpandedAfterTheCleanupModelAndTheSubmitCommand() async {
+        let run = await runSnippetDictation(heard: "thanks sign off press enter",
+                                            cleaned: "Thanks. Sign off. Press enter.")
+        XCTAssertEqual(run.cleanupSaw, ["thanks sign off press enter"])
+        XCTAssertEqual(run.inserted, ["Thanks. Best,\nMax"])
+        XCTAssertTrue(run.agentReplies.isEmpty)
+    }
+
+    func testAnAgentReplyGetsTheExpandedText() async {
+        let run = await runSnippetDictation(heard: "sign off press enter",
+                                            cleaned: "Sign off. Press enter.", agentReplyID: "request-1")
+        XCTAssertEqual(run.cleanupSaw, ["sign off press enter"])
+        XCTAssertEqual(run.agentReplies.map(\.text), ["Best,\nMax"])
+        XCTAssertEqual(run.agentReplies.map(\.id), ["request-1"])
+        XCTAssertEqual(run.agentReplies.map(\.send), [true], "the spoken submit still sends the reply")
+        XCTAssertTrue(run.inserted.isEmpty)
+    }
 }
