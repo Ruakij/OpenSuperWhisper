@@ -429,9 +429,7 @@ class SettingsViewModel: ObservableObject {
             // wondering why their cleanup silently does nothing when the server isn't reachable.
             if aiPostProcessingEnabled {
                 testLLMConnection()
-                if aiBackend == "builtin" && !unloadBuiltInModelWhenIdle {
-                    BuiltInLlamaBackend.shared.preload()
-                }
+                if aiBackend == "builtin" { BuiltInLlamaBackend.shared.preload() }
             }
         }
     }
@@ -478,7 +476,14 @@ class SettingsViewModel: ObservableObject {
     @Published var unloadBuiltInModelWhenIdle: Bool {
         didSet {
             AppPreferences.shared.unloadBuiltInModelWhenIdle = unloadBuiltInModelWhenIdle
-            if !unloadBuiltInModelWhenIdle && llmCleanupInUse && aiBackend == "builtin" {
+            if BuiltInLlamaBackend.shouldKeepModelLoaded(
+                unloadBuiltInModelWhenIdle: unloadBuiltInModelWhenIdle,
+                aiBackend: aiBackend,
+                aiPostProcessingEnabled: aiPostProcessingEnabled,
+                appContextFormattingEnabled: appContextFormattingEnabled,
+                modelFileName: builtInModelFileName,
+                selectedModelFileName: builtInModelFileName,
+                modelDownloaded: builtInModelDownloaded) {
                 BuiltInLlamaBackend.shared.preload()
             }
         }

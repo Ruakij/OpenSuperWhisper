@@ -76,6 +76,22 @@ public final class BuiltInLlamaBackend: LLMCleanupBackend {
         }
     }
 
+    public static func shouldKeepModelLoaded(
+        unloadBuiltInModelWhenIdle: Bool,
+        aiBackend: String,
+        aiPostProcessingEnabled: Bool,
+        appContextFormattingEnabled: Bool,
+        modelFileName: String?,
+        selectedModelFileName: String,
+        modelDownloaded: Bool
+    ) -> Bool {
+        !unloadBuiltInModelWhenIdle
+            && aiBackend == "builtin"
+            && (aiPostProcessingEnabled || appContextFormattingEnabled)
+            && modelFileName == selectedModelFileName
+            && modelDownloaded
+    }
+
     // MARK: - inferenceQueue-confined state
 
     /// Returns the cached context, loading it if needed. Must run on `inferenceQueue`.
@@ -117,11 +133,13 @@ public final class BuiltInLlamaBackend: LLMCleanupBackend {
 
     private func shouldKeepContextOnQueue() -> Bool {
         let preferences = CoreAccess.preferences
-        let model = selectedModel
-        return !preferences.unloadBuiltInModelWhenIdle
-            && preferences.aiBackend == "builtin"
-            && (preferences.aiPostProcessingEnabled || preferences.appContextFormattingEnabled)
-            && loadedFileName == model.fileName
-            && manager.isModelDownloaded(name: model.fileName)
+        return Self.shouldKeepModelLoaded(
+            unloadBuiltInModelWhenIdle: preferences.unloadBuiltInModelWhenIdle,
+            aiBackend: preferences.aiBackend,
+            aiPostProcessingEnabled: preferences.aiPostProcessingEnabled,
+            appContextFormattingEnabled: preferences.appContextFormattingEnabled,
+            modelFileName: loadedFileName,
+            selectedModelFileName: selectedModel.fileName,
+            modelDownloaded: loadedFileName.map { manager.isModelDownloaded(name: $0) } ?? false)
     }
 }

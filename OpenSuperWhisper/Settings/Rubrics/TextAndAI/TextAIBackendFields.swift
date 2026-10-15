@@ -75,7 +75,7 @@ struct TextAIBackendFields: View {
             }
         }
         SettingRow("Free memory when idle",
-                   hint: "Unloads the Qwen model after 5 minutes without a dictation and reloads it when you dictate. Saves memory, but the first cleanup after a break waits a few seconds.",
+                   hint: "Unloads the Qwen model (about 1 GB, or 4 GB for the 7B model) after 5 minutes without a dictation and reloads it when you dictate. Saves memory, but the first cleanup after a break takes a few seconds longer.",
                    badge: ("Qwen", .engine), advanced: true, indented: true) {
             SSwitch(isOn: $viewModel.unloadBuiltInModelWhenIdle)
         }

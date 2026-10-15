@@ -17111,12 +17111,12 @@
         }
       }
     },
-    "Unloads the Qwen model after 5 minutes without a dictation and reloads it when you dictate. Saves memory, but the first cleanup after a break waits a few seconds.": {
+    "Unloads the Qwen model (about 1 GB, or 4 GB for the 7B model) after 5 minutes without a dictation and reloads it when you dictate. Saves memory, but the first cleanup after a break takes a few seconds longer.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Décharge le modèle Qwen après 5 minutes sans dictée et le recharge quand vous dictez. Économise de la mémoire, mais le premier nettoyage après une pause attend quelques secondes."
+            "value": "Décharge le modèle Qwen (environ 1 Go, ou 4 Go pour le modèle 7B) après 5 minutes sans dictée et le recharge quand vous dictez. Économise de la mémoire, mais le premier nettoyage après une pause prend quelques secondes de plus."
           }
         }
       }
