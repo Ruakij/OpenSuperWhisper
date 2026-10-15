@@ -242,6 +242,10 @@ final class DictationPipeline: ObservableObject {
             // after insertion, submitting the message/prompt.
             let (strippedText, spokenSubmit) = AppPreferences.shared.stripSubmitCommand(text)
             text = strippedText
+            // Snippets last, on what the cleanup model returned, so it cannot rewrite them, and
+            // after the submit command, so a snippet whose text ends in "press enter" keeps it.
+            // (#167)
+            text = AppPreferences.shared.expandSnippets(text)
             // Either route asks for the same thing: send Return once the text is in.
             let shouldSubmit = spokenSubmit || item.submitAfterInsert
             let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

@@ -294,9 +294,12 @@ class ContentViewModel: ObservableObject {
                     // App-aware formatting keys off the app captured at record-start, not the
                     // frontmost app: recording from the main window makes OSW itself frontmost, so
                     // asking the workspace here would never match a profile.
-                    let text = await LLMPostProcessor.process(
+                    let cleanedUp = await LLMPostProcessor.process(
                         cleanedText, bundleID: RecordingContext.shared.bundleID,
                         translating: AppPreferences.shared.translateToEnglish)
+                    // After the cleanup, as in the dictation pipeline, so the model cannot rewrite
+                    // a snippet's text. (#167)
+                    let text = AppPreferences.shared.expandSnippets(cleanedUp)
 
                     if AppPreferences.shared.saveTranscriptionHistory {
                         // Capture the current recording duration

@@ -168,10 +168,13 @@ enum TranscriptInserter {
         let prefs = AppPreferences.shared
         let terms = prefs.customDictionaryEnabled
             ? CustomDictionary.boostTerms(entries: prefs.customDictionaryEntries) : []
+        // A snippet's text is written the way the user typed it: "Max Costa" at the start of a
+        // signature keeps its capital even when the caret is mid-sentence (#167).
+        let snippetTexts = prefs.snippetsEnabled ? prefs.snippets.map(\.trimmedExpansion) : []
         let known = language == "auto" ? nil : language
         let adjustCase = CaretTextMatcher.adjustsCase(
             language: known ?? guessedLanguage(of: processed, after: field.before))
-        let fitted = CaretTextMatcher.fit(processed, into: field, properNouns: Set(terms),
+        let fitted = CaretTextMatcher.fit(processed, into: field, properNouns: Set(terms + snippetTexts),
                                           adjustCase: adjustCase)
         Diag.mark("caret match: \(fitted == processed ? "nothing to change" : "fitted to the field")")
         return Prepared(fitted: fitted, standalone: processed)
