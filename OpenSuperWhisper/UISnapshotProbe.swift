@@ -197,6 +197,7 @@ enum UISnapshotProbe {
         seedRecordings()
 
         var all = screens.merging(onboardingScreens) { current, _ in current }
+            .merging(reportScreens) { current, _ in current }
         for rubric in SettingsRubric.allCases {
             all["settings-\(rubric.rawValue)"] = {
                 AdvancedRubrics.shared.set(rubric.rawValue, false)
@@ -218,6 +219,7 @@ enum UISnapshotProbe {
             for dark in [false, true] {
                 AppNavigation.shared.helpOpen = false
                 AppNavigation.shared.feedbackOpen = false
+                resetReportStaging()
                 // A large-text screen would otherwise leave every later screen of the run large.
                 AppPreferences.shared.textScale = TextScale.default
                 let view = make()
@@ -274,11 +276,14 @@ enum UISnapshotProbe {
             (-60 * 90, "Failed to transcribe: the audio file is empty", nil, "Parakeet v3", .failed, nil),
             (-86_400 - 3_600, "An idea for this weekend: turn my reading notes into index cards.", "Notes", "Parakeet v3", .completed, nil),
         ]
-        for (offset, text, app, model, status, source) in samples {
+        // What the engine wrote before the cleanup, for the first one: the history offers it back.
+        let originals = [0: "i'll send you the mock ups tomorrow morning thanks for the feedback shall we meet on thursday"]
+        for (index, (offset, text, app, model, status, source)) in samples.enumerated() {
             let recording = Recording(id: UUID(), timestamp: now.addingTimeInterval(offset),
                                       fileName: "\(Int(now.timeIntervalSince1970 + offset)).wav",
                                       transcription: text, duration: 6, status: status, progress: 1,
-                                      sourceFileURL: source, sourceAppName: app, modelUsed: model)
+                                      sourceFileURL: source, sourceAppName: app, modelUsed: model,
+                                      rawTranscription: originals[index] ?? (source == nil ? text : nil))
             RecordingStore.shared.addRecording(recording)
         }
         RunLoop.main.run(until: Date().addingTimeInterval(0.5))
