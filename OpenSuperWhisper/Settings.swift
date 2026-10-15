@@ -1487,7 +1487,7 @@ enum PostRecordHookVariables {
     struct Variable { let name: String; let description: String }
     static let all = [
         Variable(name: "$OSW_TEXT", description: "the transcription"),
-        Variable(name: "$OSW_RAW_TEXT", description: "before the dictionary rules and AI cleanup"),
+        Variable(name: "$OSW_RAW_TEXT", description: "before filler-word removal and AI cleanup"),
         Variable(name: "$OSW_APP_BUNDLE_ID", description: "the app you dictated into"),
         Variable(name: "$OSW_AUDIO_PATH", description: "wav file path (when history is on)"),
         Variable(name: "$OSW_TIMESTAMP", description: "ISO 8601 date"),

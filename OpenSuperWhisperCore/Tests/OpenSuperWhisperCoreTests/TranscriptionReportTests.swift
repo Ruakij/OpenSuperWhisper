@@ -53,6 +53,7 @@ final class TranscriptionReportTests: CoreTestCase {
         XCTAssertEqual(report.recordedAt, recording.timestamp)
         XCTAssertEqual(report.finalText, "So the Kubernetes cluster.")
         XCTAssertEqual(report.rawText, "um so the cube cuttle cluster")
+        XCTAssertEqual(report.distinctRawText, "um so the cube cuttle cluster")
         XCTAssertEqual(report.modelUsed, "Parakeet v3")
         XCTAssertTrue(report.wasFallback)
         XCTAssertEqual(report.duration, 4.5)

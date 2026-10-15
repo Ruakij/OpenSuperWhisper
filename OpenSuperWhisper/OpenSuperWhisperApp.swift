@@ -127,8 +127,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     private var modelSubmenu: NSMenu?
     private var recentSubmenu: NSMenu?
 
-    /// Rows for the "Recent" submenu, kept current by `recordingsDidUpdateNotification` rather
-    /// than fetched when the menu opens: reading the store is async, and `menuNeedsUpdate` is
+    /// Rows for the "Recent" submenu, kept current by `recordingsDidUpdateNotification` and by
+    /// the end of a rerun (`recordingProgressDidUpdateNotification`) rather than fetched when the
+    /// menu opens: reading the store is async, and `menuNeedsUpdate` is
     /// not, so an open menu can't wait for it.
     private var recentTranscripts: [Recording] = []
     private var microphoneService = MicrophoneService.shared
@@ -253,6 +254,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             self,
             selector: #selector(refreshRecentTranscripts),
             name: RecordingStore.recordingsDidUpdateNotification,
+            object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(recordingProgressChanged(_:)),
+            name: RecordingStore.recordingProgressDidUpdateNotification,
             object: nil)
         refreshRecentTranscripts()
     }
@@ -508,6 +514,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
                                                        limit: RecentTranscripts.menuCount)
             populateRecentSubmenu()
         }
+    }
+
+    /// A rerun rewrites a row in place and only posts its progress: once it lands, the menu must
+    /// not keep offering the old text, or an original the new text no longer goes with (#168).
+    @objc private func recordingProgressChanged(_ notification: Notification) {
+        guard let status = notification.userInfo?["status"] as? RecordingStatus,
+              status == .completed || status == .failed else { return }
+        refreshRecentTranscripts()
     }
 
     private func populateModelSubmenu() {

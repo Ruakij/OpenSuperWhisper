@@ -205,8 +205,9 @@ final class DictationPipeline: ObservableObject {
             // The stop phrase goes first, before the dictionary rules can reshape it. (#145)
             let spokenText = AppPreferences.shared.stripStopPhrase(rawText, cutAtLast: item.endedByStopPhrase)
             var text = AppPreferences.shared.cleanTranscription(spokenText)
-            // The engine's own output, before the dictionary rules and any LLM cleanup, kept
-            // for the post-record hook. Tracked alongside `text` rather than read from
+            // The engine's own output (its dictionary rules already applied inside the engine),
+            // before filler-word removal and any LLM cleanup, kept for the post-record hook and
+            // the history's original text (#168). Tracked alongside `text` rather than read from
             // `rawText` at the end, because the short-clip fallback below replaces the basis
             // of the text entirely — handing a hook "No speech detected" for a clip that
             // produced words would be worse than not telling it at all.

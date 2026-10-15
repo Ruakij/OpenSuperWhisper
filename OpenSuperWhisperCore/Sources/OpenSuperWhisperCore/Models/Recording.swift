@@ -37,8 +37,8 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
     /// The text as the engine handed it back (its dictionary rules already applied), before the
     /// filler words came out and the AI cleanup ran. Kept so a cleanup that rewrote too much can
     /// be undone from the history, and so a report can show both (#168). Kept even when nothing
-    /// changed it, so "same text" and "never kept" stay apart. nil for imports and reruns, whose
-    /// text is the engine's own, and for rows older than the column.
+    /// changed it, so "same text" and "never kept" stay apart. Imports and reruns store their own
+    /// text here, since it is the engine's; nil means a row older than the column (or a failure).
     public var rawTranscription: String? = nil
 
     public var isRegeneration: Bool = false
@@ -270,9 +270,10 @@ public class RecordingStore: ObservableObject {
     
     public static let recordingProgressDidUpdateNotification = Notification.Name("RecordingStore.recordingProgressDidUpdate")
     
-    /// - Parameter clearsRawTranscription: the new text is the engine's own (a rerun), so the
-    ///   original kept from the dictation no longer goes with it.
-    func updateRecordingProgressOnlySync(_ id: UUID, transcription: String, progress: Float, status: RecordingStatus, isRegeneration: Bool? = nil, modelUsed: String? = nil, wasFallback: Bool? = nil, clearsRawTranscription: Bool = false) async {
+    /// - Parameter rawTranscription: replaces the kept original when given. An import or a rerun
+    ///   passes its own text, which is the engine's: the original kept from a dictation no
+    ///   longer goes with the new text, and nil stays reserved for rows older than the column.
+    func updateRecordingProgressOnlySync(_ id: UUID, transcription: String, progress: Float, status: RecordingStatus, isRegeneration: Bool? = nil, modelUsed: String? = nil, wasFallback: Bool? = nil, rawTranscription: String? = nil) async {
         do {
             _ = try await dbQueue.write { db -> Int in
                 var assignments = [
@@ -286,8 +287,8 @@ public class RecordingStore: ObservableObject {
                 if let wasFallback {
                     assignments.append(Recording.Columns.wasFallback.set(to: wasFallback))
                 }
-                if clearsRawTranscription {
-                    assignments.append(Recording.Columns.rawTranscription.set(to: nil))
+                if let rawTranscription {
+                    assignments.append(Recording.Columns.rawTranscription.set(to: rawTranscription))
                 }
                 return try Recording
                     .filter(Recording.Columns.id == id)
@@ -307,8 +308,8 @@ public class RecordingStore: ObservableObject {
                 if let wasFallback {
                     updated.wasFallback = wasFallback
                 }
-                if clearsRawTranscription {
-                    updated.rawTranscription = nil
+                if let rawTranscription {
+                    updated.rawTranscription = rawTranscription
                 }
                 recordings[index] = updated
             }
@@ -328,8 +329,8 @@ public class RecordingStore: ObservableObject {
             if let wasFallback {
                 userInfo["wasFallback"] = wasFallback
             }
-            if clearsRawTranscription {
-                userInfo["clearsRawTranscription"] = true
+            if let rawTranscription {
+                userInfo["rawTranscription"] = rawTranscription
             }
 
             await MainActor.run {

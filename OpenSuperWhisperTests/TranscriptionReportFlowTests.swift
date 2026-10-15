@@ -256,26 +256,42 @@ final class DictationOriginalTextTests: XCTestCase {
         scratch = nil
     }
 
-    /// A dictation rescued from the live preview, its filler words taken out: no audio, no
-    /// engine, nothing pasted, and the row it leaves in the (test) history keeps both texts.
-    func testTheEngineTextIsKeptBesideTheFinalOne() async throws {
-        let marker = UUID().uuidString.prefix(8)
-        let pipeline = DictationPipeline.shared
-        pipeline.enqueue(tempURL: nil, startedAt: Date(),
-                         streamedFallback: "um send the mock ups \(marker)",
-                         context: DictationPipeline.ContextSnapshot(), modelOption: nil)
-
+    /// Dictates `fallback` as a dictation rescued from the live preview (no audio, no engine,
+    /// nothing pasted) and returns the row it leaves in the test history.
+    private func dictate(_ fallback: String, marker: Substring) async throws -> Recording {
+        DictationPipeline.shared.enqueue(tempURL: nil, startedAt: Date(), streamedFallback: fallback,
+                                         context: DictationPipeline.ContextSnapshot(), modelOption: nil)
         var saved: Recording?
         for _ in 0..<300 where saved == nil {
             try await Task.sleep(nanoseconds: 10_000_000)
             saved = try await RecordingStore.shared.fetchRecordings(limit: 20, offset: 0)
                 .first { $0.transcription.contains(marker) }
         }
-
         let recording = try XCTUnwrap(saved)
+        addTeardownBlock { @MainActor in RecordingStore.shared.deleteRecording(recording) }
+        return recording
+    }
+
+    /// Its filler words taken out: the row keeps both texts.
+    func testTheEngineTextIsKeptBesideTheFinalOne() async throws {
+        let marker = UUID().uuidString.prefix(8)
+
+        let recording = try await dictate("um send the mock ups \(marker)", marker: marker)
+
         XCTAssertEqual(recording.transcription, "send the mock ups \(marker)")
         XCTAssertEqual(recording.rawTranscription, "um send the mock ups \(marker)")
         XCTAssertEqual(recording.distinctOriginal, "um send the mock ups \(marker)")
-        RecordingStore.shared.deleteRecording(recording)
+    }
+
+    /// The spoken submit command comes off the original too: copying it back out must not bring
+    /// "press enter" with it. Auto-paste is off, so no Return is pressed.
+    func testTheSpokenSubmitCommandIsNotKeptInTheOriginal() async throws {
+        AppPreferences.shared.submitOnVoiceCommand = true
+        let marker = UUID().uuidString.prefix(8)
+
+        let recording = try await dictate("um send the mock ups \(marker), press enter.", marker: marker)
+
+        XCTAssertEqual(recording.transcription, "send the mock ups \(marker)")
+        XCTAssertEqual(recording.rawTranscription, "um send the mock ups \(marker)")
     }
 }

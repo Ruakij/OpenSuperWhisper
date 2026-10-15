@@ -114,10 +114,21 @@ extension Recording {
     /// The engine's text when it says something other than the text the user got, else nil.
     /// Whitespace alone is not a difference worth offering to undo.
     public var distinctOriginal: String? {
-        guard let raw = rawTranscription else { return nil }
+        TranscriptionReport.distinct(rawTranscription, from: transcription)
+    }
+}
+
+extension TranscriptionReport {
+    /// The engine's text when it differs from the final one, as on the recording it came from.
+    public var distinctRawText: String? {
+        Self.distinct(rawText, from: finalText)
+    }
+
+    static func distinct(_ raw: String?, from final: String) -> String? {
+        guard let raw else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
-              trimmed != transcription.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+              trimmed != final.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
         return raw
     }
 }

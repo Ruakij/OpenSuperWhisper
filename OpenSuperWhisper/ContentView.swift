@@ -165,7 +165,7 @@ class ContentViewModel: ObservableObject {
         }
     }
     
-    func handleProgressUpdate(id: UUID, transcription: String?, progress: Float, status: RecordingStatus, isRegeneration: Bool?, modelUsed: String? = nil, wasFallback: Bool? = nil, clearsRawTranscription: Bool = false) {
+    func handleProgressUpdate(id: UUID, transcription: String?, progress: Float, status: RecordingStatus, isRegeneration: Bool?, modelUsed: String? = nil, wasFallback: Bool? = nil, rawTranscription: String? = nil) {
         if let index = recordings.firstIndex(where: { $0.id == id }) {
             if let transcription = transcription {
                 recordings[index].transcription = transcription
@@ -181,8 +181,8 @@ class ContentViewModel: ObservableObject {
             if let wasFallback {
                 recordings[index].wasFallback = wasFallback
             }
-            if clearsRawTranscription {
-                recordings[index].rawTranscription = nil
+            if let rawTranscription {
+                recordings[index].rawTranscription = rawTranscription
             }
         }
         if status == .failed || status == .completed {

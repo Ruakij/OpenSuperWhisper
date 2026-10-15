@@ -16,10 +16,20 @@ struct FeedRow: View {
     @ObservedObject private var audioRecorder = AudioRecorder.shared
     @State private var isExpanded = false
     @State private var isHovered = false
-    @State private var showsOriginal = FeedRow.snapshotShowsOriginals
+    @State private var showsOriginal = FeedRow.initiallyShowsOriginal
 
+    #if DEBUG
     /// For the snapshot probe, which shows the original unfolded.
     static var snapshotShowsOriginals = false
+    #endif
+
+    private static var initiallyShowsOriginal: Bool {
+        #if DEBUG
+        return snapshotShowsOriginals
+        #else
+        return false
+        #endif
+    }
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
