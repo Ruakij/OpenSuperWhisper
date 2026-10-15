@@ -20,6 +20,10 @@ final class TestPreferences: CorePreferences, @unchecked Sendable {
         var customDictionaryBoostEnabled = false
         var customDictionaryEntries: [CustomDictionaryEntry] = []
 
+        var snippetsEnabled = true
+        var snippetsBoostEnabled = false
+        var snippets: [Snippet] = []
+
         var remoteServerURL = ""
         var remoteServerModel = ""
         var remoteServerAPIKey: String?
@@ -93,6 +97,19 @@ final class TestPreferences: CorePreferences, @unchecked Sendable {
     var customDictionaryEntries: [CustomDictionaryEntry] {
         get { self[\.customDictionaryEntries] }
         set { self[\.customDictionaryEntries] = newValue }
+    }
+
+    var snippetsEnabled: Bool {
+        get { self[\.snippetsEnabled] }
+        set { self[\.snippetsEnabled] = newValue }
+    }
+    var snippetsBoostEnabled: Bool {
+        get { self[\.snippetsBoostEnabled] }
+        set { self[\.snippetsBoostEnabled] = newValue }
+    }
+    var snippets: [Snippet] {
+        get { self[\.snippets] }
+        set { self[\.snippets] = newValue }
     }
 
     var remoteServerURL: String {

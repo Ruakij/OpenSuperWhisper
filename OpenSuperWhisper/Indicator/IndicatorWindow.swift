@@ -178,9 +178,7 @@ class IndicatorViewModel: ObservableObject {
         // the text; only the on-bubble preview is dropped for this clip. (parallel-recording review)
         if Self.shouldUseLiveStreaming && !DictationPipeline.shared.isProcessing && !isTranscriptionBusy {
             liveStreamingActive = true
-            let terms = (AppPreferences.shared.customDictionaryEnabled && AppPreferences.shared.customDictionaryBoostEnabled)
-                ? CustomDictionary.boostTerms(entries: AppPreferences.shared.customDictionaryEntries)
-                : []
+            let terms = AppPreferences.shared.recognitionBoostTerms
             Task { @MainActor in
                 do {
                     try await StreamingTranscriptionController.shared.start(boostTerms: terms)

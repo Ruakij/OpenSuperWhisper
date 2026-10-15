@@ -328,6 +328,45 @@ final class AppPreferences {
             customDictionaryData = try? JSONEncoder().encode(newValue)
         }
     }
+
+    /// On by default, unlike the dictionary: a snippet does nothing until the user writes one,
+    /// and one that has been written is meant to work straight away (#167).
+    @UserDefault(key: "snippetsEnabled", defaultValue: true)
+    var snippetsEnabled: Bool
+
+    /// Whether the snippet triggers also bias recognition. Off by default for the reason the
+    /// dictionary's boost is: triggers tend to be short, common phrases ("my email"), which
+    /// boosting over-corrects, and on Parakeet any boost moves the file pass to the slower
+    /// sliding-window decoder. See `RecognitionBoost`.
+    @UserDefault(key: "snippetsBoostEnabled", defaultValue: false)
+    var snippetsBoostEnabled: Bool
+
+    @OptionalUserDefault(key: "snippetsData")
+    private var snippetsData: Data?
+
+    var snippets: [Snippet] {
+        get {
+            guard let data = snippetsData,
+                  let snippets = try? JSONDecoder().decode([Snippet].self, from: data) else {
+                return []
+            }
+            return snippets
+        }
+        set {
+            snippetsData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    /// The dictation with its snippet triggers expanded, when snippets are on. Run on the text
+    /// the cleanup model returns, never before it (see `SnippetExpander`). The dictionary rules
+    /// are passed along because they ran first and may have rewritten part of a trigger.
+    func expandSnippets(_ text: String) -> String {
+        guard snippetsEnabled else { return text }
+        let snippets = self.snippets
+        guard !snippets.isEmpty else { return text }
+        return SnippetExpander.expand(text, snippets: snippets,
+                                      dictionary: customDictionaryEnabled ? customDictionaryEntries : [])
+    }
     
     @UserDefault(key: "useBeamSearch", defaultValue: false)
     var useBeamSearch: Bool
