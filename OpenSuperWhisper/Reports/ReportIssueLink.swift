@@ -1,0 +1,91 @@
+import Foundation
+import OpenSuperWhisperCore
+
+/// The prefilled "new issue" page for a report (#168). Opening it only fills GitHub's form in
+/// the browser: nothing is posted until the user submits it there, and the audio is never part
+/// of it (it would not fit in a link anyway; the zip export is for that).
+enum ReportIssueLink {
+    /// GitHub turns away longer "new issue" links, and some browsers cut them. The texts are
+    /// shortened until the whole link fits under this.
+    static let maxURLLength = 7_000
+    private static let initialTextLimit = 2_000
+    private static let minimumTextLimit = 80
+
+    static func url(for report: TranscriptionReport, newIssue: URL = FeedbackLink.newIssue) -> URL {
+        var limit = initialTextLimit
+        var link = url(for: report, newIssue: newIssue, textLimit: limit)
+        while link.absoluteString.count > maxURLLength, limit > minimumTextLimit {
+            limit /= 2
+            link = url(for: report, newIssue: newIssue, textLimit: limit)
+        }
+        return link
+    }
+
+    private static func url(for report: TranscriptionReport, newIssue: URL, textLimit: Int) -> URL {
+        let query = "title=\(percentEncoded(title(for: report)))&body=\(percentEncoded(body(for: report, textLimit: textLimit)))"
+        return URL(string: "\(newIssue.absoluteString)?\(query)")!
+    }
+
+    static func title(for report: TranscriptionReport) -> String {
+        let model = report.modelUsed.map { " (\($0))" } ?? ""
+        return "Transcription report: \(report.problem.issueLabel.lowercased())\(model)"
+    }
+
+    static func body(for report: TranscriptionReport, textLimit: Int = initialTextLimit) -> String {
+        var lines = ["**What went wrong:** \(report.problem.issueLabel)"]
+        if let shouldBe = report.shouldBe { lines.append("**Should be:** \(shortened(shouldBe, to: textLimit))") }
+        if let writtenAs = report.writtenAs { lines.append("**Written as:** \(shortened(writtenAs, to: textLimit))") }
+        if !report.comment.isEmpty {
+            lines.append("")
+            lines += shortened(report.comment, to: textLimit).components(separatedBy: .newlines).map { "> \($0)" }
+        }
+        lines += ["", "- Model: \(modelLine(for: report))"]
+        if let language = report.languageSetting { lines.append("- Language setting: \(language)") }
+        lines.append("- Length: \(String(format: "%.1f", report.duration)) s")
+        lines.append("- App: \(report.appDetails)")
+        lines.append("")
+        if let raw = report.rawText, raw.trimmed != report.finalText.trimmed {
+            lines += ["**Before cleanup** (the engine's text)"] + fenced(shortened(raw, to: textLimit)) + [""]
+            lines += ["**Final text**"] + fenced(shortened(report.finalText, to: textLimit))
+        } else {
+            let note = report.rawText == nil ? "the text before cleanup was not kept" : "same as before cleanup"
+            lines += ["**Final text** (\(note))"] + fenced(shortened(report.finalText, to: textLimit))
+        }
+        lines += ["", "_The audio is not attached. It is in the zip exported from Reports in the app, if you want to add it._"]
+        return lines.joined(separator: "\n")
+    }
+
+    private static func modelLine(for report: TranscriptionReport) -> String {
+        let model = report.modelUsed ?? "unknown"
+        return report.wasFallback ? "\(model) (local fallback, the server was unreachable)" : model
+    }
+
+    /// A fence longer than any run of tildes in the text, so nothing in a dictation can close it.
+    static func fenced(_ text: String) -> [String] {
+        var longest = 0, run = 0
+        for character in text {
+            run = character == "~" ? run + 1 : 0
+            longest = max(longest, run)
+        }
+        let fence = String(repeating: "~", count: max(3, longest + 1))
+        return ["\(fence)text", text, fence]
+    }
+
+    static func shortened(_ text: String, to limit: Int) -> String {
+        guard text.count > limit else { return text }
+        return String(text.prefix(limit)) + " […]"
+    }
+
+    /// Everything but the unreserved characters, "+" and "&" included: a query decoder reads a
+    /// bare "+" as a space, and a bare "&" would end the body early.
+    static func percentEncoded(_ text: String) -> String {
+        text.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
+    }
+
+    private static let unreserved = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+}
+
+private extension String {
+    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
+}

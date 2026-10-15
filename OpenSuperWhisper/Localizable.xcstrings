@@ -19236,6 +19236,506 @@
           }
         }
       }
+    },
+    "Add the right spelling to your dictionary. Leave “Written as” empty to add it as a new word.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoutez la bonne orthographe à votre dictionnaire. Laissez « Transcrit » vide pour l'ajouter comme nouveau mot."
+          }
+        }
+      }
+    },
+    "Add to dictionary": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter au dictionnaire"
+          }
+        }
+      }
+    },
+    "Added to the dictionary": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouté au dictionnaire"
+          }
+        }
+      }
+    },
+    "Are you sure you want to delete all recordings? This action cannot be undone. Your reports are kept; delete them from Reports.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulez-vous vraiment supprimer tous les enregistrements ? Cette action est irréversible. Vos signalements sont conservés ; supprimez-les depuis Signalements."
+          }
+        }
+      }
+    },
+    "Audio included": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio inclus"
+          }
+        }
+      }
+    },
+    "Audio kept": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio conservé"
+          }
+        }
+      }
+    },
+    "Before cleanup": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avant nettoyage"
+          }
+        }
+      }
+    },
+    "Cleanup changed the meaning": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le nettoyage a changé le sens"
+          }
+        }
+      }
+    },
+    "Comment (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commentaire (facultatif)"
+          }
+        }
+      }
+    },
+    "Copy original": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier l'original"
+          }
+        }
+      }
+    },
+    "Copy this text, to paste it where the cleaned one went": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier ce texte, pour le coller à la place du texte nettoyé"
+          }
+        }
+      }
+    },
+    "Couldn't save the report.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'enregistrer le signalement."
+          }
+        }
+      }
+    },
+    "Couldn't write the zip.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'écrire le zip."
+          }
+        }
+      }
+    },
+    "Delete this report?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer ce signalement ?"
+          }
+        }
+      }
+    },
+    "Dictations you flagged, kept on this Mac. Share them when you're ready.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les dictées que vous avez signalées, gardées sur ce Mac. Partagez-les quand vous le souhaitez."
+          }
+        }
+      }
+    },
+    "Export as zip…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter en zip…"
+          }
+        }
+      }
+    },
+    "Fix it next time": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corriger pour la prochaine fois"
+          }
+        }
+      }
+    },
+    "GitHub issue": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ticket GitHub"
+          }
+        }
+      }
+    },
+    "It stays on this Mac. From Reports, export it as a zip or open a GitHub issue with the texts.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il reste sur ce Mac. Depuis Signalements, exportez-le en zip ou ouvrez un ticket GitHub avec les textes."
+          }
+        }
+      }
+    },
+    "Its copy of the audio goes with it. The dictation stays in your history.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sa copie de l'audio part avec lui. La dictée reste dans votre historique."
+          }
+        }
+      }
+    },
+    "No audio": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sans audio"
+          }
+        }
+      }
+    },
+    "No audio kept for this one": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas d'audio conservé pour celle-ci"
+          }
+        }
+      }
+    },
+    "No reports yet. Flag a dictation from its row on Home.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun signalement pour l'instant. Signalez une dictée depuis sa ligne dans l'Accueil."
+          }
+        }
+      }
+    },
+    "Open a new GitHub issue in your browser with this report's texts filled in": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir un nouveau ticket GitHub dans votre navigateur, prérempli avec les textes de ce signalement"
+          }
+        }
+      }
+    },
+    "Original": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original"
+          }
+        }
+      }
+    },
+    "Report a bad transcription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signaler une mauvaise transcription"
+          }
+        }
+      }
+    },
+    "Report saved": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signalement enregistré"
+          }
+        }
+      }
+    },
+    "Report this transcription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signaler cette transcription"
+          }
+        }
+      }
+    },
+    "Reports": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signalements"
+          }
+        }
+      }
+    },
+    "Save report": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer"
+          }
+        }
+      }
+    },
+    "Saved %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ enregistré"
+          }
+        }
+      }
+    },
+    "Saved on this Mac with the audio, the model and both texts. Nothing is sent unless you share it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistré sur ce Mac avec l'audio, le modèle et les deux textes. Rien n'est envoyé tant que vous ne le partagez pas."
+          }
+        }
+      }
+    },
+    "Should be": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Devrait être"
+          }
+        }
+      }
+    },
+    "Should be “%@”": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Devrait être « %@ »"
+          }
+        }
+      }
+    },
+    "Show reports": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir les signalements"
+          }
+        }
+      }
+    },
+    "Show the text as the engine wrote it, before the cleanup": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher le texte tel que le moteur l'a écrit, avant le nettoyage"
+          }
+        }
+      }
+    },
+    "Something else": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autre chose"
+          }
+        }
+      }
+    },
+    "The dictionary is off, so this changes nothing yet.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le dictionnaire est désactivé, cela ne change donc rien pour l'instant."
+          }
+        }
+      }
+    },
+    "The right spelling": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La bonne orthographe"
+          }
+        }
+      }
+    },
+    "The zip holds the audio and both texts of every report. A GitHub issue opens in your browser with the texts only, and nothing is posted until you submit it there.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le zip contient l'audio et les deux textes de chaque signalement. Un ticket GitHub s'ouvre dans votre navigateur avec les textes seulement, et rien n'est publié tant que vous ne l'envoyez pas."
+          }
+        }
+      }
+    },
+    "Turn it on": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'activer"
+          }
+        }
+      }
+    },
+    "What the model wrote": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce que le modèle a écrit"
+          }
+        }
+      }
+    },
+    "What went wrong?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qu'est-ce qui n'allait pas ?"
+          }
+        }
+      }
+    },
+    "What you said, what you expected, anything that helps.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce que vous avez dit, ce que vous attendiez, tout ce qui peut aider."
+          }
+        }
+      }
+    },
+    "Writing the zip…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écriture du zip…"
+          }
+        }
+      }
+    },
+    "Written as": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcrit"
+          }
+        }
+      }
+    },
+    "Wrong language": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mauvaise langue"
+          }
+        }
+      }
+    },
+    "Wrong name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mauvais nom"
+          }
+        }
+      }
+    },
+    "Wrong word": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mauvais mot"
+          }
+        }
+      }
+    },
+    "You got": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous avez obtenu"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

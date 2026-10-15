@@ -35,7 +35,7 @@ final class TextScaleCoverageTests: XCTestCase {
 
     /// Folders holding nothing but window content: every Swift file in them is checked, so a new
     /// page or rubric is covered the day it is added.
-    private static let userFacingFolders = ["Pages", "Shell", "Settings", "Theme", "Onboarding"]
+    private static let userFacingFolders = ["Pages", "Shell", "Settings", "Theme", "Onboarding", "Reports"]
 
     /// Window content that lives outside those folders.
     private static let userFacingFiles = [

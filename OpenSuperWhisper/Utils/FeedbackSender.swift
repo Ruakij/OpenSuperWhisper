@@ -139,8 +139,10 @@ enum FeedbackAppDetails {
         ].compactMap { $0 }.joined(separator: " · ")
     }
 
+    /// - Parameter includingModel: off for a transcription report, which names the model that
+    ///   wrote that dictation rather than the one selected now.
     @MainActor
-    static func current() -> String {
+    static func current(includingModel: Bool = true) -> String {
         let info = Bundle.main.infoDictionary
         #if arch(arm64)
         let appleSilicon = true
@@ -151,6 +153,6 @@ enum FeedbackAppDetails {
                     build: info?["CFBundleVersion"] as? String ?? "0",
                     os: ProcessInfo.processInfo.operatingSystemVersion,
                     appleSilicon: appleSilicon,
-                    model: ModelSelectionStore.shared.active?.friendlyName)
+                    model: includingModel ? ModelSelectionStore.shared.active?.friendlyName : nil)
     }
 }

@@ -64,7 +64,8 @@ struct HomeFeed: View {
             onDelete: { viewModel.deleteRecording(recording) },
             onRegenerate: { model in
                 Task { await TranscriptionQueue.shared.requeueRecording(recording, model: model) }
-            }
+            },
+            onReport: { AppNavigation.shared.openReport(for: recording) }
         )
         .id(recording.id)
         .onAppear {

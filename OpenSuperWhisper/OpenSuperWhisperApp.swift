@@ -470,7 +470,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             // picking between two that start alike doesn't need the main window.
             item.toolTip = recording.transcription
             submenu.addItem(item)
+            if let original = recording.distinctOriginal {
+                submenu.addItem(originalAlternate(of: item, original: original))
+            }
         }
+    }
+
+    /// Shown in place of `item` while ⌥ is held: the same dictation as the engine wrote it,
+    /// before the cleanup (#168).
+    private func originalAlternate(of item: NSMenuItem, original: String) -> NSMenuItem {
+        let title = String(format: NSLocalizedString("Original: %@", comment: "Recent submenu, with ⌥ held"),
+                           RecentTranscripts.menuTitle(for: original))
+        let alternate = NSMenuItem(title: title, action: item.action, keyEquivalent: item.keyEquivalent)
+        alternate.target = self
+        alternate.representedObject = original
+        alternate.toolTip = original
+        alternate.keyEquivalentModifierMask = [.option]
+        alternate.isAlternate = true
+        return alternate
     }
 
     @objc private func insertRecentTranscript(_ sender: NSMenuItem) {

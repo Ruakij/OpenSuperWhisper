@@ -5,6 +5,7 @@ import OpenSuperWhisperCore
 /// delete-all controls that used to sit beside the record button.
 struct HomeFilterBar: View {
     @ObservedObject var viewModel: ContentViewModel
+    @ObservedObject private var reports = TranscriptionReportsModel.shared
     @State private var showDeleteConfirmation = false
 
     var body: some View {
@@ -43,10 +44,25 @@ struct HomeFilterBar: View {
     private var trailing: some View {
         HStack(spacing: 8) {
             RetentionSummary()
+            reportsButton
             MicrophonePickerIconView(microphoneService: viewModel.microphoneService)
             deleteAllButton
         }
         .fixedSize()
+    }
+
+    /// The saved reports (#168), once there are any.
+    @ViewBuilder private var reportsButton: some View {
+        if !reports.reports.isEmpty {
+            Button {
+                AppNavigation.shared.openReports()
+            } label: {
+                HomeIconButtonLabel(systemName: "flag", count: reports.reports.count)
+            }
+            .buttonStyle(.plain)
+            .help("Reports")
+            .accessibilityLabel(Text("Reports"))
+        }
     }
 
     /// Trash-everything control with its confirmation dialog.
@@ -69,27 +85,39 @@ struct HomeFilterBar: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Are you sure you want to delete all recordings? This action cannot be undone.")
+                if reports.reports.isEmpty {
+                    Text("Are you sure you want to delete all recordings? This action cannot be undone.")
+                } else {
+                    Text("Are you sure you want to delete all recordings? This action cannot be undone. Your reports are kept; delete them from Reports.")
+                }
             }
             .interactiveDismissDisabled()
         }
     }
 }
 
-/// The small square icon button of the filter row.
+/// The small icon button of the filter row: square, or wider with a count beside the symbol.
 struct HomeIconButtonLabel: View {
     let systemName: String
+    /// Drawn after the symbol, which then takes the width it needs instead of a square.
+    var count: Int? = nil
     @State private var hovered = false
 
     var body: some View {
-        Image(systemName: systemName)
-            .scaledFont(size: 13)
-            .foregroundColor(hovered ? STheme.textBright : STheme.hint)
-            .frame(width: 28, height: 28)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(hovered ? STheme.fill : Color.clear))
-            .contentShape(Rectangle())
-            .onHover { hovered = $0 }
+        HStack(spacing: 4) {
+            Image(systemName: systemName)
+            if let count {
+                Text(verbatim: "\(count)").monospacedDigit()
+            }
+        }
+        .scaledFont(size: 13)
+        .foregroundColor(hovered ? STheme.textBright : STheme.hint)
+        .padding(.horizontal, count == nil ? 0 : 8)
+        .frame(width: count == nil ? 28 : nil, height: 28)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(hovered ? STheme.fill : Color.clear))
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
     }
 }
 
