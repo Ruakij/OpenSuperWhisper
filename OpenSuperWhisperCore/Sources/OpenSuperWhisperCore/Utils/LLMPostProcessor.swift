@@ -76,12 +76,15 @@ public enum LLMPostProcessor {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
 
         let prof = formatting ? profile(for: bundleID, in: prefs.appContextProfiles) : nil
+        let vocabulary = prefs.customDictionaryEnabled
+            ? cleanupVocabulary(CustomDictionary.boostTerms(entries: prefs.customDictionaryEntries), in: text) : []
         guard let system = assembleSystemPrompt(generalCleanup: general,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
                                                 profile: prof,
                                                 closingPrompt: prefs.aiPostProcessingClosing,
                                                 translating: translating,
-                                                translationPrompt: prefs.aiPostProcessingTranslation)
+                                                translationPrompt: prefs.aiPostProcessingTranslation,
+                                                vocabulary: vocabulary)
         else { return text }
 
         let backend = currentBackend()
@@ -107,7 +110,8 @@ public enum LLMPostProcessor {
                                               profile: prof,
                                               closingPrompt: prefs.aiPostProcessingClosing,
                                               translating: translating,
-                                              translationPrompt: prefs.aiPostProcessingTranslation)
+                                              translationPrompt: prefs.aiPostProcessingTranslation,
+                                              vocabulary: vocabulary)
             if echoesPrompt(output: result, system: shipped, input: text) {
                 print("AI post-processing returned its own instructions, using the raw transcription")
                 return text
@@ -204,7 +208,8 @@ public enum LLMPostProcessor {
                                     profile: AppContextProfile?,
                                     closingPrompt: String,
                                     translating: Bool,
-                                    translationPrompt: String) -> String {
+                                    translationPrompt: String,
+                                    vocabulary: [String] = []) -> String {
         func isShipped(_ text: String, _ shipped: [String]) -> Bool {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             return shipped.contains { $0.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed }
@@ -215,6 +220,9 @@ public enum LLMPostProcessor {
         }
         if translating, isShipped(translationPrompt, [defaultTranslationInstruction]) {
             sections.append(translationPrompt)
+        }
+        if let spellings = vocabularySection(vocabulary) {
+            sections.append(spellings)
         }
         if let profile, isShipped(profile.instructions, AppContextProfile.defaultPresets.map(\.instructions)) {
             sections.append(profile.instructions)
@@ -230,7 +238,8 @@ public enum LLMPostProcessor {
                                      profile: AppContextProfile?,
                                      closingPrompt: String = "",
                                      translating: Bool = false,
-                                     translationPrompt: String = "") -> String? {
+                                     translationPrompt: String = "",
+                                     vocabulary: [String] = []) -> String? {
         guard generalCleanup || profile != nil else { return nil }
 
         var sections: [String] = []
@@ -244,6 +253,11 @@ public enum LLMPostProcessor {
         // mixed languages and repetition loops (#86).
         if translating {
             sections.append(translationPrompt)
+        }
+        // After what the user asked for and before the app rules: a fact about the text, like
+        // the translation note, and one the closing guardrail must still come after.
+        if let spellings = vocabularySection(vocabulary) {
+            sections.append(spellings)
         }
         if let profile = profile {
             sections.append("App-specific formatting rules:\n\(profile.instructions)")
@@ -259,6 +273,31 @@ public enum LLMPostProcessor {
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
     }
+
+    /// The dictionary's terms that are in the text being cleaned up (#169).
+    ///
+    /// Only those: the rest would tell the model nothing about this text, and on a remote server
+    /// the dictionary would leave the Mac a little more with every dictation, names and
+    /// addresses included. A term in the text was going to the server anyway. A small model
+    /// handed a list of unrelated names also tends to slip one in.
+    static func cleanupVocabulary(_ terms: [String], in text: String) -> [String] {
+        terms.filter { text.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+    }
+
+    /// The dictionary's terms, so the cleanup keeps them as the user spells them (#169).
+    ///
+    /// A cleanup model fixing "obvious mis-recognitions" is exactly what turns a correct "Rsets"
+    /// back into "resets": the rarer the word, the likelier it looks like a mistake. Only the
+    /// terms go, never the phrasings that lead to them, and the list is cut short so a long
+    /// dictionary cannot crowd the instruction out of a small model's attention. nil without
+    /// terms, so a pass with no dictionary word in it sends exactly what it always did.
+    static func vocabularySection(_ terms: [String]) -> String? {
+        let kept = terms.prefix(maxVocabularyTerms)
+        guard !kept.isEmpty else { return nil }
+        return "Keep these words spelled exactly as written here: \(kept.joined(separator: ", "))."
+    }
+
+    static let maxVocabularyTerms = 40
 
     /// Scripts that write without spaces and pack far more meaning into a character: Han, kana,
     /// and Hangul. A sentence in one of these is a fraction of the length of its English
