@@ -101,6 +101,10 @@ The **Dictionary** holds the names and terms you say often.
 <img src="docs/screenshots/dictionary.png" width="720" alt="The Dictionary page with the entry editor open: a correction that always writes OpenSuperWhisper, with its misheard variants as chips and a live test" />
 </div>
 
+**Snippets** insert a longer text when you say a short phrase: "my email" writes the address,
+"sign off" a three-line signature. They match alone or mid-sentence, the longest phrase wins, and
+they are expanded after the AI formatting, so the text you wrote is the text you get.
+
 ## Clean text, per app
 
 - 🧹 **Cleanup.** Remove hesitations (um, uh…) and keep the spacing between dictations right.
