@@ -16,6 +16,9 @@ enum UISnapshotProbe {
         "home-large-text": { AppPreferences.shared.textScale = TextScale.maximum; return AnyView(AppShellView(page: .home)) },
         "dictionary": { seedDictionary(); return AnyView(AppShellView(page: .dictionary)) },
         "dictionary-editor": { seedDictionary(openEditor: true); return AnyView(AppShellView(page: .dictionary)) },
+        "dictionary-suggested": { seedSuggestions(); return AnyView(AppShellView(page: .dictionary)) },
+        "dictionary-suggestion-notice": { suggestionNotice() },
+        "dictionary-suggestion-notice-large-text": { suggestionNotice(textScale: TextScale.maximum) },
         "style": { seedStyle(); return AnyView(AppShellView(page: .style)) },
         "style-expanded": { seedStyle(expandFirst: true); return AnyView(AppShellView(page: .style)) },
         "settings-models-remote": {
@@ -73,6 +76,11 @@ enum UISnapshotProbe {
             return scrolled(.textAndAI, to: "Server")
         },
         "settings-textAndAI-insertion": { scrolled(.textAndAI, to: "Warn when no field is focused") },
+        "settings-privacy-context": {
+            AppPreferences.shared.customDictionaryEnabled = true
+            AppPreferences.shared.suggestDictionaryWords = true
+            return scrolled(.privacy, to: "Suggest words from your corrections")
+        },
         "settings-appearance-list": { scrolled(.appearance, to: "Order and display") },
         "settings-appearance-notch": { scrolled(.appearance, to: "Notch opening width") },
         "agent-panel": { AgentPanelSnapshot.make(focused: true) },

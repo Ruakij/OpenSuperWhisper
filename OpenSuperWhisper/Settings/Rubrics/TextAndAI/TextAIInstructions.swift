@@ -2,7 +2,8 @@ import SwiftUI
 import OpenSuperWhisperCore
 
 /// The cleanup instruction: two halves the user owns, with the matching per-app rule from Style
-/// sandwiched between them, and nothing else wrapped around either.
+/// and the dictionary's words (#169) sandwiched between them, and nothing else wrapped around
+/// either.
 ///
 /// The opening belongs to general cleanup and goes with it. The closing reaches every pass,
 /// including one an app rule started on its own, so it stays visible either way: it carries the
@@ -34,7 +35,7 @@ struct TextAIInstructions: View {
 
     private var explanation: LocalizedStringKey {
         viewModel.aiPostProcessingEnabled
-            ? "Together these two are the entire system prompt, nothing is added around them. The closing half stays the model's last word, after any app rule. A small model tends to answer in the language the prompt is written in, so write it in the language you dictate."
+            ? "Together these two are the system prompt. Nothing goes between them but any app rule and, while the dictionary is on, its words that are in the dictation, so the model keeps them spelled your way. The closing half stays the model's last word. A small model tends to answer in the language the prompt is written in, so write it in the language you dictate."
             : "Sent after your per-app rules from Style, as the model's last word. It is the only thing standing between a dictated question and a model that answers it, so keep something in it. A small model tends to answer in the language the prompt is written in, so write it in the language you dictate."
     }
 

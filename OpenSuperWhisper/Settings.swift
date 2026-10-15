@@ -15,6 +15,7 @@ class SettingsViewModel: ObservableObject {
     private var modelSyncObserver: NSObjectProtocol?
     private var languageSyncObserver: NSObjectProtocol?
     private var translateSyncObserver: NSObjectProtocol?
+    private var dictionarySyncObserver: NSObjectProtocol?
 
     @Published var selectedEngine: String {
         didSet {
@@ -269,6 +270,12 @@ class SettingsViewModel: ObservableObject {
     @Published var customDictionaryEntries: [CustomDictionaryEntry] {
         didSet {
             AppPreferences.shared.customDictionaryEntries = customDictionaryEntries
+        }
+    }
+
+    @Published var suggestDictionaryWords: Bool {
+        didSet {
+            AppPreferences.shared.suggestDictionaryWords = suggestDictionaryWords
         }
     }
 
@@ -985,6 +992,7 @@ class SettingsViewModel: ObservableObject {
         // Folded when the window opens rather than as the user types: merging live would yank a
         // row away mid-keystroke the moment its replacement matched another.
         self.customDictionaryEntries = CustomDictionary.merged(prefs.customDictionaryEntries)
+        self.suggestDictionaryWords = prefs.suggestDictionaryWords
         self.useBeamSearch = prefs.useBeamSearch
         self.beamSize = prefs.beamSize
         self.debugMode = prefs.debugMode
@@ -1078,10 +1086,18 @@ class SettingsViewModel: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in self?.translateToEnglish = AppPreferences.shared.translateToEnglish }
         }
+        // A word added from the suggestion notice, while the Dictionary page may be open.
+        dictionarySyncObserver = NotificationCenter.default.addObserver(
+            forName: .customDictionaryDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.customDictionaryEntries = CustomDictionary.merged(AppPreferences.shared.customDictionaryEntries)
+            }
+        }
     }
 
     deinit {
-        for observer in [modelSyncObserver, languageSyncObserver, translateSyncObserver] {
+        for observer in [modelSyncObserver, languageSyncObserver, translateSyncObserver, dictionarySyncObserver] {
             if let observer { NotificationCenter.default.removeObserver(observer) }
         }
     }

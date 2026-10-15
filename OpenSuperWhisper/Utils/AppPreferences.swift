@@ -313,6 +313,25 @@ final class AppPreferences {
     @UserDefault(key: "useSurroundingTextAsContext", defaultValue: false)
     var useSurroundingTextAsContext: Bool
 
+    /// Keep reading the field a dictation went into for a short while, and offer the words the
+    /// user corrects there for the dictionary (#169).
+    ///
+    /// Off by default for the reason `matchTextAroundCaret` is, and more so: this reads the
+    /// writing itself, for up to a minute after each dictation rather than once before it. What
+    /// it reads stays in memory and is dropped once the watch ends; only a word the user is
+    /// offered is kept, in `dictionarySuggestionsData`, until they answer.
+    @UserDefault(key: "suggestDictionaryWords", defaultValue: false)
+    var suggestDictionaryWords: Bool
+
+    /// Words offered and not answered yet, as JSON, for the dictionary's Suggested list.
+    @OptionalUserDefault(key: "dictionarySuggestionsData")
+    var dictionarySuggestionsData: Data?
+
+    /// Words the user turned down or deleted from the dictionary, never offered again. Stored as
+    /// digests, not words: an address someone refused to keep should not stay on disk as text.
+    @UserDefault(key: "dictionaryRefusedWords", defaultValue: [String]())
+    var dictionaryRefusedWords: [String]
+
     @OptionalUserDefault(key: "customDictionaryData")
     private var customDictionaryData: Data?
 

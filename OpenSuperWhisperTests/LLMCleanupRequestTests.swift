@@ -197,6 +197,29 @@ final class LLMCleanupRequestTests: XCTestCase {
                        ShippedCleanupPrompts.opening + "\n\n" + ShippedCleanupPrompts.closing)
     }
 
+    /// The dictionary's words in the dictation go between the two halves while the dictionary is
+    /// on, so the model keeps them as the user spells them (#169). Not the others, and nothing
+    /// while it is off.
+    func testDictionaryWordsReachThePromptOnlyWhileTheDictionaryIsOn() async throws {
+        prefs.customDictionaryEntries = [
+            CustomDictionaryEntry(original: "Rsets", replacement: "Rsets"),
+            CustomDictionaryEntry(original: "Kubernetes", replacement: "Kubernetes"),
+            CustomDictionaryEntry(original: "dictation", replacement: "dictation"),
+            CustomDictionaryEntry(original: "open quote", replacement: "“", spacing: .attachesRight),
+        ]
+        LLMStubProtocol.reset(replying: ollamaReply("Cleaned."))
+        _ = await LLMPostProcessor.process(Self.input, bundleID: nil)
+        var messages = try XCTUnwrap(try onlyRequest().json["messages"] as? [[String: String]])
+        XCTAssertEqual(messages.first?["content"], "OPEN\n\nCLOSE")
+
+        prefs.customDictionaryEnabled = true
+        LLMStubProtocol.reset(replying: ollamaReply("Cleaned."))
+        _ = await LLMPostProcessor.process(Self.input, bundleID: nil)
+        messages = try XCTUnwrap(try onlyRequest().json["messages"] as? [[String: String]])
+        XCTAssertEqual(messages.first?["content"],
+                       "OPEN\n\nKeep these words spelled exactly as written here: dictation.\n\nCLOSE")
+    }
+
     /// The path is appended to whatever the user typed, a trailing slash included.
     func testOllamaPathIsAppendedToTheEndpoint() async throws {
         prefs.aiOllamaEndpoint = " \(Self.endpoint)/ "
