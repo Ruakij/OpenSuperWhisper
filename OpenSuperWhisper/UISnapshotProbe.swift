@@ -19,6 +19,10 @@ enum UISnapshotProbe {
         "snippets": { seedSnippets(); return AnyView(AppShellView(page: .snippets)) },
         "snippets-empty": { seedSnippets(empty: true); return AnyView(AppShellView(page: .snippets)) },
         "snippets-editor": { seedSnippets(openEditor: true); return AnyView(AppShellView(page: .snippets)) },
+        "snippets-editor-new": {
+            seedSnippets(empty: true, starting: "my email")
+            return AnyView(AppShellView(page: .snippets))
+        },
         "snippets-large-text": {
             seedSnippets()
             AppPreferences.shared.textScale = TextScale.maximum

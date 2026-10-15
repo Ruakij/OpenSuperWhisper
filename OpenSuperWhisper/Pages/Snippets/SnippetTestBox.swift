@@ -26,10 +26,16 @@ struct SnippetTestBox: View {
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(STheme.inputBg))
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(STheme.border, lineWidth: 1))
-            if !sample.isEmpty && snippet.isComplete && found.isEmpty {
-                Text("The trigger is not in this sentence.")
-                    .scaledFont(size: 14)
-                    .foregroundColor(STheme.hint)
+            // An unfinished snippet finds nothing, and the sentence repeated twice under itself
+            // would say nothing either.
+            if !snippet.isComplete {
+                EmptyView()
+            } else if found.isEmpty {
+                if !sample.isEmpty {
+                    Text("The trigger is not in this sentence.")
+                        .scaledFont(size: 14)
+                        .foregroundColor(STheme.hint)
+                }
             } else {
                 Text(SnippetPreview.matched(in: sample, found))
                     .scaledFont(size: 14)

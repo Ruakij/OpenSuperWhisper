@@ -7,8 +7,8 @@ import OpenSuperWhisperCore
 /// the array resolves the row again on every keystroke, which traps once it is deleted.
 struct SnippetEditor: View {
     let isNew: Bool
-    /// The other snippets' triggers, to catch a phrase that is already taken.
-    let otherTriggers: [String]
+    /// The other snippets' `triggerKey`s, to catch a phrase that is already taken.
+    let otherTriggerKeys: [String]
     /// The dictionary rules in force, so the test matches what a dictation would.
     let dictionary: [CustomDictionaryEntry]
     let onSave: (Snippet) -> Void
@@ -24,12 +24,12 @@ struct SnippetEditor: View {
     private static let expansionBaseHeight: CGFloat = 120
     private static let expansionMaxHeight: CGFloat = 170
 
-    init(initial: Snippet, isNew: Bool, otherTriggers: [String], dictionary: [CustomDictionaryEntry],
+    init(initial: Snippet, isNew: Bool, otherTriggerKeys: [String], dictionary: [CustomDictionaryEntry],
          onSave: @escaping (Snippet) -> Void,
          onDelete: @escaping () -> Void,
          onClose: @escaping () -> Void) {
         self.isNew = isNew
-        self.otherTriggers = otherTriggers
+        self.otherTriggerKeys = otherTriggerKeys
         self.dictionary = dictionary
         self.onSave = onSave
         self.onDelete = onDelete
@@ -118,6 +118,10 @@ struct SnippetEditor: View {
                 Text("Another snippet already uses this phrase.")
                     .scaledFont(size: 12, weight: .medium)
                     .foregroundColor(STheme.warn)
+            } else if !draft.trimmedTrigger.isEmpty && !draft.hasSayableTrigger {
+                Text("A trigger needs at least one letter or digit.")
+                    .scaledFont(size: 12, weight: .medium)
+                    .foregroundColor(STheme.warn)
             } else {
                 Text("A short phrase you would not say by accident. Any case, alone or mid-sentence.")
                     .scaledFont(size: 12)
@@ -182,10 +186,10 @@ struct SnippetEditor: View {
         return snippet
     }
 
+    /// Same words once case, end marks and hyphens are set aside: "Sign off!" takes "sign off".
     private var isTaken: Bool {
-        let trigger = draft.trimmedTrigger
-        return !trigger.isEmpty
-            && otherTriggers.contains { $0.caseInsensitiveCompare(trigger) == .orderedSame }
+        let key = draft.triggerKey
+        return !key.isEmpty && otherTriggerKeys.contains(key)
     }
 
     private var isValid: Bool {

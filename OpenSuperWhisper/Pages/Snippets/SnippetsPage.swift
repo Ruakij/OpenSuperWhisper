@@ -13,6 +13,8 @@ struct SnippetsPage: View {
     #if DEBUG
     /// Lets the snapshot renderer show the editor open on the first snippet.
     static var snapshotOpensFirstSnippet = false
+    /// Lets it show the editor on a new snippet started from this phrase, still without text.
+    static var snapshotStartsSnippet: String?
     #endif
 
     private var snippets: [Snippet] { viewModel.snippets }
@@ -49,7 +51,7 @@ struct SnippetsPage: View {
                     SnippetEditor(
                         initial: snippet,
                         isNew: !snippets.contains { $0.id == snippet.id },
-                        otherTriggers: snippets.filter { $0.id != snippet.id }.map(\.trimmedTrigger),
+                        otherTriggerKeys: snippets.filter { $0.id != snippet.id }.map(\.triggerKey),
                         dictionary: viewModel.customDictionaryEnabled ? viewModel.customDictionaryEntries : [],
                         onSave: save,
                         onDelete: { delete(snippet); editing = nil },
@@ -80,6 +82,8 @@ struct SnippetsPage: View {
         #if DEBUG
         if Self.snapshotOpensFirstSnippet {
             editing = snippets.first { $0.trimmedExpansion.contains("\n") } ?? snippets.first
+        } else if let trigger = Self.snapshotStartsSnippet {
+            editing = Snippet(trigger: trigger)
         }
         #endif
     }

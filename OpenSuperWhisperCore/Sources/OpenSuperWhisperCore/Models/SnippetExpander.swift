@@ -23,7 +23,7 @@ public enum SnippetExpander {
     ///
     /// - Parameter dictionary: the custom dictionary rules in force. They run on the engine's
     ///   output before this does, so a trigger containing a word they rewrite ("my monkey site",
-    ///   with "my monkey" written "My-Monkey") would otherwise never be found. Each trigger is
+    ///   with "my monkey" written "MyMonkey") would otherwise never be found. Each trigger is
     ///   also looked for as the dictionary would have written it.
     public static func expand(_ text: String, snippets: [Snippet],
                               dictionary: [CustomDictionaryEntry] = []) -> String {
@@ -88,14 +88,12 @@ public enum SnippetExpander {
         return result
     }
 
-    /// The triggers to bias recognition toward, de-duplicated without regard to case. A trigger
-    /// with no letter or digit has nothing to teach a model and is left out.
+    /// The triggers to bias recognition toward, de-duplicated without regard to case.
     public static func boostTerms(_ snippets: [Snippet]) -> [String] {
         var seen = Set<String>()
         return snippets
             .filter(\.isComplete)
             .map { SnippetPunctuation.trimmingTrailingMarks($0.trimmedTrigger) }
-            .filter { $0.rangeOfCharacter(from: .alphanumerics) != nil }
             .filter { seen.insert($0.lowercased()).inserted }
     }
 
@@ -119,32 +117,39 @@ public enum SnippetExpander {
 
     /// A whole-word, case-insensitive pattern for one form of a trigger.
     ///
-    /// Word boundaries are added only where the trigger starts or ends with a word character,
-    /// as `CustomDictionary.apply` does, so a trigger like "C++" can still match. Any run of
-    /// spaces between words matches any other run, and an apostrophe matches either the straight
-    /// or the curly one, since which one the model writes is not up to the user ("l'adresse").
+    /// Boundaries are added only where the trigger starts or ends with a word character, as
+    /// `CustomDictionary.apply` does, so a trigger like "C++" can still match. Words are joined
+    /// by any run of spaces or hyphens, whichever the trigger was typed with: the model writes
+    /// "sign off" as "Sign-off" as readily as the user types it the other way round. An
+    /// apostrophe matches the straight or the curly one, since which one the model writes is not
+    /// up to the user ("l'adresse").
+    ///
+    /// At the start, an apostrophe counts as part of the word before, so French elision is not
+    /// split: "adresse du bureau" must not fire inside "l'adresse du bureau" and leave
+    /// "l'12 rue de la Paix". Whoever says it with the article writes the trigger with it.
     static func pattern(for form: String) -> String {
         var body = ""
-        var spaceBefore = false
+        var separatorBefore = false
         for character in form {
-            if character.isWhitespace {
-                spaceBefore = true
+            if character.isWhitespace || hyphens.contains(character) {
+                separatorBefore = !body.isEmpty
                 continue
             }
-            if spaceBefore {
-                body += "\\s+"
-                spaceBefore = false
+            if separatorBefore {
+                body += "[\\s\\-‐‑]+"
+                separatorBefore = false
             }
             body += apostrophes.contains(character)
                 ? "['’ʼ]"
                 : NSRegularExpression.escapedPattern(for: String(character))
         }
-        let leading = isWordCharacter(form.first) ? "\\b" : ""
+        let leading = isWordCharacter(form.first) ? "(?<![\\p{L}\\p{M}\\p{N}_'’ʼ])" : ""
         let trailing = isWordCharacter(form.last) ? "\\b" : ""
         return leading + body + trailing
     }
 
     private static let apostrophes: Set<Character> = ["'", "’", "ʼ"]
+    private static let hyphens: Set<Character> = ["-", "‐", "‑"]
 
     private static func isWordCharacter(_ character: Character?) -> Bool {
         guard let character else { return false }
@@ -164,6 +169,8 @@ enum SnippetPunctuation {
     private static let spacesBeforeMarks: Set<Character> = [" ", "\u{00A0}", "\u{202F}"]
     /// Looked through when deciding whether a trigger starts a sentence: `"My email` does.
     private static let openers: Set<Character> = ["\"", "'", "“", "‘", "«", "(", "[", "¿", "¡"]
+    /// Looked through when deciding whether anything follows a trigger: `My email.”` ends there.
+    private static let closers: Set<Character> = ["\"", "'", "”", "’", "»", ")", "]"]
 
     /// Where the replaced span ends: right after the trigger, or after the marks that follow it
     /// when those belong to the trigger rather than to the sentence around it.
@@ -179,7 +186,8 @@ enum SnippetPunctuation {
         guard marksEnd > trigger.upperBound else { return trigger.upperBound }
 
         let rest = text[marksEnd...]
-        let restOfLineIsBlank = rest.prefix(while: { !$0.isNewline }).allSatisfy(\.isWhitespace)
+        let restOfLineIsBlank = rest.prefix(while: { !$0.isNewline })
+            .allSatisfy { $0.isWhitespace || closers.contains($0) }
         if restOfLineIsBlank && startsSentence(text[..<trigger.lowerBound]) {
             return marksEnd
         }
@@ -210,10 +218,16 @@ enum SnippetPunctuation {
 
     /// Whether a trigger preceded by `before` starts a sentence: at the start of the text or of
     /// a line, or after a sentence's final mark. Spaces and opening quotes are looked through.
+    ///
+    /// An ellipsis is not a final mark here: "Thanks… my email." trails off and carries on, so
+    /// the period at the end is the sentence's and stays.
     static func startsSentence(_ before: Substring) -> Bool {
-        for character in before.reversed() {
+        var preceding = before.reversed().makeIterator()
+        while let character = preceding.next() {
             if character.isNewline { return true }
             if character == " " || character == "\t" || openers.contains(character) { continue }
+            if character == "…" { return false }
+            if character == "." { return preceding.next() != "." }
             return sentenceEnds.contains(character)
         }
         return true

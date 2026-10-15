@@ -59,6 +59,21 @@ final class SnippetExpanderTests: CoreTestCase {
         XCTAssertEqual(expand("here is a c tip", [tip]), "here is a c tip")
     }
 
+    /// The model writes "sign off" as "Sign-off" as readily as the other way round.
+    func testSpacesAndHyphensBetweenWordsAreInterchangeable() {
+        XCTAssertEqual(expand("Sign-off."), "Best,\nMax Costa\nmy-monkey.fr")
+        XCTAssertEqual(expand("ok sign‑off"), "ok Best,\nMax Costa\nmy-monkey.fr")
+        let hyphenated = Snippet(trigger: "follow-up note", expansion: "NOTE")
+        XCTAssertEqual(expand("a follow up note", [hyphenated]), "a NOTE")
+        XCTAssertEqual(expand("a follow-up note", [hyphenated]), "a NOTE")
+    }
+
+    /// A trigger made only of symbols would fire inside any word holding it.
+    func testATriggerWithNoLetterOrDigitNeverFires() {
+        let at = Snippet(trigger: "@", expansion: "at")
+        XCTAssertEqual(expand("write to x@y.com", [at]), "write to x@y.com")
+    }
+
     // MARK: - Longest trigger wins
 
     func testTheLongerOfTwoTriggersStartingTogetherWins() {
@@ -113,6 +128,19 @@ final class SnippetExpanderTests: CoreTestCase {
 
     func testOpeningQuotesDoNotHideTheStartOfASentence() {
         XCTAssertEqual(expand("“My email."), "“max@example.com")
+    }
+
+    /// A closing quote or bracket after the period does not make the trigger part of a longer
+    /// line.
+    func testALoneTriggerInQuotesLosesItsPeriod() {
+        XCTAssertEqual(expand("“My email.”"), "“max@example.com”")
+        XCTAssertEqual(expand("(My email.)"), "(max@example.com)")
+    }
+
+    /// An ellipsis trails off within a sentence rather than ending it.
+    func testAfterAnEllipsisTheSentencesPeriodStays() {
+        XCTAssertEqual(expand("Thanks… my email."), "Thanks… max@example.com.")
+        XCTAssertEqual(expand("Thanks... my email."), "Thanks... max@example.com.")
     }
 
     /// The period ending a longer sentence is that sentence's, not the trigger's.
@@ -179,6 +207,20 @@ final class SnippetExpanderTests: CoreTestCase {
         XCTAssertEqual(expand("envoie l'adresse du bureau", [office]), "envoie 3 place du Marché")
     }
 
+    /// "l'" belongs to the word after it: a trigger starting at that word must not fire and leave
+    /// the article glued to the expansion.
+    func testAFrenchElisionIsNotSplitFromItsWord() {
+        let office = Snippet(trigger: "adresse du bureau", expansion: "12 rue de la Paix")
+        XCTAssertEqual(expand("Envoie à l'adresse du bureau.", [office]), "Envoie à l'adresse du bureau.")
+        XCTAssertEqual(expand("Envoie à l’adresse du bureau.", [office]), "Envoie à l’adresse du bureau.")
+        XCTAssertEqual(expand("Envoie mon adresse du bureau.", [office]), "Envoie mon 12 rue de la Paix.")
+    }
+
+    func testATriggerWrittenWithItsArticleMatchesAfterAPreposition() {
+        let office = Snippet(trigger: "l'adresse du bureau", expansion: "12 rue de la Paix")
+        XCTAssertEqual(expand("Envoie à l’adresse du bureau.", [office]), "Envoie à 12 rue de la Paix.")
+    }
+
     func testAnAccentedWordIsWholeToo() {
         let ete = Snippet(trigger: "été", expansion: "summer")
         XCTAssertEqual(expand("un étéphant", [ete]), "un étéphant")
@@ -189,8 +231,8 @@ final class SnippetExpanderTests: CoreTestCase {
 
     func testATriggerTheDictionaryRewroteStillMatches() {
         let site = Snippet(trigger: "my monkey site", expansion: "https://my-monkey.fr")
-        let rule = CustomDictionaryEntry(original: "my monkey", replacement: "My-Monkey")
-        XCTAssertEqual(expand("Open My-Monkey site now", [site], dictionary: [rule]),
+        let rule = CustomDictionaryEntry(original: "my monkey", replacement: "MyMonkey")
+        XCTAssertEqual(expand("Open MyMonkey site now", [site], dictionary: [rule]),
                        "Open https://my-monkey.fr now")
         XCTAssertEqual(expand("Open my monkey site now", [site], dictionary: [rule]),
                        "Open https://my-monkey.fr now")
@@ -198,7 +240,7 @@ final class SnippetExpanderTests: CoreTestCase {
 
     func testWithoutTheDictionaryTheRewrittenFormDoesNotMatch() {
         let site = Snippet(trigger: "my monkey site", expansion: "https://my-monkey.fr")
-        XCTAssertEqual(expand("Open My-Monkey site now", [site]), "Open My-Monkey site now")
+        XCTAssertEqual(expand("Open MyMonkey site now", [site]), "Open MyMonkey site now")
     }
 
     // MARK: - Snippets that do nothing

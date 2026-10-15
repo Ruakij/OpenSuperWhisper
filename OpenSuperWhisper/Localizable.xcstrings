@@ -19456,6 +19456,16 @@
           }
         }
       }
+    },
+    "A trigger needs at least one letter or digit.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un déclencheur doit contenir au moins une lettre ou un chiffre."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
