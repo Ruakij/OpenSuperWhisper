@@ -12511,16 +12511,6 @@
         }
       }
     },
-    "Coming soon": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bientôt disponible"
-          }
-        }
-      }
-    },
     "Command": {
       "localizations": {
         "fr": {
@@ -19233,6 +19223,236 @@
           "stringUnit": {
             "state": "translated",
             "value": "Colle une longue dictée dans Claude Code ou Codex quelques lignes à la fois, pour qu’elle s’affiche en entier dans l’invite au lieu de « [Pasted text] ». Seulement dans un terminal dont le titre de fenêtre nomme l’agent."
+          }
+        }
+      }
+    },
+    "%lld lines": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld lignes"
+          }
+        }
+      }
+    },
+    "A short phrase you would not say by accident. Any case, alone or mid-sentence.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une courte phrase que vous ne diriez pas par hasard. Majuscules ou non, seule ou en pleine phrase."
+          }
+        }
+      }
+    },
+    "Also bias the model toward your triggers while listening. Helps unusual phrases, but can over-correct short, common ones.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oriente aussi le modèle vers vos déclencheurs pendant l'écoute. Aide pour les phrases inhabituelles, mais peut surcorriger les phrases courtes et courantes."
+          }
+        }
+      }
+    },
+    "Another snippet already uses this phrase.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un autre snippet utilise déjà cette phrase."
+          }
+        }
+      }
+    },
+    "Best,\nMax": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cordialement,\nMax"
+          }
+        }
+      }
+    },
+    "Edit snippet": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier le snippet"
+          }
+        }
+      }
+    },
+    "Help recognition of triggers": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aider la reconnaissance des déclencheurs"
+          }
+        }
+      }
+    },
+    "Insert": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Insérer"
+          }
+        }
+      }
+    },
+    "New snippet": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouveau snippet"
+          }
+        }
+      }
+    },
+    "No snippets yet. Pick a phrase you would rather say than type.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun snippet pour l'instant. Choisissez une phrase que vous préférez dire plutôt que taper."
+          }
+        }
+      }
+    },
+    "One line": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une ligne"
+          }
+        }
+      }
+    },
+    "Say a short phrase, get a longer text. Your email, a link, a signature, written exactly as you typed it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dites une courte phrase, obtenez un texte plus long. Votre e-mail, un lien, une signature, écrits exactement comme vous les avez tapés."
+          }
+        }
+      }
+    },
+    "Snippets are off. They are kept but nothing is expanded.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les snippets sont désactivés. Ils sont conservés, mais rien n'est inséré."
+          }
+        }
+      }
+    },
+    "Start a snippet with this phrase": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commencer un snippet avec cette phrase"
+          }
+        }
+      }
+    },
+    "Thanks again. %@.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merci encore. %@."
+          }
+        }
+      }
+    },
+    "Use snippets": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser les snippets"
+          }
+        }
+      }
+    },
+    "When you say": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quand vous dites"
+          }
+        }
+      }
+    },
+    "Whole words, any case, said alone or mid-sentence. Expanded after AI formatting, so your text is never rewritten.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mots entiers, majuscules ou non, dits seuls ou en pleine phrase. Insérés après la mise en forme par l'IA, pour que votre texte ne soit jamais réécrit."
+          }
+        }
+      }
+    },
+    "Written exactly as you type it here, line breaks included.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écrit exactement comme vous le tapez ici, sauts de ligne compris."
+          }
+        }
+      }
+    },
+    "my calendar link": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mon lien d'agenda"
+          }
+        }
+      }
+    },
+    "my email": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mon e-mail"
+          }
+        }
+      }
+    },
+    "sign off": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ma signature"
+          }
+        }
+      }
+    },
+    "The trigger is not in this sentence.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le déclencheur n'est pas dans cette phrase."
           }
         }
       }
