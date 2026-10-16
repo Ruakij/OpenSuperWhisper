@@ -19236,6 +19236,26 @@
           }
         }
       }
+    },
+    "How does the new OpenSuperWhisper feel?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comment trouvez-vous le nouvel OpenSuperWhisper ?"
+          }
+        }
+      }
+    },
+    "We just rebuilt the whole interface. A few words about what works and what doesn't would help a lot.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nous venons de refaire toute l'interface. Quelques mots sur ce qui marche et ce qui ne marche pas nous aideraient beaucoup."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

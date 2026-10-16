@@ -44,7 +44,7 @@ struct AppShellView: View {
                 HelpOverlay(viewModel: viewModel)
                     .transition(.opacity)
             } else if navigation.feedbackOpen {
-                FeedbackOverlay(model: feedback)
+                FeedbackOverlay(model: feedback, asked: navigation.feedbackAsked)
                     .transition(.opacity)
             }
         }
@@ -55,6 +55,7 @@ struct AppShellView: View {
         .onChange(of: navigation.feedbackOpen) { _, open in
             if !open { feedback.cardClosed() }
         }
+        .asksForFeedbackOnce()
         .environmentObject(permissions)
         .tint(STheme.accent)
         .frame(minWidth: 840, idealWidth: 1080, minHeight: 640, idealHeight: 760)

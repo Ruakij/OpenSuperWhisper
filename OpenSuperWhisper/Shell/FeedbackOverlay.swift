@@ -3,8 +3,12 @@ import SwiftUI
 /// Feedback, as a card over the main window: a bug or an idea written here and sent straight to
 /// the team, an optional email for an answer, and the one line of app details the user can read
 /// before it goes and switch off. GitHub and the betas stay one click away underneath.
+///
+/// `asked`: the app opened it itself, the one time it asks (#206). The same form, under a note
+/// that says why it came up.
 struct FeedbackOverlay: View {
     @ObservedObject var model: FeedbackFormModel
+    var asked = false
     @ObservedObject private var navigation = AppNavigation.shared
     @Environment(\.textScaleFactor) private var textScale
     @Environment(\.locale) private var locale
@@ -45,21 +49,43 @@ struct FeedbackOverlay: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Send feedback")
-                    .scaledFont(size: 22, weight: .bold)
-                    .foregroundColor(STheme.textBright)
-                Text("Tell us what went wrong or what you'd like. It goes straight to the team.")
-                    .scaledFont(size: 13)
-                    .foregroundColor(STheme.hint)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .layoutPriority(1)
+            if asked { askedIntro } else { title }
             Spacer(minLength: 0)
             CloseButton(action: close)
         }
         .padding(.horizontal, 26).padding(.top, 20).padding(.bottom, 16)
+        .background(asked ? STheme.accentTint : Color.clear)
         .overlay(alignment: .bottom) { Rectangle().fill(STheme.border).frame(height: 1) }
+    }
+
+    private var title: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("Send feedback")
+                .scaledFont(size: 22, weight: .bold)
+                .foregroundColor(STheme.textBright)
+            Text("Tell us what went wrong or what you'd like. It goes straight to the team.")
+                .scaledFont(size: 13)
+                .foregroundColor(STheme.hint)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .layoutPriority(1)
+    }
+
+    /// Why the card opened on its own, in place of its usual title. No taller than two lines of
+    /// text beyond it, so at the largest text size the details switch still shows under the
+    /// message box.
+    private var askedIntro: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("How does the new OpenSuperWhisper feel?")
+                .scaledFont(size: 22, weight: .bold)
+                .foregroundColor(STheme.textBright)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("We just rebuilt the whole interface. A few words about what works and what doesn't would help a lot.")
+                .scaledFont(size: 13)
+                .foregroundColor(STheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .layoutPriority(1)
     }
 
     private var form: some View {
