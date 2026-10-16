@@ -121,20 +121,21 @@ public struct SettingsFluidAudioModel: Identifiable, Sendable {
 }
 
 public struct SettingsFluidAudioModels {
+    /// Best first: the menus and the model list show them in this order.
     public static let availableModels = [
-        SettingsFluidAudioModel(
-            name: "Parakeet v3",
-            version: "v3",
-            isDownloaded: false,
-            description: "Multilingual, 25 languages",
-            size: 461
-        ),
         SettingsFluidAudioModel(
             name: "Parakeet Ultra",
             version: "ultra",
             isDownloaded: false,
             description: "Multilingual, 25 languages, most accurate",
             size: 614
+        ),
+        SettingsFluidAudioModel(
+            name: "Parakeet v3",
+            version: "v3",
+            isDownloaded: false,
+            description: "Multilingual, 25 languages",
+            size: 461
         ),
         SettingsFluidAudioModel(
             name: "Parakeet v2",

@@ -181,7 +181,7 @@ final class PersistedContractTests: XCTestCase {
         XCTAssertEqual(AsrModelVersion(preference: "V2"), .v3, "matching is case-sensitive")
         XCTAssertEqual(AsrModelVersion(preference: "redux"), .v3)
 
-        XCTAssertEqual(SettingsFluidAudioModels.availableModels.map(\.version), ["v3", "ultra", "v2"])
+        XCTAssertEqual(SettingsFluidAudioModels.availableModels.map(\.version), ["ultra", "v3", "v2"])
     }
 
     func testParakeetDefaultVersion() {
