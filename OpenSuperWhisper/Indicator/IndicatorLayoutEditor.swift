@@ -65,7 +65,7 @@ enum IndicatorPositionOptions {
     ]
 
     static let hint: LocalizedStringKey =
-        "Drag the bubble to place it elsewhere: the position becomes “Where you drop it”."
+        "Drag the bubble out of the way during a dictation. With “Where you drop it”, it stays where you put it."
 }
 
 // MARK: - Preview

@@ -51,15 +51,21 @@ final class IndicatorCustomAnchorTests: XCTestCase {
         XCTAssertEqual(AppPreferences.shared.indicatorCustomAnchor?.x ?? 1, 0, accuracy: 0.001)
     }
 
-    /// The bubble is click-through unless something needs it not to be. Dragging needs it not to
-    /// be, so this mode is the one place the trade is accepted, and the presets must not inherit it.
-    func testOnlyTheDraggableModeGivesUpClickThrough() {
+    /// The bubble is grabbable in every position but the notch, which hangs from the top edge.
+    func testEveryPositionButTheNotchCanBeDragged() {
         let needs = IndicatorWindowManager.needsMouseEvents
 
         XCTAssertTrue(needs("custom", false, false))
-        XCTAssertFalse(needs("cursor", false, false))
+        XCTAssertTrue(needs("cursor", false, false))
+        XCTAssertTrue(needs("bottom", false, false))
         XCTAssertFalse(needs("notch", false, false))
-        XCTAssertFalse(needs("bottom", false, false))
+    }
+
+    /// A drop is kept across takes only in the custom position; a preset stays the preset.
+    func testOnlyTheCustomPositionRemembersADrop() {
+        XCTAssertTrue(IndicatorWindowManager.dropIsRemembered(position: "custom"))
+        XCTAssertFalse(IndicatorWindowManager.dropIsRemembered(position: "cursor"))
+        XCTAssertFalse(IndicatorWindowManager.dropIsRemembered(position: "top"))
     }
 
     func testOnBubbleButtonsStillNeedClicksOnAnyPosition() {

@@ -12931,12 +12931,12 @@
         }
       }
     },
-    "Drag the bubble to place it elsewhere: the position becomes “Where you drop it”.": {
+    "Drag the bubble out of the way during a dictation. With “Where you drop it”, it stays where you put it.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Faites glisser la bulle pour la placer ailleurs : la position devient « Là où vous la déposez »."
+            "value": "Pendant une dictée, faites glisser la bulle si elle gêne. Avec « Là où vous la déposez », elle reste là où vous la posez."
           }
         }
       }
