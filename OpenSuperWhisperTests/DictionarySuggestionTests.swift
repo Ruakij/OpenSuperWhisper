@@ -242,4 +242,22 @@ final class CorrectionTrailTests: XCTestCase {
         let trail = try trail("the great idea")
         XCTAssertEqual(trail.candidates(edited: "the greatest idea", spelling: spelling, capitalMarksNames: true), [])
     }
+
+    /// The owner's own run in Notes: the dictation ends the note with a trailing space, he fixes
+    /// "rest set" into "Rsets", then presses Return. The watch used to cut the dictation at its
+    /// first space and saw "On", so nothing was offered.
+    func testAFixAtTheEndOfANoteThenReturnIsOffered() throws {
+        let pasted = "On se retrouve demain avec un rest set pour le point. "
+        var trail = try XCTUnwrap(CorrectionTrail(dictated: pasted, window: pasted, windowStart: 0,
+                                                  caret: (pasted as NSString).length))
+        XCTAssertEqual(trail.read("On se retrouve demain avec un Rsets pour le point. ", windowStart: 0), .watching)
+        guard case .done(let final) = trail.read("On se retrouve demain avec un Rsets pour le point. \n",
+                                                 windowStart: 0) else { return XCTFail("Return ends the watch") }
+        XCTAssertEqual(final, "On se retrouve demain avec un Rsets pour le point. ")
+        let french = DictionaryCandidates.Spelling(
+            knows: { ["on", "se", "retrouve", "demain", "avec", "un", "pour", "le", "point", "rest", "set"]
+                .contains($0.lowercased()) },
+            correctsTypo: { _ in false })
+        XCTAssertEqual(trail.candidates(edited: final, spelling: french, capitalMarksNames: true).map(\.term), ["Rsets"])
+    }
 }

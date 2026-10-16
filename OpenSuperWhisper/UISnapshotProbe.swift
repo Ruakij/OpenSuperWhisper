@@ -34,6 +34,11 @@ enum UISnapshotProbe {
             return AnyView(AppShellView(page: .snippets))
         },
         "dictionary-suggested": { seedSuggestions(); return AnyView(AppShellView(page: .dictionary)) },
+        "dictionary-needs-accessibility": {
+            seedSuggestions()
+            DictionaryOptionsGroup.snapshotDeniesAccessibility = true
+            return AnyView(AppShellView(page: .dictionary))
+        },
         "dictionary-suggestion-notice": { suggestionNotice() },
         "dictionary-suggestion-notice-large-text": { suggestionNotice(textScale: TextScale.maximum) },
         "style": { seedStyle(); return AnyView(AppShellView(page: .style)) },

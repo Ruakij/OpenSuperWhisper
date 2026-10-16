@@ -44,6 +44,9 @@ final class CorrectionWatch {
         /// A field that changed this recently when the watch ended may hold a word still being
         /// typed at the caret.
         var settle: Duration = .seconds(1)
+        /// A fix left alone this long is offered while the user is still in the field, rather
+        /// than only once the focus leaves it. Long enough not to offer a word half typed.
+        var idle: Duration = .milliseconds(2500)
     }
 
     private let inserted: String
@@ -56,6 +59,8 @@ final class CorrectionWatch {
     private var task: Task<Void, Never>?
     private var ended = false
     private var lastChange: ContinuousClock.Instant?
+    /// The change last offered while the watch went on, so one pause offers once.
+    private var offeredChange: ContinuousClock.Instant?
 
     init(inserted: String, source: CorrectionFieldSource, timing: Timing = Timing(),
          isWanted: @escaping () -> Bool, deliver: @escaping (CorrectionTrail, String) -> Void) {
@@ -130,6 +135,7 @@ final class CorrectionWatch {
             case .focusLeft:
                 return end(offering: true)
             case .unchanged:
+                offerIfIdle()
                 continue
             case .text(let text, let windowStart, let state):
                 if state != seen { lastChange = .now }
@@ -142,6 +148,16 @@ final class CorrectionWatch {
             }
         }
         end(offering: true)
+    }
+
+    /// Offers what the field shows once it has stayed the same for `Timing.idle` after a
+    /// change, and keeps watching. Words already offered are not offered twice, so the end of the
+    /// watch adds only what changed since.
+    private func offerIfIdle() {
+        guard let change = lastChange, change != offeredChange, let trail,
+              ContinuousClock.now - change >= timing.idle, trail.latest != trail.dictated else { return }
+        offeredChange = change
+        deliver(trail, trail.latest)
     }
 
     private func land() async -> Bool {

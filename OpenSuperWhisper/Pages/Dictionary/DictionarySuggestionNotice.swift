@@ -67,7 +67,12 @@ final class DictionarySuggestionNotice {
         // auto-resize recursion on macOS 26 is reason enough not to let a floating panel do it.
         host.sizingOptions = []
         panel.contentView = host
-        let size = host.fittingSize
+        // Measured by asking the content, not read from the view: with its sizing options off,
+        // a hosting view reports a zero fitting size, and the panel came out 0 points tall.
+        let size = NSHostingController(rootView: DictionarySuggestionCard(
+            suggestion: suggestion, onAdd: {}, onRefuse: {}, onClose: {})
+            .environment(\.appTextScale, AppPreferences.shared.textScale))
+            .sizeThatFits(in: CGSize(width: Self.width, height: CGFloat.greatestFiniteMagnitude))
         panel.setContentSize(NSSize(width: Self.width, height: ceil(size.height)))
         place(panel)
         panel.orderFrontRegardless()

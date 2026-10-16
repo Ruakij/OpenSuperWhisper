@@ -66,6 +66,7 @@ struct CorrectionTrail: Equatable, Sendable {
     mutating func read(_ text: String?, windowStart: Int, caret fieldCaret: Int? = nil) -> Next {
         guard let text,
               let range = CorrectionDiff.regionRange(in: text, anchors: anchors, expectedStart: start - windowStart,
+                                                     expectedLength: (latest as NSString).length,
                                                      maxLength: maxRegionLength) else { return .done(latest) }
         let region = (text as NSString).substring(with: range)
         guard !region.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return .done(latest) }

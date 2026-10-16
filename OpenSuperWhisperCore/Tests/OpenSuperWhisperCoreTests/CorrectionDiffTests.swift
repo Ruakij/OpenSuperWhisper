@@ -92,6 +92,26 @@ final class CorrectionDiffTests: CoreTestCase {
                        "Rsets")
     }
 
+    /// A dictation at the end of a note leaves a lone space as the anchor after it. The first
+    /// space inside the dictation matched it, and the watch saw "On" instead of the sentence.
+    func testALoneSpaceAfterTheDictationIsFoundWhereTheDictationEnds() throws {
+        let pasted = "On se retrouve demain avec un rest set pour le point. "
+        let found = try XCTUnwrap(CorrectionDiff.locate(pasted, in: pasted, caret: (pasted as NSString).length))
+        XCTAssertEqual(found.anchors.after, " ")
+        let edited = "On se retrouve demain avec un Rsets pour le point. "
+        XCTAssertEqual(CorrectionDiff.region(in: edited, anchors: found.anchors, expectedStart: 0,
+                                             expectedLength: found.range.length, maxLength: 500),
+                       "On se retrouve demain avec un Rsets pour le point. ")
+    }
+
+    func testAShortAnchorAfterIsFoundNearTheEndNotInsideTheDictation() {
+        let anchors = CorrectionDiff.Anchors(before: "", after: ".")
+        let field = "Try Rsets. Then ship it."
+        XCTAssertEqual(CorrectionDiff.region(in: field, anchors: anchors, expectedStart: 0,
+                                             expectedLength: 22, maxLength: 200),
+                       "Try Rsets. Then ship it")
+    }
+
     func testNoRegionOnceTheFieldWasSent() {
         let anchors = CorrectionDiff.Anchors(before: "", after: "")
         XCTAssertEqual(CorrectionDiff.region(in: "", anchors: anchors, expectedStart: 0, maxLength: 200), "")

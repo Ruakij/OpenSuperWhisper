@@ -60,15 +60,20 @@ public enum CorrectionDiff {
     /// - Returns: nil once the anchors are gone, which is what a sent message looks like: the
     ///   field was emptied, and what it held last is the answer.
     public static func region(in text: String, anchors: Anchors, expectedStart: Int,
-                              maxLength: Int) -> String? {
-        regionRange(in: text, anchors: anchors, expectedStart: expectedStart, maxLength: maxLength)
+                              expectedLength: Int? = nil, maxLength: Int) -> String? {
+        regionRange(in: text, anchors: anchors, expectedStart: expectedStart,
+                    expectedLength: expectedLength, maxLength: maxLength)
             .map { (text as NSString).substring(with: $0) }
     }
 
     /// Where `region(in:anchors:expectedStart:maxLength:)` is, in UTF-16 units of `text`, for the
     /// next read to look around.
+    ///   - expectedLength: how long the dictation was at the last read. The anchor after it
+    ///     closest to where that puts its end wins. Without it, the first one after the start:
+    ///     fine for a long anchor, wrong for the lone space left at the end of a field, which the
+    ///     first space inside the dictation matches just as well.
     public static func regionRange(in text: String, anchors: Anchors, expectedStart: Int,
-                                   maxLength: Int) -> NSRange? {
+                                   expectedLength: Int? = nil, maxLength: Int) -> NSRange? {
         let field = text as NSString
         let start: Int
         if anchors.before.isEmpty {
@@ -79,12 +84,15 @@ public enum CorrectionDiff {
             start = NSMaxRange(found)
         }
         let end: Int
-        if anchors.after.isEmpty {
+        // Spaces alone after the dictation (the one a paste leaves at the end of a note) say
+        // nothing about where it ends: the field's end does, and a Return typed after them is
+        // then still seen. Not line breaks, which were there before and would read as one.
+        if anchors.after.isEmpty || anchors.after.allSatisfy({ $0 == " " || $0 == "\t" }) {
             end = field.length
         } else {
-            let rest = NSRange(location: start, length: field.length - start)
-            let found = field.range(of: anchors.after, range: rest)
-            guard found.location != NSNotFound else { return nil }
+            guard let found = occurrence(of: anchors.after, in: field, from: start,
+                                         startingNear: expectedLength.map { start + $0 })
+            else { return nil }
             end = found.location
         }
         guard end - start <= maxLength else { return nil }
@@ -253,6 +261,25 @@ public enum CorrectionDiff {
             before: field.substring(with: NSRange(location: start, length: range.location - start)),
             after: field.substring(with: NSRange(location: NSMaxRange(range),
                                                  length: max(0, end - NSMaxRange(range)))))
+    }
+
+    /// The first occurrence of `needle` at or after `from`, or the one starting closest to
+    /// `expected` when given.
+    private static func occurrence(of needle: String, in field: NSString, from: Int,
+                                   startingNear expected: Int?) -> NSRange? {
+        var best: NSRange?
+        var searched = NSRange(location: from, length: field.length - from)
+        while searched.length > 0 {
+            let found = field.range(of: needle, range: searched)
+            guard found.location != NSNotFound else { break }
+            guard let expected else { return found }
+            if best.map({ abs($0.location - expected) > abs(found.location - expected) }) ?? true {
+                best = found
+            }
+            let next = found.location + 1
+            searched = NSRange(location: next, length: field.length - next)
+        }
+        return best
     }
 
     private static func closestOccurrence(of needle: String, in field: NSString,

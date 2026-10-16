@@ -88,6 +88,26 @@ final class CorrectionWatchTests: XCTestCase {
         XCTAssertGreaterThan(field.readCount, 3, "kept reading through unchanged states")
     }
 
+    /// A fix the user leaves alone is offered while they are still in the field, once.
+    func testAFixLeftAloneIsOfferedBeforeTheWatchEnds() async {
+        let field = FakeField(landing: trail)
+        field.reads = [edit()]
+        var timing = fast
+        timing.idle = .milliseconds(20)
+        var delivered: [String] = []
+        let offered = expectation(description: "offered while watching")
+        CorrectionWatch.start(CorrectionWatch(inserted: Self.dictated, source: field, timing: timing,
+                                              isWanted: { true },
+                                              deliver: { _, edited in
+                                                  delivered.append(edited)
+                                                  if delivered.count == 1 { offered.fulfill() }
+                                              }))
+        await fulfillment(of: [offered], timeout: 2)
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(delivered, ["we should try Rsets today."], "one pause offers once")
+        XCTAssertTrue(CorrectionWatch.isWatching, "and the watch goes on")
+    }
+
     func testFocusLeavingTheFieldEndsTheWatch() async {
         let field = FakeField(landing: trail)
         field.reads = [edit(), .focusLeft]
