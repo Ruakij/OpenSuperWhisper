@@ -43,6 +43,8 @@ struct OpenSuperWhisperApp: App {
                     OnboardingView()
                         .frame(minWidth: 450, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
                 } else {
+                    // Built again on every text size step: the plain init keeps the page and
+                    // the open card where they are (#207).
                     AppShellView()
                 }
             }
