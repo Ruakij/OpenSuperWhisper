@@ -111,11 +111,25 @@ final class LlamaContext {
         return ()
     }()
 
+    /// Precision of the K and V caches. Raw values are what the preference stores. A quantized V
+    /// cache needs flash attention, which `flash_attn_type`'s AUTO default enables on Metal.
+    enum KVCacheType: String {
+        case f16, q8_0
+
+        var ggmlType: ggml_type {
+            switch self {
+            case .f16: return GGML_TYPE_F16
+            case .q8_0: return GGML_TYPE_Q8_0
+            }
+        }
+    }
+
     // MARK: - Initialization
 
     /// Loads a GGUF model from disk and creates an inference context.
     /// GPU offload is enabled (all layers) so Metal is used, matching the whisper path.
-    init?(modelPath: String, contextLength: UInt32 = 4096, gpuLayers: Int32 = 999) {
+    init?(modelPath: String, contextLength: UInt32 = 4096, kvCacheType: KVCacheType = .f16,
+          gpuLayers: Int32 = 999) {
         _ = LlamaContext.backendInit
 
         // --- Load the model ---
@@ -144,6 +158,8 @@ final class LlamaContext {
         // duplicating them, and `n_ctx` is not split per sequence.
         ctxParams.n_seq_max = 2
         ctxParams.kv_unified = true
+        ctxParams.type_k = kvCacheType.ggmlType
+        ctxParams.type_v = kvCacheType.ggmlType
         let cpuCount = Int32(max(1, ProcessInfo.processInfo.activeProcessorCount))
         ctxParams.n_threads = cpuCount
         ctxParams.n_threads_batch = cpuCount
