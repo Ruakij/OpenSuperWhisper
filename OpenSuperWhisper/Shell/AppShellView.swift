@@ -83,8 +83,12 @@ struct AppShellView: View {
                 navigation.page = .home
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .showSettingsPane)) { _ in
-            if navigation.settingsRubric == nil { navigation.openSettings(.dictation) }
+        .onReceive(NotificationCenter.default.publisher(for: .showSettingsPane)) { note in
+            if let rubric = note.object as? SettingsRubric {
+                navigation.openSettings(rubric)
+            } else if navigation.settingsRubric == nil {
+                navigation.openSettings(.dictation)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showTranscriptions)) { _ in
             navigation.closeSettings()

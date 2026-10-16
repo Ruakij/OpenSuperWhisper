@@ -11401,16 +11401,6 @@
         }
       }
     },
-    "A Qwen2.5 model running on this Mac.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Un modèle Qwen2.5 qui tourne sur ce Mac."
-          }
-        }
-      }
-    },
     "A case-insensitive regular expression, applied before pasting.": {
       "localizations": {
         "fr": {
@@ -14606,6 +14596,36 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
+            "value": "OK"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aceptar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "needs_review",
             "value": "OK"
           }
         }
@@ -20153,6 +20173,96 @@
           "stringUnit": {
             "state": "translated",
             "value": "Activé : après une dictée, le champ où elle a été insérée est relu pendant une minute au plus, pour repérer les mots que vous corrigez. Chaque mot proposé est conservé avec ce qui a été entendu, jusqu'à votre réponse ou jusqu'à ce que vous désactiviez ce réglage."
+          }
+        }
+      }
+    },
+    "The old Qwen2.5 model was deleted. To keep using the built-in AI cleanup, download %@ in Settings.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'ancien modèle Qwen2.5 a été supprimé. Pour continuer à utiliser le nettoyage IA intégré, téléchargez %@ dans les Réglages."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das alte Qwen2.5-Modell wurde gelöscht. Um die integrierte KI-Bereinigung weiter zu nutzen, muss %@ in den Einstellungen heruntergeladen werden."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ha eliminado el modelo Qwen2.5 anterior. Para seguir usando la limpieza con IA integrada, descarga %@ en Ajustes."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il vecchio modello Qwen2.5 è stato eliminato. Per continuare a usare la pulizia IA integrata, scarica %@ in Impostazioni."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O modelo Qwen2.5 antigo foi excluído. Para continuar usando a limpeza com IA integrada, baixe %@ em Configurações."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mô hình Qwen2.5 cũ đã bị xóa. Để tiếp tục dùng tính năng dọn dẹp AI tích hợp, hãy tải %@ trong Cài đặt."
+          }
+        }
+      }
+    },
+    "The built-in cleanup model was replaced": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le modèle de nettoyage intégré a été remplacé"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das integrierte Bereinigungsmodell wurde ersetzt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ha reemplazado el modelo de limpieza integrado"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il modello di pulizia integrato è stato sostituito"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O modelo de limpeza integrado foi substituído"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mô hình dọn dẹp tích hợp đã được thay thế"
+          }
+        }
+      }
+    },
+    "A Qwen3.5 model running on this Mac.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un modèle Qwen3.5 qui tourne sur ce Mac."
           }
         }
       }

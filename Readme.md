@@ -111,7 +111,7 @@ they are expanded after the AI formatting, so the text you wrote is the text you
 - 🤖 **Format with AI** (optional). Tidy punctuation and casing with a language model:
   - **Apple Intelligence**, on-device on macOS 26, nothing to download. Unless you picked another
     engine, it is the one used on Macs that have it.
-  - The **built-in** model (Qwen2.5 1.5B or 7B, a one-time download, no server to run).
+  - The **built-in** model (Qwen3.5 0.8B, 2B or 4B, a one-time download, no server to run).
   - A local [Ollama](https://ollama.com) server, or any OpenAI-compatible endpoint.
 
   The instructions are yours to edit. If the model fails, misbehaves or repeats its own
