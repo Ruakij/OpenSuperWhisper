@@ -275,6 +275,25 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     /// guaranteed to arrive inside the `setFrameOrigin` call that caused it.
     private var lastPlacedOrigin: NSPoint?
 
+    /// Where the pointer and the window were when the current drag began.
+    private var dragStart: (pointer: NSPoint, origin: NSPoint)?
+
+    /// Follows the pointer from where the drag began. Screen coordinates rather than the
+    /// gesture's own, since the view moves with the window and its coordinates move with it.
+    /// The window's move notification then keeps the bubble there for the rest of the take.
+    func dragBubble() {
+        guard let window, Self.isDraggable(position: AppPreferences.shared.indicatorPosition) else { return }
+        let pointer = NSEvent.mouseLocation
+        let start = dragStart ?? (pointer, window.frame.origin)
+        dragStart = start
+        window.setFrameOrigin(NSPoint(x: start.origin.x + pointer.x - start.pointer.x,
+                                      y: start.origin.y + pointer.y - start.pointer.y))
+    }
+
+    func endBubbleDrag() {
+        dragStart = nil
+    }
+
     private var dragObserver: NSObjectProtocol?
 
     /// Keeps the bubble where it is dropped for the rest of the take, and remembers the drop when

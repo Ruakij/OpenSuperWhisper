@@ -673,8 +673,18 @@ struct IndicatorWindow: View {
         if let geometry = notchGeometry {
             notchBubble(geometry)
         } else {
-            classicBubble
+            classicBubble.simultaneousGesture(bubbleDrag)
         }
+    }
+
+    /// Moves the bubble with the pointer while it is held down. The panel is "movable by window
+    /// background", but a SwiftUI view never lets AppKit start that drag, so a press on the bubble
+    /// went nowhere. Simultaneous, with a few points of slack, so a click on Stop or Cancel is
+    /// still a click.
+    private var bubbleDrag: some Gesture {
+        DragGesture(minimumDistance: 3, coordinateSpace: .global)
+            .onChanged { _ in IndicatorWindowManager.shared.dragBubble() }
+            .onEnded { _ in IndicatorWindowManager.shared.endBubbleDrag() }
     }
 
     // MARK: - Liquid Glass recording bubble
