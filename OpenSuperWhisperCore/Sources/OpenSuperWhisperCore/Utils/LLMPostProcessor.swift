@@ -274,31 +274,6 @@ public enum LLMPostProcessor {
             .joined(separator: "\n\n")
     }
 
-    /// The dictionary's terms that are in the text being cleaned up (#169).
-    ///
-    /// Only those: the rest would tell the model nothing about this text, and on a remote server
-    /// the dictionary would leave the Mac a little more with every dictation, names and
-    /// addresses included. A term in the text was going to the server anyway. A small model
-    /// handed a list of unrelated names also tends to slip one in.
-    static func cleanupVocabulary(_ terms: [String], in text: String) -> [String] {
-        terms.filter { text.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
-    }
-
-    /// The dictionary's terms, so the cleanup keeps them as the user spells them (#169).
-    ///
-    /// A cleanup model fixing "obvious mis-recognitions" is exactly what turns a correct "Rsets"
-    /// back into "resets": the rarer the word, the likelier it looks like a mistake. Only the
-    /// terms go, never the phrasings that lead to them, and the list is cut short so a long
-    /// dictionary cannot crowd the instruction out of a small model's attention. nil without
-    /// terms, so a pass with no dictionary word in it sends exactly what it always did.
-    static func vocabularySection(_ terms: [String]) -> String? {
-        let kept = terms.prefix(maxVocabularyTerms)
-        guard !kept.isEmpty else { return nil }
-        return "Keep these words spelled exactly as written here: \(kept.joined(separator: ", "))."
-    }
-
-    static let maxVocabularyTerms = 40
-
     /// Scripts that write without spaces and pack far more meaning into a character: Han, kana,
     /// and Hangul. A sentence in one of these is a fraction of the length of its English
     /// equivalent, which is why a single character-count band cannot serve every language pair.
