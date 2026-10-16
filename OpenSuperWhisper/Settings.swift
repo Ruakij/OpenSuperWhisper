@@ -523,6 +523,22 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// Token window and KV cache precision of the built-in model's context. The backend reloads
+    /// on the next use when they change; preloading does it now, while the user is in Settings.
+    @Published var builtInContextLength: Int {
+        didSet {
+            AppPreferences.shared.builtInContextLength = builtInContextLength
+            if builtInModelDownloaded { BuiltInLlamaBackend.shared.preload() }
+        }
+    }
+
+    @Published var builtInKVCacheType: String {
+        didSet {
+            AppPreferences.shared.builtInKVCacheType = builtInKVCacheType
+            if builtInModelDownloaded { BuiltInLlamaBackend.shared.preload() }
+        }
+    }
+
     var builtInModel: LLMModelDescriptor { LLMModelManager.model(fileName: builtInModelFileName) }
 
     /// Download size of the selected model, for the download button ("3.8 GB").
@@ -1121,6 +1137,8 @@ class SettingsViewModel: ObservableObject {
         let selectedBuiltIn = LLMModelManager.model(fileName: prefs.builtInModelFileName)
         self.builtInModelFileName = selectedBuiltIn.fileName
         self.unloadBuiltInModelWhenIdle = prefs.unloadBuiltInModelWhenIdle
+        self.builtInContextLength = prefs.builtInContextLength
+        self.builtInKVCacheType = prefs.builtInKVCacheType
         self.builtInModelDownloaded =
             LLMModelManager.shared.isModelDownloaded(name: selectedBuiltIn.fileName)
         self.removeFillerWords = prefs.removeFillerWords

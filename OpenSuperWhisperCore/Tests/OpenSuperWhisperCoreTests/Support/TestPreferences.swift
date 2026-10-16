@@ -53,6 +53,8 @@ final class TestPreferences: CorePreferences, @unchecked Sendable {
         var aiSpokenFormattingEnabled = true
         var builtInModelFileName = LLMModelManager.defaultModel.fileName
         var unloadBuiltInModelWhenIdle = true
+        var builtInContextLength = 8192
+        var builtInKVCacheType = "f16"
     }
 
     // Core code reads preferences from detached tasks and from llama's inference queue, while
@@ -224,5 +226,13 @@ final class TestPreferences: CorePreferences, @unchecked Sendable {
     var unloadBuiltInModelWhenIdle: Bool {
         get { self[\.unloadBuiltInModelWhenIdle] }
         set { self[\.unloadBuiltInModelWhenIdle] = newValue }
+    }
+    var builtInContextLength: Int {
+        get { self[\.builtInContextLength] }
+        set { self[\.builtInContextLength] = newValue }
+    }
+    var builtInKVCacheType: String {
+        get { self[\.builtInKVCacheType] }
+        set { self[\.builtInKVCacheType] = newValue }
     }
 }
