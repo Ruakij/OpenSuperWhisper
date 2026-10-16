@@ -20156,6 +20156,16 @@
           }
         }
       }
+    },
+    "Suggestions need Accessibility to read the field your dictation went into, and OpenSuperWhisper isn't allowed yet.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les suggestions ont besoin de l'Accessibilité pour relire le champ où va votre dictée, et OpenSuperWhisper n'y a pas encore accès."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

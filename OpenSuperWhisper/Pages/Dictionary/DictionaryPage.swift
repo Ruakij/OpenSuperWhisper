@@ -1,3 +1,4 @@
+import ApplicationServices
 import SwiftUI
 import OpenSuperWhisperCore
 
@@ -137,12 +138,45 @@ struct DictionaryPage: View {
 }
 
 /// The global switches that shape every entry, above the list.
-private struct DictionaryOptionsGroup: View {
+struct DictionaryOptionsGroup: View {
     @ObservedObject var viewModel: SettingsViewModel
     let hasWords: Bool
     let onTeachPunctuation: () -> Void
+    /// Suggestions read the field through Accessibility, and do nothing without it, silently.
+    @State private var canReadFields = Self.accessibilityAllowed()
 
     var body: some View {
+        group
+            .onAppear { canReadFields = Self.accessibilityAllowed() }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                canReadFields = Self.accessibilityAllowed()
+            }
+    }
+
+    #if DEBUG
+    /// The snapshot probe draws the notice for a Mac without the permission.
+    nonisolated(unsafe) static var snapshotDeniesAccessibility = false
+    #endif
+
+    static func accessibilityAllowed() -> Bool {
+        #if DEBUG
+        if snapshotDeniesAccessibility { return false }
+        if PermissionsManager.snapshotGrantsAll { return true }
+        #endif
+        return AXIsProcessTrusted()
+    }
+
+    /// Asks macOS, which shows its own prompt with a way into System Settings; once refused, that
+    /// prompt no longer appears, so the pane opens instead.
+    private func askForAccessibility() {
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+        if !AXIsProcessTrustedWithOptions(options),
+           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private var group: some View {
         SettingsGroup("Options", accessory: {
             // Punctuation is the case nobody gets right by hand: the phrasing is personal and
             // the spacing is fiddly. Reading a few sentences settles both.
@@ -167,6 +201,12 @@ private struct DictionaryOptionsGroup: View {
                        indented: true) {
                 SSwitch(isOn: $viewModel.suggestDictionaryWords)
                     .disabled(!viewModel.customDictionaryEnabled)
+            }
+            if viewModel.customDictionaryEnabled && viewModel.suggestDictionaryWords && !canReadFields {
+                SettingNotice("Suggestions need Accessibility to read the field your dictation went into, and OpenSuperWhisper isn't allowed yet.") {
+                    Button("Allow") { askForAccessibility() }
+                        .buttonStyle(.sPrimary)
+                }
             }
             if !viewModel.customDictionaryEnabled {
                 SettingNotice("The dictionary is off. Your entries are kept but nothing is replaced or recognised better.")
