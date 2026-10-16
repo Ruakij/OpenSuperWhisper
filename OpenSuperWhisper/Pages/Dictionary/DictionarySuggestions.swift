@@ -69,7 +69,7 @@ final class DictionarySuggestions: ObservableObject {
         }
         return !inDictionary
             && !pending.contains { $0.id == lowered }
-            && !Set(prefs.dictionaryRefusedWords).contains(Self.digest(term))
+            && !Set(prefs.dictionaryRefusedWords).contains(digest(term))
     }
 
     /// Adds the term to the dictionary as a word: a rule that writes it as it is, which is what
@@ -97,13 +97,38 @@ final class DictionarySuggestions: ObservableObject {
         neverOffer(term)
     }
 
-    /// Case-insensitive, and a digest rather than the word: see `dictionaryRefusedWords`.
-    static func digest(_ term: String) -> String {
-        SHA256.hash(data: Data(term.lowercased().utf8)).map { String(format: "%02x", $0) }.joined()
+    /// Drops every word waiting for an answer, when the setting is turned off: what was heard
+    /// is part of a dictation, and nobody is going to be asked about it any more.
+    func clearPending() {
+        save([])
+    }
+
+    /// Case-insensitive, and keyed rather than a plain hash: a plain SHA-256 of a short word is
+    /// undone by hashing a word list, and an address someone refused should not be one guess
+    /// away on disk. See `dictionaryRefusedWords`.
+    func digest(_ term: String) -> String {
+        HMAC<SHA256>.authenticationCode(for: Data(term.lowercased().utf8), using: refusalKey)
+            .map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Read on first use: most sessions never refuse anything.
+    private lazy var refusalKey = Self.loadRefusalKey()
+
+    static let refusalKeyAccount = "dictionaryRefusalKey"
+
+    /// A random key made once per install and kept in the Keychain, apart from the digests it
+    /// keys. Should the Keychain refuse it, refusals still hold until the app quits.
+    private static func loadRefusalKey() -> SymmetricKey {
+        if let stored = Keychain.read(refusalKeyAccount), let data = Data(base64Encoded: stored), data.count == 32 {
+            return SymmetricKey(data: data)
+        }
+        let key = SymmetricKey(size: .bits256)
+        Keychain.set(key.withUnsafeBytes { Data($0) }.base64EncodedString(), for: refusalKeyAccount)
+        return key
     }
 
     private func neverOffer(_ term: String) {
-        let digest = Self.digest(term)
+        let digest = digest(term)
         guard !prefs.dictionaryRefusedWords.contains(digest) else { return }
         prefs.dictionaryRefusedWords.append(digest)
     }

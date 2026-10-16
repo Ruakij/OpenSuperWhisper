@@ -276,6 +276,9 @@ class SettingsViewModel: ObservableObject {
     @Published var suggestDictionaryWords: Bool {
         didSet {
             AppPreferences.shared.suggestDictionaryWords = suggestDictionaryWords
+            if !suggestDictionaryWords {
+                Task { @MainActor in DictionarySuggestions.shared.clearPending() }
+            }
         }
     }
 

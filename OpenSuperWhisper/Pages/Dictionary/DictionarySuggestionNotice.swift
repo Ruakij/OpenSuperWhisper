@@ -71,7 +71,16 @@ final class DictionarySuggestionNotice {
         panel.setContentSize(NSSize(width: Self.width, height: ceil(size.height)))
         place(panel)
         panel.orderFrontRegardless()
+        announce(suggestion)
         scheduleExpiry(after: Self.lifetime)
+    }
+
+    /// The panel never takes the focus, so VoiceOver would not read it on its own.
+    private func announce(_ suggestion: DictionarySuggestion) {
+        let text = String(localized: "Add “\(suggestion.term)” to your dictionary?")
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: text,
+                                        .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
 
     private func scheduleExpiry(after delay: Duration) {
@@ -102,8 +111,12 @@ final class DictionarySuggestionNotice {
         return panel
     }
 
+    /// On the screen under the pointer, which is where the user is working: the screen with the
+    /// menu bar can be another display altogether.
     private func place(_ panel: NSPanel) {
-        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
+        let mouse = NSEvent.mouseLocation
+        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) })
+                ?? NSScreen.main ?? NSScreen.screens.first else { return }
         let visible = screen.visibleFrame
         panel.setFrameOrigin(NSPoint(x: visible.maxX - panel.frame.width - Self.margin,
                                      y: visible.minY + Self.margin))

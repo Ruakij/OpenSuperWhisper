@@ -19307,16 +19307,6 @@
         }
       }
     },
-    "On: after a dictation, the field it went into is read again for up to a minute to spot the words you correct. Only a word you are offered is kept, until you answer.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activé : après une dictée, le champ où elle a été insérée est relu pendant une minute au plus, pour repérer les mots que vous corrigez. Seul un mot qui vous est proposé est conservé, jusqu'à votre réponse."
-          }
-        }
-      }
-    },
     "Open the Dictionary": {
       "localizations": {
         "fr": {
@@ -19373,6 +19363,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vous l'avez écrit à la place de « %@ »."
+          }
+        }
+      }
+    },
+    "On: after a dictation, the field it went into is read again for up to a minute to spot the words you correct. Each word you are offered is kept with what was heard, until you answer or turn this off.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé : après une dictée, le champ où elle a été insérée est relu pendant une minute au plus, pour repérer les mots que vous corrigez. Chaque mot proposé est conservé avec ce qui a été entendu, jusqu'à votre réponse ou jusqu'à ce que vous désactiviez ce réglage."
           }
         }
       }

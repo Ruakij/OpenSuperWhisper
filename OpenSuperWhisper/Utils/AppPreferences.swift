@@ -328,7 +328,8 @@ final class AppPreferences {
     var dictionarySuggestionsData: Data?
 
     /// Words the user turned down or deleted from the dictionary, never offered again. Stored as
-    /// digests, not words: an address someone refused to keep should not stay on disk as text.
+    /// keyed digests, not words (`DictionarySuggestions.digest`): an address someone refused to
+    /// keep should not stay on disk as text.
     @UserDefault(key: "dictionaryRefusedWords", defaultValue: [String]())
     var dictionaryRefusedWords: [String]
 

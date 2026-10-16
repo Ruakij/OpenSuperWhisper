@@ -35,7 +35,9 @@ struct WatchedField: @unchecked Sendable {
         var focused: CFTypeRef?
         guard AXUIElementCopyAttributeValue(app, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
               let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() else { return nil }
-        let field = WatchedField(element: focused as! AXUIElement, pid: pid)
+        let element = focused as! AXUIElement
+        AXUIElementSetMessagingTimeout(element, timeout)
+        let field = WatchedField(element: element, pid: pid)
         // A secure field reports bullets or nothing, but it is not ours to ask in the first place.
         guard field.string(kAXSubroleAttribute) != (kAXSecureTextFieldSubrole as String) else { return nil }
         return field

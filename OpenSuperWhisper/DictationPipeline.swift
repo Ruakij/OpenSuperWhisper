@@ -488,7 +488,7 @@ final class DictationPipeline: ObservableObject {
         case .done:
             // Text that Return is about to send never stays in the field to be corrected (#169).
             if prefs.autoPasteTranscription && !submitting {
-                CorrectionWatch.begin(after: prepared.fitted, language: language)
+                CorrectionWatch.begin(after: prepared.fitted, pid: context.focusTarget?.pid, language: language)
             }
             return .inserted
         case .onClipboard: return .onClipboardAnnounced

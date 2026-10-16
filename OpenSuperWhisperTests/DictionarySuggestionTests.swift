@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 
 @testable import OpenSuperWhisper
@@ -13,7 +14,7 @@ final class DictionarySuggestionsTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        scratch = ScratchPreferences()
+        scratch = ScratchPreferences(keychainAccounts: [DictionarySuggestions.refusalKeyAccount])
     }
 
     override func tearDown() {
@@ -87,7 +88,25 @@ final class DictionarySuggestionsTests: XCTestCase {
         store.refuse(try XCTUnwrap(store.offer([candidate("camille@example.com")]).first))
         XCTAssertEqual(prefs.dictionaryRefusedWords.count, 1)
         XCTAssertFalse(prefs.dictionaryRefusedWords.contains { $0.contains("camille") })
-        XCTAssertEqual(prefs.dictionaryRefusedWords, [DictionarySuggestions.digest("CAMILLE@example.com")])
+        XCTAssertEqual(prefs.dictionaryRefusedWords, [store.digest("CAMILLE@example.com")])
+        // Keyed: not the plain hash a word list would undo.
+        let plain = SHA256.hash(data: Data("camille@example.com".utf8)).map { String(format: "%02x", $0) }.joined()
+        XCTAssertNotEqual(prefs.dictionaryRefusedWords.first, plain)
+    }
+
+    func testTheKeyOutlivesTheStore() throws {
+        let store = DictionarySuggestions(prefs: prefs)
+        store.refuse(try XCTUnwrap(store.offer([candidate("Rsets")]).first))
+        XCTAssertEqual(DictionarySuggestions(prefs: prefs).digest("rsets"), store.digest("Rsets"))
+        XCTAssertNotNil(Keychain.read(DictionarySuggestions.refusalKeyAccount))
+    }
+
+    func testClearingDropsThePendingWords() {
+        let store = DictionarySuggestions(prefs: prefs)
+        store.offer([candidate("Rsets")])
+        store.clearPending()
+        XCTAssertEqual(store.pending, [])
+        XCTAssertNil(prefs.dictionarySuggestionsData)
     }
 
     func testADeletedWordIsNeverOfferedAgain() throws {

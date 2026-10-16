@@ -121,7 +121,7 @@ struct PrivacyRubric: View {
 
     private var suggestionsHint: LocalizedStringKey {
         watchesCorrections
-            ? "On: after a dictation, the field it went into is read again for up to a minute to spot the words you correct. Only a word you are offered is kept, until you answer."
+            ? "On: after a dictation, the field it went into is read again for up to a minute to spot the words you correct. Each word you are offered is kept with what was heard, until you answer or turn this off."
             : "Off: the field is not read after a dictation."
     }
 
