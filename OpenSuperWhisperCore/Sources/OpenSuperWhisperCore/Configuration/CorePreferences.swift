@@ -50,4 +50,6 @@ public protocol CorePreferences: AnyObject, Sendable {
     var aiPostProcessingClosing: String { get }
     var aiPostProcessingTranslation: String { get }
     var builtInModelFileName: String { get }
+    var builtInContextLength: Int { get }
+    var builtInKVCacheType: String { get }
 }
