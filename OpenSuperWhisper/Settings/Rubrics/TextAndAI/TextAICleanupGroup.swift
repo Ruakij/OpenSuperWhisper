@@ -6,7 +6,7 @@ struct TextAICleanupGroup: View {
     @ObservedObject var viewModel: SettingsViewModel
 
     /// The stock pattern, as `AppPreferences` declares it. Kept here to tell a customised one apart.
-    static let defaultFillerPattern = "\\b(um|uh|uh huh|er|ah|hmm|mm)\\b,?\\s*"
+    static let defaultFillerPattern = "\\b(?:uh huh|uh+|um+(?=,|[ \\t]*(?:[\\r\\n]|$))|erm|ehm|hm+|mm+|mhm|ah|äh+m?|öh+m?|euh)\\b,?\\s*"
 
     /// One backend serves both this prose cleanup and the per-app formatting rules in Style, so
     /// its fields stay visible while either is on: someone using formatting only would otherwise
@@ -54,7 +54,7 @@ struct TextAICleanupGroup: View {
     // MARK: Hesitations
 
     @ViewBuilder private var hesitationRows: some View {
-        SettingRow("Remove hesitations", hint: "Strips um, uh, er… before inserting.") {
+        SettingRow("Remove hesitations", hint: "Strips um, uh, äh, ähm… before inserting.") {
             SSwitch(isOn: $viewModel.removeFillerWords)
         }
         if viewModel.removeFillerWords {

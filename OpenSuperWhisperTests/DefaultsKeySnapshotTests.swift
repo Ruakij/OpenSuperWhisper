@@ -418,7 +418,8 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         XCTAssertEqual(prefs.indicatorLayout, "")
         XCTAssertEqual(prefs.indicatorMeterMode, "replacesDot")
         XCTAssertEqual(prefs.removeFillerWords, false)
-        XCTAssertEqual(prefs.fillerWordsPattern, "\\b(um|uh|uh huh|er|ah|hmm|mm)\\b,?\\s*")
+        XCTAssertEqual(prefs.fillerWordsPattern,
+                       "\\b(?:uh huh|uh+|um+(?=,|[ \\t]*(?:[\\r\\n]|$))|erm|ehm|hm+|mm+|mhm|ah|äh+m?|öh+m?|euh)\\b,?\\s*")
         XCTAssertEqual(prefs.aiPostProcessingEnabled, false)
         // On a Mac without Apple Intelligence, which `ScratchPreferences` pins: where it runs, the
         // unset key resolves to "apple" instead (`AIBackendDefaultTests`).

@@ -43,6 +43,7 @@ final class TestPreferences: CorePreferences, @unchecked Sendable {
         var aiOllamaEndpoint = ""
         var aiOllamaModel = ""
         var aiPostProcessingEnabled = false
+        var removeFillerWords = false
         var appContextFormattingEnabled = false
         var appContextProfiles: [AppContextProfile] = []
         var aiPostProcessingPrompt = LLMPostProcessor.defaultInstruction
@@ -180,6 +181,10 @@ final class TestPreferences: CorePreferences, @unchecked Sendable {
     var aiPostProcessingEnabled: Bool {
         get { self[\.aiPostProcessingEnabled] }
         set { self[\.aiPostProcessingEnabled] = newValue }
+    }
+    var removeFillerWords: Bool {
+        get { self[\.removeFillerWords] }
+        set { self[\.removeFillerWords] = newValue }
     }
     var appContextFormattingEnabled: Bool {
         get { self[\.appContextFormattingEnabled] }

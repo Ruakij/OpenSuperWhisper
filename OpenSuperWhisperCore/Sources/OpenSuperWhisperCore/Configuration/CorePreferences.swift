@@ -43,6 +43,7 @@ public protocol CorePreferences: AnyObject, Sendable {
     var aiOllamaEndpoint: String { get }
     var aiOllamaModel: String { get }
     var aiPostProcessingEnabled: Bool { get }
+    var removeFillerWords: Bool { get }
     var appContextFormattingEnabled: Bool { get }
     var appContextProfiles: [AppContextProfile] { get }
     var aiPostProcessingPrompt: String { get }
