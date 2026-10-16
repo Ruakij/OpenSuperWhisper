@@ -230,3 +230,57 @@ jobs:
             echo "::error::the x86_64 app links or embeds libomp, which the core's native build does not use"
             exit 1
           fi
+
+  # The Apple Silicon Release app as a downloadable artifact, for testing a build without Xcode.
+  app-arm64:
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: brew install cmake
+      # The script builds autocorrect for both architectures and joins them with lipo.
+      - name: Install Rust
+        run: |
+          [ -x "$HOME/.cargo/bin/rustup" ] \
+            || curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+          "$HOME/.cargo/bin/rustup" toolchain install stable --profile minimal --target aarch64-apple-darwin --target x86_64-apple-darwin
+          "$HOME/.cargo/bin/rustup" default stable
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Build Release for arm64, unsigned
+        run: ./Scripts/build-release-unsigned.sh arm64
+      # Signed with a fixed self-signed certificate: macOS ties the Accessibility grant to it, so
+      # the grant survives updates. Not notarized, so Gatekeeper still blocks the first launch
+      # (right-click -> Open, or `xattr -dr com.apple.quarantine`). Without the secrets (forks),
+      # the app stays ad-hoc signed and needs the permissions again after every build.
+      - name: Sign and package the app
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          APP=build-release/arm64/Build/Products/Release/OpenSuperWhisper.app
+          if [[ -n "$CERT_P12" ]]; then
+            KC="$RUNNER_TEMP/signing.keychain-db"
+            echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security create-keychain -p ci "$KC"
+            security unlock-keychain -p ci "$KC"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k ci "$KC"
+            security list-keychains -d user -s "$KC" $(security list-keychains -d user | xargs)
+            # Untrusted self-signed certificate, so codesign finds it only by hash, not by name.
+            IDENTITY=$(security find-identity -p codesigning "$KC" | awk '/\)/ {print $2; exit}')
+            ./Scripts/dev-codesign.sh "$APP" "$IDENTITY"
+            codesign -dr - "$APP" 2>&1 | grep "certificate leaf"
+          else
+            codesign --force --deep --sign - --entitlements OpenSuperWhisper/OpenSuperWhisper.entitlements "$APP"
+          fi
+          ditto -c -k --keepParent "$APP" OpenSuperWhisper.zip
+      - name: Upload the app
+        uses: actions/upload-artifact@v5
+        with:
+          name: OpenSuperWhisper-${{ github.sha }}
+          path: OpenSuperWhisper.zip
+          retention-days: 14
