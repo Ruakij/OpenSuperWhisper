@@ -11401,16 +11401,6 @@
         }
       }
     },
-    "A Qwen2.5 model running on this Mac.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Un modèle Qwen2.5 qui tourne sur ce Mac."
-          }
-        }
-      }
-    },
     "A case-insensitive regular expression, applied before pasting.": {
       "localizations": {
         "fr": {
@@ -12027,16 +12017,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apple Intelligence · désactivé dans les Réglages Système"
-          }
-        }
-      }
-    },
-    "Apple's on-device model, built into macOS.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Le modèle d'Apple intégré à macOS, qui tourne sur ce Mac."
           }
         }
       }
@@ -20153,6 +20133,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Activé : après une dictée, le champ où elle a été insérée est relu pendant une minute au plus, pour repérer les mots que vous corrigez. Chaque mot proposé est conservé avec ce qui a été entendu, jusqu'à votre réponse ou jusqu'à ce que vous désactiviez ce réglage."
+          }
+        }
+      }
+    },
+    "Apple Intelligence (recommended)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence (recommandé)"
+          }
+        }
+      }
+    },
+    "A Qwen2.5 model running on this Mac. The 1.5B is quick but can change the meaning of a sentence; the 7B is more careful and uses about 4 GB of memory.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un modèle Qwen2.5 qui tourne sur ce Mac. Le 1.5B est rapide mais peut changer le sens d'une phrase ; le 7B est plus soigneux et occupe environ 4 Go de mémoire."
+          }
+        }
+      }
+    },
+    "Apple's on-device model, built into macOS. The most careful one: it fixes grammar without adding or dropping words.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le modèle d'Apple, intégré à macOS. Le plus prudent : il corrige la grammaire sans rien ajouter ni retirer."
           }
         }
       }

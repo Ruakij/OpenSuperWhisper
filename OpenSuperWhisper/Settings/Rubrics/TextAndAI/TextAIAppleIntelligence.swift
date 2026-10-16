@@ -7,7 +7,10 @@ enum TextAIAppleIntelligence {
     static func menuItem(_ availability: AppleIntelligenceAvailability) -> LocalizedStringKey {
         switch availability {
         case .available:
-            return "Apple Intelligence"
+            // Recommended from a side-by-side run on real French dictations (October 2026): it
+            // fixed grammar without dropping or adding anything, where the 1.5B Qwen changed the
+            // meaning of a quarter of them and the 7B invented a few words.
+            return "Apple Intelligence (recommended)"
         case .unsupportedMac:
             return "Apple Intelligence · needs macOS 26 on Apple Silicon"
         case .turnedOff:
