@@ -100,7 +100,9 @@ public enum DictionaryCandidates {
         }
         guard let first = word.first else { return false }
         if first.isUppercase {
-            if !known { return true }
+            // At a sentence start the capital is the sentence's, and an unknown word there is
+            // as likely a slip ("Thier") as a name: only one no dictionary would fix counts.
+            if !known { return !startsSentence || !spelling.correctsTypo(word.lowercased()) }
             // A capital the sentence asks for, or one a noun takes anyway.
             if startsSentence || !capitalMarksNames { return false }
             // Capitalised mid-sentence and known as written. "Monday" and "Paris" are known
@@ -138,12 +140,31 @@ public enum DictionaryCandidates {
         return word
     }
 
-    /// Numbers, addresses, paths and code: never vocabulary, whatever their case.
+    /// Numbers, addresses, paths, file names, handles and code: never vocabulary, whatever
+    /// their case.
     static func isExcludedShape(_ word: String) -> Bool {
         if isEmail(word) { return false }
         guard (2...maxTermLength).contains(word.count), word.contains(where: \.isLetter) else { return true }
-        return isLink(word) || isCode(word) || isQuantity(word)
+        return word.hasPrefix("@") || isLink(word) || isFileName(word) || isCode(word) || isQuantity(word)
     }
+
+    /// "package.json", "README.md", "main.swift". A capitalised name with a dot keeps being a
+    /// name ("Node.js", "Vue.js"): files are written in lowercase or capitals, products in
+    /// title case.
+    static func isFileName(_ word: String) -> Bool {
+        guard let dot = word.lastIndex(of: "."), dot != word.startIndex else { return false }
+        let stem = word[..<dot]
+        let fileExtension = word[word.index(after: dot)...]
+        guard fileExtensions.contains(String(fileExtension)) else { return false }
+        let titleCase = stem.first?.isUppercase == true
+            && !stem.dropFirst().isEmpty && stem.dropFirst().allSatisfy { $0.isLetter && $0.isLowercase }
+        return !titleCase
+    }
+
+    private static let fileExtensions: Set<String> = [
+        "md", "json", "swift", "ts", "js", "py", "yaml", "yml", "txt", "pdf", "png", "jpg", "csv",
+        "html", "css", "sh",
+    ]
 
     static let maxTermLength = 40
 

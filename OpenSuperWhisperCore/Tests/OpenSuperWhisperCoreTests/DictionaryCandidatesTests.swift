@@ -21,7 +21,7 @@ final class DictionaryCandidatesTests: CoreTestCase {
             known.contains(word) || known.contains(word.lowercased())
                 && word == word.prefix(1).uppercased() + word.dropFirst()
         },
-        correctsTypo: { typos.contains($0) })
+        correctsTypo: { typos.contains($0.lowercased()) })
 
     private func candidates(_ heard: String, _ written: String, startsSentence: Bool = false,
                             dictated: String? = nil, capitalMarksNames: Bool = true) -> [String] {
@@ -88,6 +88,22 @@ final class DictionaryCandidatesTests: CoreTestCase {
         XCTAssertEqual(candidates("great", "Great", startsSentence: true), [])
         XCTAssertEqual(candidates("ok", "OK"), [])
         XCTAssertEqual(candidates("i phone", "iPhone"), [])
+    }
+
+    func testACapitalisedTypoAtASentenceStart() {
+        XCTAssertEqual(candidates("their", "Thier", startsSentence: true), [])
+        XCTAssertEqual(candidates("the", "Teh", startsSentence: true), [])
+        // Mid-sentence an unknown capitalised word is a name, whatever it resembles.
+        XCTAssertEqual(candidates("their", "Thier"), ["Thier"])
+    }
+
+    func testFileNamesAndHandles() {
+        XCTAssertEqual(candidates("package jason", "package.json"), [])
+        XCTAssertEqual(candidates("read me", "README.md"), [])
+        XCTAssertEqual(candidates("main swift", "main.swift"), [])
+        XCTAssertEqual(candidates("report", "Q3-report.pdf"), [])
+        XCTAssertEqual(candidates("max im", "@MaximCosta"), [])
+        XCTAssertEqual(candidates("vue js", "Vue.js"), ["Vue.js"])
     }
 
     func testNamesTheEngineAlreadyKnows() {
