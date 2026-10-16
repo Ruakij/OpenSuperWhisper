@@ -192,6 +192,8 @@ jobs:
   # The Intel lane of notarize_app.sh, unsigned: nothing else compiles the x86_64 app, where
   # SenseVoice and onnxruntime must stay out. Built on Apple Silicon like a release, not tested.
   release-x86_64:
+    # Forks build only the Apple Silicon app (app-arm64).
+    if: github.repository == 'my-monkeys/OpenSuperWhisper'
     runs-on: macos-26
     timeout-minutes: 120
     steps:
