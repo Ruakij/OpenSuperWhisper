@@ -14,9 +14,17 @@ struct AppShellView: View {
     private let reports = TranscriptionReportsModel.shared
     @State private var previousModelURL: URL?
 
-    /// For the layout tests, which open the settings on each rubric in turn, and the snapshot
-    /// probe, which hands in a Feedback draft it staged.
-    init(page: AppPage = .home, settings rubric: SettingsRubric? = nil,
+    /// The window as `AppNavigation` has it. The scene builds this again on every redraw, one per
+    /// step of the Text size slider among others, so it must leave the navigation alone: writing
+    /// the page and a closed settings card here shut the settings under the slider (#207).
+    init(feedback: @autoclosure @escaping () -> FeedbackFormModel = FeedbackFormModel()) {
+        _feedback = StateObject(wrappedValue: feedback())
+    }
+
+    /// Opens the window on `page`, with the settings on `rubric`, for the layout tests, which
+    /// open each rubric in turn, and the snapshot probe, which also hands in a Feedback draft it
+    /// staged. Only for a view built once: every rebuild puts this page and card back.
+    init(page: AppPage, settings rubric: SettingsRubric? = nil,
          feedback: @autoclosure @escaping () -> FeedbackFormModel = FeedbackFormModel()) {
         AppNavigation.shared.page = page
         AppNavigation.shared.settingsRubric = rubric
