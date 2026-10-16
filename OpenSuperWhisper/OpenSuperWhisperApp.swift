@@ -77,6 +77,9 @@ struct OpenSuperWhisperApp: App {
         MainThreadWatchdog.shared.start()
         _ = ShortcutManager.shared
         _ = MicrophoneService.shared
+        // Its setup publishes state and registers main-queue observers, so it must not first run in
+        // the detached task of a hotkey press.
+        _ = AudioRecorder.shared
     }
 }
 
