@@ -96,8 +96,7 @@ public enum LLMPostProcessor {
         do {
             // The transcription goes over as-is: everything the model is told lives in the system
             // prompt the user can see and edit.
-            let raw = try await backend.generate(system: system, user: text)
-            let result = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            let result = strippingThinking(try await backend.generate(system: system, user: text))
             // Blank output always falls back to the verbatim transcription. The length-ratio check
             // on top of that runs only for backends that ask for it (the small built-in model), and
             // an active app profile relaxes its shrink floor because those rules condense on
@@ -272,6 +271,20 @@ public enum LLMPostProcessor {
         return sections
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
+    }
+
+    /// The answer part of a model's output, trimmed: every `<think>...</think>` block is dropped,
+    /// and a block still open at the start is a model that ran out of tokens mid-thought, which
+    /// leaves no answer at all. A closing tag with no opening one comes from a prompt that already
+    /// opened the block, so everything before it is reasoning.
+    public static func strippingThinking(_ output: String) -> String {
+        var text = output.replacingOccurrences(of: "(?s)<think>.*?</think>", with: "",
+                                               options: .regularExpression)
+        if let close = text.range(of: "</think>", options: .backwards) {
+            text = String(text[close.upperBound...])
+        }
+        text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.hasPrefix("<think>") ? "" : text
     }
 
     /// Scripts that write without spaces and pack far more meaning into a character: Han, kana,
