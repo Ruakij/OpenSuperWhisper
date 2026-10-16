@@ -1,6 +1,26 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "A longer window fits longer dictations and uses more memory.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une fenêtre plus longue accepte des dictées plus longues et utilise plus de mémoire."
+          }
+        }
+      }
+    },
+    "8-bit, uses half the memory": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "8 bits, utilise moitié moins de mémoire"
+          }
+        }
+      }
+    },
     "AI Cleanup": {
       "localizations": {
         "fr": {
@@ -1237,6 +1257,16 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Đang kết nối..."
+          }
+        }
+      }
+    },
+    "Context length": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Longueur du contexte"
           }
         }
       }
@@ -3327,6 +3357,16 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Tổ hợp phím"
+          }
+        }
+      }
+    },
+    "KV cache": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache KV"
           }
         }
       }
@@ -7617,6 +7657,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cette adresse e-mail est trop longue."
+          }
+        }
+      }
+    },
+    "The model's working memory for the context. 8-bit halves it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La mémoire de travail du modèle pour le contexte. Le 8 bits la réduit de moitié."
           }
         }
       }

@@ -14,9 +14,10 @@ public final class BuiltInLlamaBackend: LLMCleanupBackend {
 
     enum BuiltInLlamaError: Error { case modelNotReady }
 
-    /// Release the inference context (~1.2 GB resident, model + KV cache) after this long with no
-    /// cleanup. An occasional dictation shouldn't hold a second model in RAM next to Whisper's own
-    /// ~1 GB for the whole session; a burst of dictations still shares one load.
+    /// Release the inference context (model + KV cache; the cache grows with the context length
+    /// setting) after this long with no cleanup. An occasional dictation shouldn't hold a second
+    /// model in RAM next to Whisper's own ~1 GB for the whole session; a burst of dictations still
+    /// shares one load.
     private static let idleUnloadDelay: TimeInterval = 5 * 60
 
     private let manager = LLMModelManager.shared
@@ -27,9 +28,15 @@ public final class BuiltInLlamaBackend: LLMCleanupBackend {
     /// Owned by `inferenceQueue` — never read or written from anywhere else.
     private var context: LlamaContext?
     private var idleUnloadWork: DispatchWorkItem?
-    /// Which GGUF `context` was loaded from, so a model switch can be noticed. Also
-    /// `inferenceQueue`-confined.
-    private var loadedFileName: String?
+    /// What `context` was loaded with, so a change of model or context settings can be noticed.
+    /// Also `inferenceQueue`-confined.
+    private var loadedConfig: Config?
+
+    private struct Config: Equatable {
+        let fileName: String
+        let contextLength: Int
+        let kvCacheType: String
+    }
 
     init(computePolicy: ComputePolicy) {
         self.computePolicy = computePolicy
@@ -77,20 +84,26 @@ public final class BuiltInLlamaBackend: LLMCleanupBackend {
 
     /// Returns the cached context, loading it if needed. Must run on `inferenceQueue`.
     ///
-    /// A context is only reused while it belongs to the selected model: switching models in
-    /// Settings otherwise keeps answering from the previously loaded GGUF until the idle release
-    /// happens to fire, which looks exactly like the switch having no effect.
+    /// A context is only reused while it matches the selected model and context settings:
+    /// switching them in Settings otherwise keeps answering from the previously loaded context
+    /// until the idle release happens to fire, which looks exactly like the switch having no effect.
     private func loadContextOnQueue() -> LlamaContext? {
         idleUnloadWork?.cancel()
         idleUnloadWork = nil
         let model = selectedModel
-        if let context, loadedFileName == model.fileName { return context }
+        let config = Config(fileName: model.fileName,
+                            contextLength: CoreAccess.preferences.builtInContextLength,
+                            kvCacheType: CoreAccess.preferences.builtInKVCacheType)
+        if let context, loadedConfig == config { return context }
         guard manager.isModelDownloaded(name: model.fileName) else { return nil }
         let path = manager.localURL(for: model.fileName).path
-        context = computePolicy == .cpuOnly
-            ? LlamaContext(modelPath: path, gpuLayers: 0)
-            : LlamaContext(modelPath: path)
-        loadedFileName = context == nil ? nil : model.fileName
+        // Freed first: with a large context the old and the new KV cache must not coexist.
+        context = nil
+        context = LlamaContext(
+            modelPath: path, contextLength: UInt32(clamping: config.contextLength),
+            kvCacheType: LlamaContext.KVCacheType(rawValue: config.kvCacheType) ?? .f16,
+            gpuLayers: computePolicy == .cpuOnly ? 0 : 999)
+        loadedConfig = context == nil ? nil : config
         return context
     }
 
@@ -101,7 +114,7 @@ public final class BuiltInLlamaBackend: LLMCleanupBackend {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.context = nil          // deinit frees the llama model + KV cache
-            self.loadedFileName = nil
+            self.loadedConfig = nil
             self.idleUnloadWork = nil
         }
         idleUnloadWork = work

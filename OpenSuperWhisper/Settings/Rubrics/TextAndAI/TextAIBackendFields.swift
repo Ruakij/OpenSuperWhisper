@@ -37,6 +37,29 @@ struct TextAIBackendFields: View {
                 .labelsHidden()
             }
         }
+        SettingRow("Context length", hint: "A longer window fits longer dictations and uses more memory.",
+                   advanced: true, indented: true) {
+            SMenu(Text(verbatim: "\(viewModel.builtInContextLength)")) {
+                Picker("", selection: $viewModel.builtInContextLength) {
+                    ForEach([4096, 8192, 16384, 32768], id: \.self) { length in
+                        Text(verbatim: "\(length)").tag(length)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+        }
+        SettingRow("KV cache", hint: "The model's working memory for the context. 8-bit halves it.",
+                   advanced: true, indented: true) {
+            SMenu(Text(verbatim: viewModel.builtInKVCacheType == "q8_0" ? "8-bit" : "16-bit")) {
+                Picker("", selection: $viewModel.builtInKVCacheType) {
+                    Text(verbatim: "16-bit").tag("f16")
+                    Text("8-bit, uses half the memory").tag("q8_0")
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+        }
         if viewModel.builtInModelDownloaded {
             TextAILine(indented: true) {
                 TextAIOKPill("✓ Model ready, runs on this Mac")

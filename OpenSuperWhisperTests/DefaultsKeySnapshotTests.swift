@@ -40,6 +40,8 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         "autoCopyToClipboard",
         "autoPasteTranscription",
         "beamSize",
+        "builtInContextLength",
+        "builtInKVCacheType",
         "builtInModelFileName",
         "cachedRemoteModels",
         "clipboardRestoreDelayMs",
@@ -256,6 +258,8 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         assertWrites("aiRemoteEndpoint") { prefs.aiRemoteEndpoint = "http://remote" }
         assertWrites("aiRemoteModel") { prefs.aiRemoteModel = "remote-llm" }
         assertWrites("builtInModelFileName") { prefs.builtInModelFileName = "model.gguf" }
+        assertWrites("builtInContextLength") { prefs.builtInContextLength = 16384 }
+        assertWrites("builtInKVCacheType") { prefs.builtInKVCacheType = "q8_0" }
         assertWrites("aiPostProcessingPrompt") { prefs.aiPostProcessingPrompt = "open" }
         assertWrites("aiPostProcessingClosing") { prefs.aiPostProcessingClosing = "close" }
         assertWrites("aiPostProcessingTranslation") { prefs.aiPostProcessingTranslation = "translate" }
@@ -430,6 +434,8 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         // A file name on disk: a different default would point existing installs at a model
         // they never downloaded.
         XCTAssertEqual(prefs.builtInModelFileName, "Qwen3.5-2B-Q4_K_M.gguf")
+        XCTAssertEqual(prefs.builtInContextLength, 8192)
+        XCTAssertEqual(prefs.builtInKVCacheType, "f16")
         // Hand-copied literals (see `ShippedCleanupPrompts`), not the LLMPostProcessor constants
         // the defaults are built from.
         XCTAssertEqual(prefs.aiPostProcessingPrompt, ShippedCleanupPrompts.opening)
