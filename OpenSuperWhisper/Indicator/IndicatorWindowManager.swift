@@ -233,13 +233,26 @@ class IndicatorWindowManager: IndicatorViewDelegate {
 
     /// Whether the bubble should accept clicks instead of letting them through to the app below.
     ///
-    /// Click-through is the baseline: the indicator never intercepts a click meant for what you
-    /// are dictating into. Two things override it. On-bubble buttons, which have to be tappable to
-    /// exist at all. And the draggable position, because a bubble you are meant to grab has to be
-    /// grabbable, which is the trade you accept by choosing that mode and no other.
+    /// On-bubble buttons have to be tappable to exist at all. And the bubble can be grabbed and
+    /// moved in every position but the notch, because a bubble sitting on the line you are
+    /// writing has to be pushable out of the way. The cost is that a click on the bubble itself
+    /// no longer reaches the app below; clicks beside it still do. The notch pill hangs from the
+    /// top edge and has nowhere better to go, so it stays click-through.
     nonisolated static func needsMouseEvents(position: String, showsStop: Bool,
                                              showsCancel: Bool) -> Bool {
-        showsStop || showsCancel || position == "custom"
+        showsStop || showsCancel || isDraggable(position: position)
+    }
+
+    /// Every position but the notch can be dragged.
+    nonisolated static func isDraggable(position: String) -> Bool {
+        position != "notch"
+    }
+
+    /// Whether a drop is remembered. Only in the custom position, which is "where I last put it".
+    /// In a preset (near the cursor, top, centre, bottom) a drag only moves this take's bubble out
+    /// of the way, and the next dictation goes back to the preset.
+    nonisolated static func dropIsRemembered(position: String) -> Bool {
+        position == "custom"
     }
 
     /// The Liquid Glass bubble keeps its control slots while the controls are tucked (so the window
@@ -252,7 +265,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         let needs = Self.needsMouseEvents(position: position,
                                           showsStop: layout.contains(.stopButton),
                                           showsCancel: layout.contains(.cancelButton))
-        window.ignoresMouseEvents = !needs || (tucked && position != "custom")
+        window.ignoresMouseEvents = !needs || (tucked && !Self.isDraggable(position: position))
     }
 
     /// The origin `reposition` last asked for, so the window's own move notification is not
@@ -262,13 +275,32 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     /// guaranteed to arrive inside the `setFrameOrigin` call that caused it.
     private var lastPlacedOrigin: NSPoint?
 
+    /// Where the pointer and the window were when the current drag began.
+    private var dragStart: (pointer: NSPoint, origin: NSPoint)?
+
+    /// Follows the pointer from where the drag began. Screen coordinates rather than the
+    /// gesture's own, since the view moves with the window and its coordinates move with it.
+    /// The window's move notification then keeps the bubble there for the rest of the take.
+    func dragBubble() {
+        guard let window, Self.isDraggable(position: AppPreferences.shared.indicatorPosition) else { return }
+        let pointer = NSEvent.mouseLocation
+        let start = dragStart ?? (pointer, window.frame.origin)
+        dragStart = start
+        window.setFrameOrigin(NSPoint(x: start.origin.x + pointer.x - start.pointer.x,
+                                      y: start.origin.y + pointer.y - start.pointer.y))
+    }
+
+    func endBubbleDrag() {
+        dragStart = nil
+    }
+
     private var dragObserver: NSObjectProtocol?
 
-    /// Remembers where the bubble is dropped, and switches the position mode to match.
+    /// Keeps the bubble where it is dropped for the rest of the take, and remembers the drop when
+    /// the position is custom.
     ///
-    /// Dragging something is a plainer statement of intent than picking from a menu, so a drop
-    /// wins: whatever preset was selected becomes "custom", and the bubble stays where it was put,
-    /// including across restarts.
+    /// In a preset the drop is only for this take: the bubble was in the way, not in the wrong
+    /// mode, so the preset stays selected and the next dictation uses it again.
     private func observeDrag(of panel: NSWindow) {
         dragObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didMoveNotification, object: panel, queue: .main
@@ -279,8 +311,9 @@ class IndicatorWindowManager: IndicatorViewDelegate {
                abs(placed.x - origin.x) < 1, abs(placed.y - origin.y) < 1 { return }
 
             let anchor = CGPoint(x: panel.frame.midX, y: panel.frame.minY)
-            AppPreferences.shared.indicatorCustomAnchor = anchor
-            AppPreferences.shared.indicatorPosition = "custom"
+            if Self.dropIsRemembered(position: AppPreferences.shared.indicatorPosition) {
+                AppPreferences.shared.indicatorCustomAnchor = anchor
+            }
             anchorFromTop = false
             anchorCenterX = anchor.x
             anchorBottomY = anchor.y
