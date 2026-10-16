@@ -360,7 +360,18 @@ final class AppPreferences {
 
     @UserDefault(key: "hasCompletedOnboarding", defaultValue: false)
     var hasCompletedOnboarding: Bool
-    
+
+    /// The one-time request for feedback on the rebuilt interface is behind us (#206): the card
+    /// was shown, or feedback was sent from anywhere. Set the moment the card appears, so a quit
+    /// or a crash while it is up does not bring it back. Nothing sets it back to false.
+    @UserDefault(key: "feedbackPromptDone", defaultValue: false)
+    var feedbackPromptDone: Bool
+
+    /// Launches that started with onboarding already done, counted only up to
+    /// `FeedbackPrompt.minimumLaunches`: all the request needs to know is whether it is reached.
+    @UserDefault(key: "feedbackPromptLaunches", defaultValue: 0)
+    var feedbackPromptLaunches: Int
+
     @UserDefault(key: "useAsianAutocorrect", defaultValue: true)
     var useAsianAutocorrect: Bool
     

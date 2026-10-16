@@ -225,8 +225,35 @@ final class FeedbackAppDetailsTests: XCTestCase {
 @MainActor
 final class FeedbackFormModelTests: XCTestCase {
 
+    /// Successful sends seen by the model's `onSent`, which in the app ends the one-time ask.
+    private var sentCount = 0
+
     private func makeModel(_ stub: FeedbackTransportStub) -> FeedbackFormModel {
-        FeedbackFormModel(sender: stub.sender, appDetails: { sampleDetails })
+        FeedbackFormModel(sender: stub.sender, appDetails: { sampleDetails },
+                          onSent: { [self] in sentCount += 1 })
+    }
+
+    /// Whoever sent feedback is never asked for it (#206); a failed or refused send has not
+    /// answered anything yet.
+    func testOnlyASuccessCountsAsHavingSentFeedback() async {
+        for (reply, sent) in [(FeedbackTransportStub.Reply.failure(.timedOut), 0), (.status(400), 0), (.status(200), 1)] {
+            sentCount = 0
+            let model = makeModel(FeedbackTransportStub(reply: reply))
+            model.message = "It crashed"
+            await model.send()
+            XCTAssertEqual(sentCount, sent, "\(reply)")
+        }
+    }
+
+    /// Opening the card, asked or not, sends nothing: only Send does.
+    func testNothingGoesOutWithoutSend() {
+        let stub = FeedbackTransportStub()
+        let model = makeModel(stub)
+        model.message = "Typed but not sent"
+        model.cardClosed()
+        model.discard()
+        XCTAssertTrue(stub.requests.isEmpty)
+        XCTAssertEqual(sentCount, 0)
     }
 
     func testItStartsAsAnIdeaWithTheDetailsOn() {
