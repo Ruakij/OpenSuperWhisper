@@ -53,6 +53,11 @@ enum UISnapshotProbe {
         },
         "feedback-form-too-long": { feedbackCard(message: String(repeating: "Log line: dictation stopped. ", count: 140)) },
         "feedback-sent": { feedbackCard(status: .sent) },
+        "feedback-asked": { feedbackCard(asked: true) },
+        "feedback-asked-large-text": {
+            AppPreferences.shared.textScale = TextScale.maximum
+            return feedbackCard(asked: true)
+        },
         "mic-picker": { microphonePicker(.speaking) },
         "mic-picker-low": { microphonePicker(.murmuring) },
         "mic-picker-quiet": { microphonePicker(.tooQuiet) },
@@ -176,8 +181,10 @@ enum UISnapshotProbe {
     /// Home with the Feedback card open on a staged draft. Its sender fails without a request
     /// ever being made: the endpoint notifies the owner, and a snapshot is never meant to.
     private static func feedbackCard(stagedBug: Bool = false, message: String? = nil,
-                                     status: FeedbackFormModel.Status = .editing) -> AnyView {
-        let model = FeedbackFormModel(sender: FeedbackSender(transport: { _ in throw URLError(.cancelled) }))
+                                     status: FeedbackFormModel.Status = .editing,
+                                     asked: Bool = false) -> AnyView {
+        let model = FeedbackFormModel(sender: FeedbackSender(transport: { _ in throw URLError(.cancelled) }),
+                                      onSent: {})
         if let message {
             model.kind = .bug
             model.message = message
@@ -188,7 +195,11 @@ enum UISnapshotProbe {
             model.email = "camille@example.com"
         }
         model.stageStatus(status)
-        AppNavigation.shared.feedbackOpen = true
+        if asked {
+            AppNavigation.shared.askForFeedback()
+        } else {
+            AppNavigation.shared.openFeedback()
+        }
         return AnyView(AppShellView(page: .home, feedback: model))
     }
 

@@ -149,9 +149,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         // measured by removing it, the app launches with its window up. Where it has not been
         // created yet the lookup is nil and this does nothing, which is what the old code did
         // there anyway, so it cannot be a regression on either.
-        if AppPreferences.shared.startHidden && AppPreferences.shared.hasCompletedOnboarding {
+        let onboarded = AppPreferences.shared.hasCompletedOnboarding
+        let startsHidden = AppPreferences.shared.startHidden && onboarded
+        if startsHidden {
             NSApplication.shared.setActivationPolicy(.accessory)
             mainWindow?.orderOut(nil)
+        }
+        MainActor.assumeIsolated {
+            FeedbackPromptScheduler.shared.recordLaunch(onboarded: onboarded, startedHidden: startsHidden)
         }
 
         NotificationCenter.default.addObserver(

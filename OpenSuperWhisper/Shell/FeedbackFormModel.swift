@@ -27,12 +27,16 @@ final class FeedbackFormModel: ObservableObject {
 
     private let sender: FeedbackSender
     private let appDetails: @MainActor () -> String
+    /// Run once a message got through: whoever sent one is never asked for feedback (#206).
+    private let onSent: @MainActor () -> Void
 
     /// Nonisolated so the main window can create it as the default of its own initializer.
     nonisolated init(sender: FeedbackSender = FeedbackSender(),
-                     appDetails: @escaping @MainActor () -> String = { FeedbackAppDetails.current() }) {
+                     appDetails: @escaping @MainActor () -> String = { FeedbackAppDetails.current() },
+                     onSent: @escaping @MainActor () -> Void = FeedbackPrompt.markDone) {
         self.sender = sender
         self.appDetails = appDetails
+        self.onSent = onSent
     }
 
     /// The exact line sent when "Include app details" is on.
@@ -69,6 +73,7 @@ final class FeedbackFormModel: ObservableObject {
         status = .sending
         do {
             try await sender.send(submission)
+            onSent()
             clearDraft()
             status = .sent
         } catch FeedbackSendError.refused {

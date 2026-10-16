@@ -50,6 +50,8 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         "debugMode",
         "didSeedAppContextPresets",
         "escCancelWithoutConfirmation",
+        "feedbackPromptDone",
+        "feedbackPromptLaunches",
         "fillerWordsPattern",
         "fluidAudioModelVersion",
         "glassBubbleSize",
@@ -210,6 +212,8 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         assertWrites("startHidden") { prefs.startHidden = true }
         assertWrites("liveTranscriptionEnabled") { prefs.liveTranscriptionEnabled = true }
         assertWrites("hasCompletedOnboarding") { prefs.hasCompletedOnboarding = true }
+        assertWrites("feedbackPromptDone") { prefs.feedbackPromptDone = true }
+        assertWrites("feedbackPromptLaunches") { prefs.feedbackPromptLaunches = 2 }
         assertWrites("useAsianAutocorrect") { prefs.useAsianAutocorrect = false }
         assertWrites("selectedMicrophoneData") { prefs.selectedMicrophoneData = Data([1]) }
         assertWrites("modifierOnlyHotkey") { prefs.modifierOnlyHotkey = "rightOption" }

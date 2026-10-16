@@ -84,7 +84,12 @@ final class AppNavigation: ObservableObject {
     /// A row title to scroll to once its rubric is showing (set by the settings search).
     @Published var settingsFocusRow: String?
     @Published var helpOpen = false
-    @Published var feedbackOpen = false
+    @Published var feedbackOpen = false {
+        didSet { if !feedbackOpen { feedbackAsked = false } }
+    }
+    /// The open Feedback card was opened by the app asking, once (#206), rather than by the user:
+    /// it leads with a note on the new interface. Cleared whenever the card closes.
+    @Published private(set) var feedbackAsked = false
     /// The dictation the Report card is about (#168); nil when the card is closed.
     @Published var reporting: Recording?
     /// The saved reports, as a card over Home.
@@ -105,6 +110,7 @@ final class AppNavigation: ObservableObject {
         closeSettings()
         closeReports()
         helpOpen = false
+        feedbackAsked = false
         feedbackOpen = true
     }
 
@@ -127,6 +133,13 @@ final class AppNavigation: ObservableObject {
     func closeReports() {
         reporting = nil
         reportsOpen = false
+    }
+
+    /// The same card, opened by the app to ask for feedback. Only `FeedbackPromptScheduler`
+    /// calls it, after recording that it asked.
+    func askForFeedback() {
+        openFeedback()
+        feedbackAsked = true
     }
 
     func closeSettings() {
