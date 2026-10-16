@@ -12,9 +12,24 @@ struct FeedRow: View {
     let onDelete: () -> Void
     /// nil → rerun with the current model; otherwise rerun once with that model. (F3)
     let onRegenerate: (DictationModelOption?) -> Void
+    let onReport: () -> Void
     @ObservedObject private var audioRecorder = AudioRecorder.shared
     @State private var isExpanded = false
     @State private var isHovered = false
+    @State private var showsOriginal = FeedRow.initiallyShowsOriginal
+
+    #if DEBUG
+    /// For the snapshot probe, which shows the original unfolded.
+    static var snapshotShowsOriginals = false
+    #endif
+
+    private static var initiallyShowsOriginal: Bool {
+        #if DEBUG
+        return snapshotShowsOriginals
+        #else
+        return false
+        #endif
+    }
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -27,6 +42,11 @@ struct FeedRow: View {
     }
 
     private var isRegenerating: Bool { recording.isRegeneration && recording.isPending }
+
+    /// The engine's text, offered only on a finished row whose text it is not.
+    private var original: String? {
+        recording.status == .completed && !isRegenerating ? recording.distinctOriginal : nil
+    }
 
     private var displayText: String {
         let text = recording.transcription
@@ -51,12 +71,15 @@ struct FeedRow: View {
                 }
                 if compact {
                     HStack(alignment: .center, spacing: 12) {
-                        FeedRowMeta(recording: recording)
+                        metaLine
                             .frame(maxWidth: .infinity, alignment: .leading)
                         actions
                     }
                 } else {
-                    FeedRowMeta(recording: recording)
+                    metaLine
+                }
+                if showsOriginal, let original {
+                    FeedRowOriginalText(original: original)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -75,7 +98,17 @@ struct FeedRow: View {
 
     private var actions: some View {
         FeedRowActions(recording: recording, isHovered: isHovered, isPlaying: isPlaying,
-                       isRegenerating: isRegenerating, onDelete: onDelete, onRegenerate: onRegenerate)
+                       isRegenerating: isRegenerating, onDelete: onDelete, onRegenerate: onRegenerate,
+                       onReport: onReport)
+    }
+
+    private var metaLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            FeedRowMeta(recording: recording)
+            if original != nil {
+                FeedRowOriginalToggle(isShown: $showsOriginal)
+            }
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -203,9 +236,9 @@ private struct FeedRowProgress: View {
     }
 }
 
-/// Copy, play, regenerate and delete. Laid out on every row so the text never re-wraps when
-/// they appear; only visible on hover (and while playing, or when there is nothing else to do
-/// with a queued or failed row but delete it).
+/// Copy, play, regenerate, report and delete. Laid out on every row so the text never re-wraps
+/// when they appear; only visible on hover (and while playing, or when there is nothing else to
+/// do with a queued or failed row but delete it).
 private struct FeedRowActions: View {
     let recording: Recording
     let isHovered: Bool
@@ -213,9 +246,13 @@ private struct FeedRowActions: View {
     let isRegenerating: Bool
     let onDelete: () -> Void
     let onRegenerate: (DictationModelOption?) -> Void
+    let onReport: () -> Void
     @State private var copied = false
 
     private var canPlayAndCopy: Bool { !recording.isPending && recording.status != .failed }
+    private var canReport: Bool {
+        recording.status == .completed && !recording.transcription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
     private var canRegenerate: Bool { recording.status == .completed || recording.status == .failed }
     private var deleteAlwaysVisible: Bool {
         (recording.isPending && !isRegenerating) || recording.status == .failed
@@ -259,6 +296,16 @@ private struct FeedRowActions: View {
                 .buttonStyle(.plain)
                 .fixedSize()
                 .help("Regenerate, with the current model or another one")
+                .visible(isHovered)
+            }
+            if canReport {
+                Button(action: onReport) {
+                    Image(systemName: "flag")
+                        .modifier(ActionChrome())
+                }
+                .buttonStyle(.plain)
+                .help("Report a bad transcription")
+                .accessibilityLabel(Text("Report a bad transcription"))
                 .visible(isHovered)
             }
             Button {

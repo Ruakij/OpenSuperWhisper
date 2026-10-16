@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenSuperWhisperCore
 
 /// The pages of the main window's sidebar.
 enum AppPage: String, CaseIterable, Identifiable {
@@ -87,12 +88,17 @@ final class AppNavigation: ObservableObject {
     @Published var settingsFocusRow: String?
     @Published var helpOpen = false
     @Published var feedbackOpen = false
+    /// The dictation the Report card is about (#168); nil when the card is closed.
+    @Published var reporting: Recording?
+    /// The saved reports, as a card over Home.
+    @Published var reportsOpen = false
     /// Text of the window's search field. Filters the Home feed.
     @Published var searchText = ""
 
     func openSettings(_ rubric: SettingsRubric = .dictation, focusing row: String? = nil) {
         helpOpen = false
         feedbackOpen = false
+        closeReports()
         settingsRubric = rubric
         settingsFocusRow = row
     }
@@ -100,8 +106,30 @@ final class AppNavigation: ObservableObject {
     /// One card at a time: Feedback replaces the settings or Help when it opens.
     func openFeedback() {
         closeSettings()
+        closeReports()
         helpOpen = false
         feedbackOpen = true
+    }
+
+    func openReport(for recording: Recording) {
+        closeSettings()
+        helpOpen = false
+        feedbackOpen = false
+        reportsOpen = false
+        reporting = recording
+    }
+
+    func openReports() {
+        closeSettings()
+        helpOpen = false
+        feedbackOpen = false
+        reporting = nil
+        reportsOpen = true
+    }
+
+    func closeReports() {
+        reporting = nil
+        reportsOpen = false
     }
 
     func closeSettings() {

@@ -205,8 +205,9 @@ final class DictationPipeline: ObservableObject {
             // The stop phrase goes first, before the dictionary rules can reshape it. (#145)
             let spokenText = AppPreferences.shared.stripStopPhrase(rawText, cutAtLast: item.endedByStopPhrase)
             var text = AppPreferences.shared.cleanTranscription(spokenText)
-            // The engine's own output, before the dictionary rules and any LLM cleanup, kept
-            // for the post-record hook. Tracked alongside `text` rather than read from
+            // The engine's own output (its dictionary rules already applied inside the engine),
+            // before filler-word removal and any LLM cleanup, kept for the post-record hook and
+            // the history's original text (#168). Tracked alongside `text` rather than read from
             // `rawText` at the end, because the short-clip fallback below replaces the basis
             // of the text entirely — handing a hook "No speech detected" for a clip that
             // produced words would be worse than not telling it at all.
@@ -274,9 +275,13 @@ final class DictationPipeline: ObservableObject {
                     hookAudioPath = finalURL.path
                 }
 
+                // Without the spoken submit command, like the text itself: copying the original
+                // back out of the history must not bring "press enter" with it.
+                let original = AppPreferences.shared.stripSubmitCommand(engineText).text
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
                 await storeRecording(
                     id: recordingId, timestamp: timestamp, fileName: fileName,
-                    finalURL: finalURL, transcription: text,
+                    finalURL: finalURL, transcription: text, rawTranscription: original.isEmpty ? nil : original,
                     status: .completed, progress: 1.0, context: item.context,
                     modelUsed: modelUsed, wasFallback: wasFallback)
             } else {
@@ -337,7 +342,7 @@ final class DictationPipeline: ObservableObject {
                 await storeRecording(
                     id: saved.id, timestamp: saved.timestamp, fileName: saved.fileName,
                     finalURL: saved.url, transcription: "Transcription failed — click ↻ to try again.",
-                    status: .failed, progress: 0, context: item.context,
+                    rawTranscription: nil, status: .failed, progress: 0, context: item.context,
                     modelUsed: nil, wasFallback: false)
             } else {
                 discardAudio(item.tempURL)
@@ -350,7 +355,8 @@ final class DictationPipeline: ObservableObject {
     /// and the captured source context (app / window / URL / model used). Moved here from the
     /// indicator view model so the save path is shared and can't drift.
     private func storeRecording(id: UUID, timestamp: Date, fileName: String, finalURL: URL,
-                                transcription: String, status: RecordingStatus, progress: Float,
+                                transcription: String, rawTranscription: String?,
+                                status: RecordingStatus, progress: Float,
                                 context: ContextSnapshot,
                                 modelUsed: String?, wasFallback: Bool) async {
         // `modelUsed`/`wasFallback` are captured by the caller right after `transcribeAudio`
@@ -370,7 +376,8 @@ final class DictationPipeline: ObservableObject {
             sourceWindowTitle: context.windowTitle,
             sourceURL: context.fullURL,
             modelUsed: modelUsed,
-            wasFallback: wasFallback))
+            wasFallback: wasFallback,
+            rawTranscription: rawTranscription))
     }
 
     /// Move a temp recording to its permanent location after a FAILED transcription so the audio

@@ -70,7 +70,8 @@ struct HomePage: View {
                 status: status,
                 isRegeneration: userInfo["isRegeneration"] as? Bool,
                 modelUsed: userInfo["modelUsed"] as? String,
-                wasFallback: userInfo["wasFallback"] as? Bool
+                wasFallback: userInfo["wasFallback"] as? Bool,
+                rawTranscription: userInfo["rawTranscription"] as? String
             )
         }
         .onReceive(NotificationCenter.default.publisher(for: RecordingStore.recordingsDidUpdateNotification)) { _ in

@@ -30,7 +30,7 @@ final class FeedbackFormModel: ObservableObject {
 
     /// Nonisolated so the main window can create it as the default of its own initializer.
     nonisolated init(sender: FeedbackSender = FeedbackSender(),
-                     appDetails: @escaping @MainActor () -> String = FeedbackAppDetails.current) {
+                     appDetails: @escaping @MainActor () -> String = { FeedbackAppDetails.current() }) {
         self.sender = sender
         self.appDetails = appDetails
     }

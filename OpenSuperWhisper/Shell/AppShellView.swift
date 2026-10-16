@@ -9,6 +9,9 @@ struct AppShellView: View {
     @ObservedObject private var navigation = AppNavigation.shared
     @ObservedObject private var fileDrop = FileDropHandler.shared
     @StateObject private var feedback: FeedbackFormModel
+    /// Handed to the report cards, which observe it themselves: the shell has no need to redraw
+    /// when a report is saved.
+    private let reports = TranscriptionReportsModel.shared
     @State private var previousModelURL: URL?
 
     /// For the layout tests, which open the settings on each rubric in turn, and the snapshot
@@ -46,11 +49,25 @@ struct AppShellView: View {
             } else if navigation.feedbackOpen {
                 FeedbackOverlay(model: feedback)
                     .transition(.opacity)
+            } else if let recording = navigation.reporting {
+                ReportCard(recording: recording, dictionaryEnabled: $viewModel.customDictionaryEnabled,
+                           addToDictionary: { entry in
+                               viewModel.customDictionaryEntries = ReportDraft.adding(
+                                   entry, to: viewModel.customDictionaryEntries)
+                           },
+                           reports: reports)
+                    .id(recording.id)
+                    .transition(.opacity)
+            } else if navigation.reportsOpen {
+                ReportsCard(reports: reports)
+                    .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: 0.15), value: navigation.settingsRubric)
         .animation(.easeOut(duration: 0.15), value: navigation.helpOpen)
         .animation(.easeOut(duration: 0.15), value: navigation.feedbackOpen)
+        .animation(.easeOut(duration: 0.15), value: navigation.reporting?.id)
+        .animation(.easeOut(duration: 0.15), value: navigation.reportsOpen)
         // Whatever closed the card (✕, Esc, the sidebar, ⌘,), its thank-you is not shown again.
         .onChange(of: navigation.feedbackOpen) { _, open in
             if !open { feedback.cardClosed() }
@@ -70,6 +87,7 @@ struct AppShellView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .showTranscriptions)) { _ in
             navigation.closeSettings()
+            navigation.closeReports()
             navigation.helpOpen = false
             navigation.feedbackOpen = false
             navigation.page = .home

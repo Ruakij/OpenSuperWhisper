@@ -165,7 +165,7 @@ class ContentViewModel: ObservableObject {
         }
     }
     
-    func handleProgressUpdate(id: UUID, transcription: String?, progress: Float, status: RecordingStatus, isRegeneration: Bool?, modelUsed: String? = nil, wasFallback: Bool? = nil) {
+    func handleProgressUpdate(id: UUID, transcription: String?, progress: Float, status: RecordingStatus, isRegeneration: Bool?, modelUsed: String? = nil, wasFallback: Bool? = nil, rawTranscription: String? = nil) {
         if let index = recordings.firstIndex(where: { $0.id == id }) {
             if let transcription = transcription {
                 recordings[index].transcription = transcription
@@ -180,6 +180,9 @@ class ContentViewModel: ObservableObject {
             }
             if let wasFallback {
                 recordings[index].wasFallback = wasFallback
+            }
+            if let rawTranscription {
+                recordings[index].rawTranscription = rawTranscription
             }
         }
         if status == .failed || status == .completed {
@@ -322,6 +325,7 @@ class ContentViewModel: ObservableObject {
 
                         // Source context captured at record-start.
                         let ctx = RecordingContext.shared
+                        let original = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
 
                         // Save the recording to store
                         await MainActor.run {
@@ -343,7 +347,8 @@ class ContentViewModel: ObservableObject {
                                 sourceWindowTitle: ctx.windowTitle,
                                 sourceURL: ctx.fullURL,
                                 modelUsed: modelUsed,
-                                wasFallback: wasFallback
+                                wasFallback: wasFallback,
+                                rawTranscription: original.isEmpty ? nil : original
                             )
                             self.recordingStore.addRecording(newRecording)
 
