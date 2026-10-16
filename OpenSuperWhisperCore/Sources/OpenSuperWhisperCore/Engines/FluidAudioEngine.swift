@@ -83,11 +83,11 @@ class FluidAudioEngine: TranscriptionEngine {
         }
 
         // Two file paths:
-        //  • No custom dictionary  → the offline AsrManager (full accuracy, the default).
-        //  • Custom dictionary set  → a sliding-window pass with vocabulary boosting, the only
+        //  • Nothing to boost       → the offline AsrManager (full accuracy, the default).
+        //  • Terms to boost         → a sliding-window pass with vocabulary boosting, the only
         //    place FluidAudio 0.15.4 exposes decoder boosting. We feed the WAV through it
         //    rather than the mic (see `transcribeFileWithBoosting`).
-        let boostTerms = activeBoostTerms()
+        let boostTerms = activeBoostTerms(settings)
         let convertedSamples = try await Self.convertedSamplesIfNeeded(url: url)
         let rawText: String
         if boostTerms.isEmpty {
@@ -130,15 +130,15 @@ class FluidAudioEngine: TranscriptionEngine {
             engine: "fluidaudio", fluidAudioModelVersion: CoreAccess.preferences.fluidAudioModelVersion)
     }
 
-    /// The custom-dictionary terms to bias recognition toward, or `[]` when the dictionary
-    /// is disabled/empty. Single source shared with Whisper's prompt boost and the live
-    /// streaming preview (`CustomDictionary.boostTerms`).
-    private func activeBoostTerms() -> [String] {
-        let prefs = CoreAccess.preferences
-        // Boosting is opt-in (separate from the always-on text replacement): only bias the
-        // decoder when the user explicitly enabled it for rare/distinctive terms (#over-boost).
-        guard prefs.customDictionaryEnabled, prefs.customDictionaryBoostEnabled else { return [] }
-        return CustomDictionary.boostTerms(entries: prefs.customDictionaryEntries)
+    /// The custom-dictionary terms and the clip's snippet triggers to bias recognition toward,
+    /// or `[]` when neither boost is on. Same list as Whisper's prompt boost and the live
+    /// streaming preview (`RecognitionBoost`).
+    ///
+    /// Boosting is opt-in for both (separate from the always-on replacement): only bias the
+    /// decoder when the user explicitly enabled it (#over-boost).
+    private func activeBoostTerms(_ settings: TranscriptionSettings) -> [String] {
+        RecognitionBoost.terms(dictionary: CoreAccess.preferences.dictionaryBoostTerms,
+                               snippets: settings.snippetTriggers)
     }
 
     /// Transcribes a whole file through a `SlidingWindowAsrManager` configured with vocabulary

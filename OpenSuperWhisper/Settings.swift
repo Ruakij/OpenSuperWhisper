@@ -272,6 +272,24 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var snippetsEnabled: Bool {
+        didSet {
+            AppPreferences.shared.snippetsEnabled = snippetsEnabled
+        }
+    }
+
+    @Published var snippetsBoostEnabled: Bool {
+        didSet {
+            AppPreferences.shared.snippetsBoostEnabled = snippetsBoostEnabled
+        }
+    }
+
+    @Published var snippets: [Snippet] {
+        didSet {
+            AppPreferences.shared.snippets = snippets
+        }
+    }
+
     @Published var useBeamSearch: Bool {
         didSet {
             AppPreferences.shared.useBeamSearch = useBeamSearch
@@ -985,6 +1003,9 @@ class SettingsViewModel: ObservableObject {
         // Folded when the window opens rather than as the user types: merging live would yank a
         // row away mid-keystroke the moment its replacement matched another.
         self.customDictionaryEntries = CustomDictionary.merged(prefs.customDictionaryEntries)
+        self.snippetsEnabled = prefs.snippetsEnabled
+        self.snippetsBoostEnabled = prefs.snippetsBoostEnabled
+        self.snippets = prefs.snippets
         self.useBeamSearch = prefs.useBeamSearch
         self.beamSize = prefs.beamSize
         self.debugMode = prefs.debugMode

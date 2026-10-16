@@ -186,9 +186,7 @@ public class WhisperEngine: TranscriptionEngine {
         params.detectLanguage = false // means that it only detects the language and does not process the transcription
         params.temperature = Float(settings.temperature)
         params.noSpeechThold = Float(settings.noSpeechThreshold)
-        let promptBoost = settings.shouldBoostCustomDictionary
-            ? CustomDictionary.promptBoost(entries: settings.customDictionaryEntries)
-            : ""
+        let promptBoost = settings.recognitionBoostTerms.joined(separator: ", ")
         // Read at record-start and carried on the clip, so a dictation queued behind another
         // cannot be handed the field the newer one was started in. (parallel-recording)
         let surrounding = TranscriptionPrompt.surroundingText(

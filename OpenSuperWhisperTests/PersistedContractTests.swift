@@ -254,6 +254,28 @@ final class PersistedContractTests: XCTestCase {
         XCTAssertEqual(entries.first?.isRegex, false)
     }
 
+    /// Stored in `snippetsData` (#167).
+    func testSnippetKeys() throws {
+        XCTAssertEqual(try jsonKeys(Snippet(trigger: "my email", expansion: "max@example.com")),
+                       ["id", "trigger", "expansion"])
+    }
+
+    /// Stored in `snippetsData` (a private accessor, so written to the store directly). The
+    /// expansion keeps its line breaks.
+    func testStoredSnippetsDecode() {
+        let scratch = ScratchPreferences()
+        defer { scratch.restore() }
+        DefaultsStore.current.set(Data(#"""
+            [{"id":"6F1C2B3A-0000-4000-8000-000000000020","trigger":"sign off",\#
+            "expansion":"Best,\nMax"}]
+            """#.utf8), forKey: "snippetsData")
+
+        XCTAssertEqual(AppPreferences.shared.snippets, [
+            Snippet(id: UUID(uuidString: "6F1C2B3A-0000-4000-8000-000000000020")!,
+                    trigger: "sign off", expansion: "Best,\nMax"),
+        ])
+    }
+
     // MARK: - Payloads exactly as 0.13.3 stores them
 
     // Round-trips cannot catch a renamed case or key: both sides of the trip change together.

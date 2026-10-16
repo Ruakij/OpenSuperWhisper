@@ -77,6 +77,13 @@ final class DictationPipeline: ObservableObject {
     /// Test seam: when set, used instead of the real engine so unit tests can exercise queue
     /// ordering / pendingCount / no-speech / failure paths without a model. nil in production.
     var transcribeOverride: ((URL, Settings) async throws -> String)?
+    /// Test seams around what happens to the text after transcription, so a test can see the
+    /// order of the steps without a language model, an agent or a focused field: the cleanup
+    /// model's pass, the hand-off to a waiting agent (text, request id, send), and the insertion
+    /// (text, submitting). nil in production.
+    var cleanupOverride: ((String) async -> String)?
+    var agentReplyOverride: ((String, String, Bool) -> Void)?
+    var deliverOverride: ((String, Bool) async -> Delivery)?
 
     /// Throws away everything queued and in flight: nothing is inserted, saved, or pasted.
     ///
@@ -170,6 +177,8 @@ final class DictationPipeline: ObservableObject {
     private func process(_ item: PendingDictation) async {
         var settings = Settings()
         settings.focusedText = item.context.focusedText
+        // Only a dictation expands snippets, so only a dictation is biased toward their triggers.
+        settings.snippetTriggers = AppPreferences.shared.dictationSnippetTriggers
         settings.selectedLanguage = KeyboardLanguage.language(for: settings.selectedLanguage,
                                                               resolved: item.context.keyboardLanguage)
         do {
@@ -236,13 +245,21 @@ final class DictationPipeline: ObservableObject {
             // app-aware formatting rules are keyed off the app that was frontmost when the clip was
             // RECORDED — the app the user was dictating into — not whatever is frontmost now that
             // the background queue got to it. (parallel-recording)
-            text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID,
-                                                  translating: settings.translateToEnglish)
+            if let cleanupOverride {
+                text = await cleanupOverride(text)
+            } else {
+                text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID,
+                                                      translating: settings.translateToEnglish)
+            }
 
             // Trailing "press enter" voice command (opt-in): strip it and remember to press Return
             // after insertion, submitting the message/prompt.
             let (strippedText, spokenSubmit) = AppPreferences.shared.stripSubmitCommand(text)
             text = strippedText
+            // Snippets last, on what the cleanup model returned, so it cannot rewrite them, and
+            // after the submit command, so a snippet whose text ends in "press enter" keeps it.
+            // (#167)
+            text = AppPreferences.shared.expandSnippets(text)
             // Either route asks for the same thing: send Return once the text is in.
             let shouldSubmit = spokenSubmit || item.submitAfterInsert
             let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -291,7 +308,11 @@ final class DictationPipeline: ObservableObject {
             // An answer to a waiting agent goes back to it, not into whatever has the cursor.
             if let replyID = item.context.agentReplyID {
                 if hasText {
-                    AgentInbox.shared.receiveDictation(text, for: replyID, send: shouldSubmit)
+                    if let agentReplyOverride {
+                        agentReplyOverride(text, replyID, shouldSubmit)
+                    } else {
+                        AgentInbox.shared.receiveDictation(text, for: replyID, send: shouldSubmit)
+                    }
                     // Never inserted, but newer all the same: the paste-last shortcut must not
                     // fall back to an older paste that missed.
                     TranscriptInserter.noteNewerTranscription()
@@ -300,10 +321,13 @@ final class DictationPipeline: ObservableObject {
             }
 
             let delivery: Delivery
-            if hasText {
+            let submitting = shouldSubmit && AppPreferences.shared.autoPasteTranscription
+            if hasText, let deliverOverride {
+                delivery = await deliverOverride(text, submitting)
+            } else if hasText {
                 delivery = await deliver(text, context: item.context,
                                          language: settings.translateToEnglish ? "en" : settings.selectedLanguage,
-                                         submitting: shouldSubmit && AppPreferences.shared.autoPasteTranscription)
+                                         submitting: submitting)
             } else if shouldSubmit {
                 delivery = await deliverSubmitOnly(context: item.context)
             } else {

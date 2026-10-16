@@ -103,6 +103,9 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         "showCancelButtonOnIndicator",
         "showStopButtonOnIndicator",
         "showTimestamps",
+        "snippetsBoostEnabled",
+        "snippetsData",
+        "snippetsEnabled",
         "startHidden",
         "stopPhrase",
         "stopPhraseSilenceMs",
@@ -195,6 +198,9 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         assertWrites("customDictionaryData") {
             prefs.customDictionaryEntries = [CustomDictionaryEntry(original: "a", replacement: "b")]
         }
+        assertWrites("snippetsEnabled") { prefs.snippetsEnabled = false }
+        assertWrites("snippetsBoostEnabled") { prefs.snippetsBoostEnabled = true }
+        assertWrites("snippetsData") { prefs.snippets = [Snippet(trigger: "a", expansion: "b")] }
         assertWrites("useBeamSearch") { prefs.useBeamSearch = true }
         assertWrites("showStopButtonOnIndicator") { prefs.showStopButtonOnIndicator = true }
         assertWrites("showCancelButtonOnIndicator") { prefs.showCancelButtonOnIndicator = true }
@@ -359,6 +365,9 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         XCTAssertEqual(prefs.customDictionaryBoostEnabled, false)
         XCTAssertEqual(prefs.useSurroundingTextAsContext, false)
         XCTAssertEqual(prefs.customDictionaryEntries, [])
+        XCTAssertEqual(prefs.snippetsEnabled, true)
+        XCTAssertEqual(prefs.snippetsBoostEnabled, false)
+        XCTAssertEqual(prefs.snippets, [])
         XCTAssertEqual(prefs.useBeamSearch, false)
         XCTAssertEqual(prefs.showStopButtonOnIndicator, false)
         XCTAssertEqual(prefs.showCancelButtonOnIndicator, false)

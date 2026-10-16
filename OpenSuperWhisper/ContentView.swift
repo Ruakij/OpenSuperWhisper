@@ -291,15 +291,20 @@ class ContentViewModel: ObservableObject {
 
                 do {
                     print("start decoding...")
-                    let rawText = try await transcriptionService.transcribeAudio(url: tempURL, settings: Settings())
+                    var settings = Settings()
+                    settings.snippetTriggers = AppPreferences.shared.dictationSnippetTriggers
+                    let rawText = try await transcriptionService.transcribeAudio(url: tempURL, settings: settings)
                     let cleanedText = AppPreferences.shared.cleanTranscription(rawText)
                     // Optional LLM cleanup (no-op when disabled; returns the raw text on failure).
                     // App-aware formatting keys off the app captured at record-start, not the
                     // frontmost app: recording from the main window makes OSW itself frontmost, so
                     // asking the workspace here would never match a profile.
-                    let text = await LLMPostProcessor.process(
+                    let cleanedUp = await LLMPostProcessor.process(
                         cleanedText, bundleID: RecordingContext.shared.bundleID,
                         translating: AppPreferences.shared.translateToEnglish)
+                    // After the cleanup, as in the dictation pipeline, so the model cannot rewrite
+                    // a snippet's text. (#167)
+                    let text = AppPreferences.shared.expandSnippets(cleanedUp)
 
                     if AppPreferences.shared.saveTranscriptionHistory {
                         // Capture the current recording duration
@@ -364,7 +369,7 @@ class ContentViewModel: ObservableObject {
                         try? FileManager.default.removeItem(at: tempURL)
                     }
 
-                    print("Transcription result: \(text)")
+                    print("Transcription result: \(text.count) characters")
                 } catch {
                     print("Error transcribing audio: \(error)")
                     // Preserve temp recording so user can retry

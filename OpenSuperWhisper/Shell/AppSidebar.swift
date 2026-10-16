@@ -88,12 +88,11 @@ struct AppSidebar: View {
                     .foregroundColor(selected ? STheme.accent : STheme.hint)
                 Text(page.title)
                     .scaledFont(size: 15, weight: selected ? .bold : .medium)
-                    .foregroundColor(selected ? STheme.accent : page.isAvailable ? STheme.textSecondary : STheme.faint)
+                    .foregroundColor(selected ? STheme.accent : STheme.textSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .layoutPriority(1)
                 Spacer(minLength: 0)
-                if !page.isAvailable { SoonBadge() }
             }
             .padding(.horizontal, 12).padding(.vertical, 10)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -101,8 +100,6 @@ struct AppSidebar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!page.isAvailable)
-        .help(page.isAvailable ? Text("") : Text("Coming soon"))
     }
 
     private func footerRow(title: LocalizedStringKey, symbol: String, shortcut: String?, dot: Bool = false,

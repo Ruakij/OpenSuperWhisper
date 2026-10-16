@@ -16,6 +16,23 @@ enum UISnapshotProbe {
         "home-large-text": { AppPreferences.shared.textScale = TextScale.maximum; return AnyView(AppShellView(page: .home)) },
         "dictionary": { seedDictionary(); return AnyView(AppShellView(page: .dictionary)) },
         "dictionary-editor": { seedDictionary(openEditor: true); return AnyView(AppShellView(page: .dictionary)) },
+        "snippets": { seedSnippets(); return AnyView(AppShellView(page: .snippets)) },
+        "snippets-empty": { seedSnippets(empty: true); return AnyView(AppShellView(page: .snippets)) },
+        "snippets-editor": { seedSnippets(openEditor: true); return AnyView(AppShellView(page: .snippets)) },
+        "snippets-editor-new": {
+            seedSnippets(empty: true, starting: "my email")
+            return AnyView(AppShellView(page: .snippets))
+        },
+        "snippets-large-text": {
+            seedSnippets()
+            AppPreferences.shared.textScale = TextScale.maximum
+            return AnyView(AppShellView(page: .snippets))
+        },
+        "snippets-editor-large-text": {
+            seedSnippets(openEditor: true)
+            AppPreferences.shared.textScale = TextScale.maximum
+            return AnyView(AppShellView(page: .snippets))
+        },
         "style": { seedStyle(); return AnyView(AppShellView(page: .style)) },
         "style-expanded": { seedStyle(expandFirst: true); return AnyView(AppShellView(page: .style)) },
         "settings-models-remote": {

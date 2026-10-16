@@ -18,8 +18,8 @@ import XCTest
 /// out wider than its pane, which is the only way to see text SwiftUI draws with no view at all.
 ///
 /// Not covered: the Models > Remote fallback-model picker, which needs a downloaded model with a
-/// long name, and whatever opens on demand (the dictionary entry editor, the punctuation
-/// calibration sheet, the per-app detail).
+/// long name, and whatever opens on demand (the dictionary entry and snippet editors, the
+/// punctuation calibration sheet, the per-app detail).
 ///
 /// Set `OSW_LAYOUT_SNAPSHOTS` to a directory (through `TEST_RUNNER_OSW_LAYOUT_SNAPSHOTS` with
 /// xcodebuild) to also get a PNG of every render.
@@ -62,6 +62,10 @@ final class SettingsLayoutTests: XCTestCase {
         prefs.customDictionaryEntries = [
             CustomDictionaryEntry(original: "sign off", replacement: Self.longName)
         ]
+        prefs.snippets = [
+            Snippet(trigger: String(Self.longName.prefix(Snippet.maxTriggerLength)),
+                    expansion: Self.longName + "\n" + Self.longModelID)
+        ]
         // Two models, whatever this machine has downloaded, so the Rules pane shows its
         // per-app model section and the seeded rule below.
         prefs.cachedRemoteModels = [Self.longModelID, "layout-test-model-2"]
@@ -101,7 +105,7 @@ final class SettingsLayoutTests: XCTestCase {
         AppleIntelligence.replaceModelForTesting(nil)
         for key in ["aiPostProcessingEnabled", "appContextFormattingEnabled", "retentionMaxCountEnabled",
                     "retentionMaxCount", "textScale", "remoteServerURL", "remoteServerModel", "aiBackend",
-                    "selectedEngine", "customDictionaryEnabled", "customDictionaryData",
+                    "selectedEngine", "customDictionaryEnabled", "customDictionaryData", "snippetsData",
                     "cachedRemoteModels"] {
             DefaultsStore.current.removeObject(forKey: key)
         }
@@ -143,7 +147,7 @@ final class SettingsLayoutTests: XCTestCase {
     }
 
     private static var cases: [Case] {
-        let pages = AppPage.allCases.filter(\.isAvailable).map { Case(page: $0) }
+        let pages = AppPage.allCases.map { Case(page: $0) }
         let rubrics = SettingsRubric.allCases.flatMap { rubric -> [Case] in
             switch rubric {
             case .textAndAI:

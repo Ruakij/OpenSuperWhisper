@@ -132,10 +132,13 @@ struct AppShellView: View {
                 .allowsHitTesting(showingHome)
                 .accessibilityHidden(!showingHome)
             switch navigation.page {
-            case .home, .snippets:
+            case .home:
                 EmptyView()
             case .dictionary:
                 DictionaryPage(viewModel: viewModel)
+                    .background(STheme.windowBg)
+            case .snippets:
+                SnippetsPage(viewModel: viewModel)
                     .background(STheme.windowBg)
             case .style:
                 StylePage(viewModel: viewModel)
@@ -211,8 +214,8 @@ struct TopBar: View {
     }
 }
 
-/// Under the window's search field: the settings and dictionary words that match, while the
-/// Home feed below filters the dictations themselves.
+/// Under the window's search field: the settings, dictionary words and snippets that match,
+/// while the Home feed below filters the dictations themselves.
 private struct SearchSuggestions: View {
     let query: String
     let dismiss: () -> Void
@@ -231,8 +234,15 @@ private struct SearchSuggestions: View {
         }.prefix(3))
     }
 
+    private var snippets: [Snippet] {
+        Array(AppPreferences.shared.snippets.filter { snippet in
+            snippet.trigger.localizedCaseInsensitiveContains(trimmed)
+                || snippet.expansion.localizedCaseInsensitiveContains(trimmed)
+        }.prefix(3))
+    }
+
     var body: some View {
-        if trimmed.count >= 2, !(settings.isEmpty && words.isEmpty) {
+        if trimmed.count >= 2, !(settings.isEmpty && words.isEmpty && snippets.isEmpty) {
             VStack(alignment: .leading, spacing: 2) {
                 if !settings.isEmpty {
                     sectionTitle("Settings")
@@ -254,6 +264,16 @@ private struct SearchSuggestions: View {
                         }
                     }
                 }
+                if !snippets.isEmpty {
+                    sectionTitle("Snippets")
+                    ForEach(snippets) { snippet in
+                        suggestion(title: Text(verbatim: snippet.trimmedTrigger),
+                                   detail: Text(verbatim: firstLine(of: snippet.trimmedExpansion))) {
+                            navigation.searchText = ""
+                            navigation.go(.snippets)
+                        }
+                    }
+                }
             }
             .padding(6)
             .frame(width: 300, alignment: .leading)
@@ -261,6 +281,10 @@ private struct SearchSuggestions: View {
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(STheme.border, lineWidth: 1))
             .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
         }
+    }
+
+    private func firstLine(of text: String) -> String {
+        String(text.prefix { !$0.isNewline })
     }
 
     private func sectionTitle(_ title: LocalizedStringKey) -> some View {
