@@ -510,12 +510,18 @@ final class DictationPipeline: ObservableObject {
                             submitting: Bool) async -> Delivery {
         let prefs = AppPreferences.shared
         let fitToField = prefs.autoPasteTranscription && prefs.matchTextAroundCaret
+        let prepared = TranscriptInserter.prepared(text, fitToField: fitToField, language: language)
         let insertion = await TranscriptInserter.insert(
-            TranscriptInserter.prepared(text, fitToField: fitToField, language: language),
+            prepared,
             honorAutoPastePreference: true, targetBundleID: context.bundleID,
             windowTitle: context.windowTitle, submitting: submitting, wanted: { !discarding })
         switch insertion {
-        case .done: return .inserted
+        case .done:
+            // Text that Return is about to send never stays in the field to be corrected (#169).
+            if prefs.autoPasteTranscription && !submitting {
+                CorrectionWatch.begin(after: prepared.fitted, pid: context.focusTarget?.pid, language: language)
+            }
+            return .inserted
         case .onClipboard: return .onClipboardAnnounced
         case .cutShort: return .held
         }

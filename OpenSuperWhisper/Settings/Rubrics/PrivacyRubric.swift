@@ -23,6 +23,8 @@ struct PrivacyRubric: View {
               keywords: "screen context cursor surrounding contexte écran curseur texte autour"),
         .init(title: "Match the text around the cursor", rubric: .privacy,
               keywords: "screen read field caret case period space écran lire champ curseur majuscule point espace"),
+        .init(title: "Suggest words from your corrections", rubric: .privacy,
+              keywords: "dictionary learn correction field read suggestion dictionnaire apprendre corriger champ lire"),
     ]
 
     var body: some View {
@@ -85,9 +87,9 @@ struct PrivacyRubric: View {
         }
     }
 
-    /// Both settings that read the field live in Text & AI, next to what they feed;
-    /// privacy-minded people look for them here. Each row says only what its own setting reads,
-    /// and "nothing on screen is read" only when neither does.
+    /// The settings that read the field live next to what they feed, two in Text & AI and one
+    /// on the Dictionary page; privacy-minded people look for them here. Each row says only what
+    /// its own setting reads, and "nothing on screen is read" only when none does.
     private var contextGroup: some View {
         SettingsGroup("On-screen context") {
             SettingRow("Text around the cursor", hint: modelContextHint) {
@@ -102,15 +104,34 @@ struct PrivacyRubric: View {
                 }
                 .buttonStyle(.sSecondary)
             }
+            SettingRow("Suggest words from your corrections", hint: suggestionsHint) {
+                Button("Open the Dictionary") {
+                    AppNavigation.shared.closeSettings()
+                    AppNavigation.shared.go(.dictionary)
+                }
+                .buttonStyle(.sSecondary)
+            }
         }
+    }
+
+    /// It only reads anything while the dictionary is on too.
+    private var watchesCorrections: Bool {
+        viewModel.suggestDictionaryWords && viewModel.customDictionaryEnabled
+    }
+
+    private var suggestionsHint: LocalizedStringKey {
+        watchesCorrections
+            ? "On: after a dictation, the field it went into is read again for up to a minute to spot the words you correct. Each word you are offered is kept with what was heard, until you answer or turn this off."
+            : "Off: the field is not read after a dictation."
     }
 
     private var modelContextHint: LocalizedStringKey {
         if viewModel.useSurroundingTextAsContext {
             return "On: the model reads the sentence before your cursor. It stays on your Mac and is never saved."
         }
-        return viewModel.matchTextAroundCaret ? "Off: the model is given nothing from the screen."
-                                              : "Off: nothing on screen is read."
+        return viewModel.matchTextAroundCaret || watchesCorrections
+            ? "Off: the model is given nothing from the screen."
+            : "Off: nothing on screen is read."
     }
 
     private var caretMatchHint: LocalizedStringKey {

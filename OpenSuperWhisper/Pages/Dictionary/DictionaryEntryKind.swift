@@ -60,15 +60,17 @@ extension CustomDictionaryEntry {
     }
 }
 
-/// The filter chips above the list.
+/// The filter chips above the list. Suggested shows the words offered from corrections (#169),
+/// which are not entries yet.
 enum DictionaryFilter: Hashable {
-    case all, words, corrections
+    case all, words, corrections, suggested
 
     func includes(_ entry: CustomDictionaryEntry) -> Bool {
         switch self {
         case .all: return true
         case .words: return entry.kind == .word
         case .corrections: return entry.kind != .word
+        case .suggested: return false
         }
     }
 }

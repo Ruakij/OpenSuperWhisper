@@ -48,6 +48,8 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         "customDictionaryData",
         "customDictionaryEnabled",
         "debugMode",
+        "dictionaryRefusedWords",
+        "dictionarySuggestionsData",
         "didSeedAppContextPresets",
         "escCancelWithoutConfirmation",
         "feedbackPromptDone",
@@ -116,6 +118,7 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         "submitModifierOnlyHotkey",
         "submitMouseButtonHotkey",
         "submitOnVoiceCommand",
+        "suggestDictionaryWords",
         "suppressBlankAudio",
         "temperature",
         "textScale",
@@ -197,6 +200,9 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         assertWrites("customDictionaryEnabled") { prefs.customDictionaryEnabled = true }
         assertWrites("customDictionaryBoostEnabled") { prefs.customDictionaryBoostEnabled = true }
         assertWrites("useSurroundingTextAsContext") { prefs.useSurroundingTextAsContext = true }
+        assertWrites("suggestDictionaryWords") { prefs.suggestDictionaryWords = true }
+        assertWrites("dictionarySuggestionsData") { prefs.dictionarySuggestionsData = Data([1]) }
+        assertWrites("dictionaryRefusedWords") { prefs.dictionaryRefusedWords = ["digest"] }
         assertWrites("customDictionaryData") {
             prefs.customDictionaryEntries = [CustomDictionaryEntry(original: "a", replacement: "b")]
         }
@@ -368,6 +374,9 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         XCTAssertEqual(prefs.customDictionaryEnabled, false)
         XCTAssertEqual(prefs.customDictionaryBoostEnabled, false)
         XCTAssertEqual(prefs.useSurroundingTextAsContext, false)
+        XCTAssertEqual(prefs.suggestDictionaryWords, false)
+        XCTAssertNil(prefs.dictionarySuggestionsData)
+        XCTAssertEqual(prefs.dictionaryRefusedWords, [])
         XCTAssertEqual(prefs.customDictionaryEntries, [])
         XCTAssertEqual(prefs.snippetsEnabled, true)
         XCTAssertEqual(prefs.snippetsBoostEnabled, false)

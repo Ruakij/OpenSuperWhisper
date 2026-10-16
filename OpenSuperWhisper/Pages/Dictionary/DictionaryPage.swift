@@ -6,6 +6,7 @@ import OpenSuperWhisperCore
 /// `viewModel.customDictionaryEntries` only on Save.
 struct DictionaryPage: View {
     @ObservedObject var viewModel: SettingsViewModel
+    @ObservedObject private var suggestions = DictionarySuggestions.shared
 
     @State private var filter: DictionaryFilter = .all
     /// The entry open in the editor: an existing one, or a fresh one not yet in the list.
@@ -15,6 +16,8 @@ struct DictionaryPage: View {
     #if DEBUG
     /// Lets the snapshot renderer show the editor open on the first entry.
     static var snapshotOpensFirstEntry = false
+    /// Lets the snapshot renderer show one filter, the Suggested list among them.
+    static var snapshotFilter: DictionaryFilter?
     #endif
 
     private var entries: [CustomDictionaryEntry] { viewModel.customDictionaryEntries }
@@ -35,11 +38,16 @@ struct DictionaryPage: View {
                                        hasWords: entries.contains { $0.kind == .word },
                                        onTeachPunctuation: { showPunctuationCalibration = true })
                 filterChips
-                DictionaryEntryList(entries: entries.filter(filter.includes),
-                                    dimmed: !viewModel.customDictionaryEnabled,
-                                    emptyMessage: emptyMessage,
-                                    onEdit: { editing = $0 },
-                                    onDelete: delete)
+                if filter == .suggested {
+                    DictionarySuggestionList(suggestions: suggestions,
+                                             emptyMessage: suggestionsEmptyMessage)
+                } else {
+                    DictionaryEntryList(entries: entries.filter(filter.includes),
+                                        dimmed: !viewModel.customDictionaryEnabled,
+                                        emptyMessage: emptyMessage,
+                                        onEdit: { editing = $0 },
+                                        onDelete: delete)
+                }
             }
             .padding(.horizontal, 36)
             .padding(.vertical, 30)
@@ -77,18 +85,8 @@ struct DictionaryPage: View {
             chip(.all, title: "All", count: entries.count)
             chip(.words, title: "Words", count: entries.filter { $0.kind == .word }.count)
             chip(.corrections, title: "Corrections", count: entries.filter { $0.kind != .word }.count)
-            // Suggestions (a word corrected by hand several times) do not exist yet.
-            HStack(spacing: 6) {
-                Text("Suggested")
-                    .scaledFont(size: 13)
-                    .foregroundColor(STheme.hint)
-                SoonBadge()
-            }
-            .padding(.horizontal, 12).padding(.vertical, 5)
-            .overlay(Capsule().stroke(STheme.border, lineWidth: 1))
-            .fixedSize()
-            .opacity(0.7)
-            .help("Words you correct by hand will be suggested here")
+            chip(.suggested, title: "Suggested", count: suggestions.pending.count)
+                .help("Words you corrected by hand after a dictation, waiting for your answer")
         }
     }
 
@@ -102,7 +100,14 @@ struct DictionaryPage: View {
         case .all: return "Nothing here yet. Add a name you say often, or a word the model keeps getting wrong."
         case .words: return "No new words yet."
         case .corrections: return "No corrections yet."
+        case .suggested: return suggestionsEmptyMessage
         }
+    }
+
+    private var suggestionsEmptyMessage: LocalizedStringKey {
+        viewModel.suggestDictionaryWords && viewModel.customDictionaryEnabled
+            ? "No suggestions yet. Fix a word in the text after a dictation, and it will be offered here."
+            : "Turn on “Suggest words from your corrections” above, and the words you fix by hand after a dictation will be offered here."
     }
 
     private func save(_ entry: CustomDictionaryEntry) {
@@ -116,12 +121,16 @@ struct DictionaryPage: View {
 
     private func delete(_ entry: CustomDictionaryEntry) {
         viewModel.customDictionaryEntries.removeAll { $0.id == entry.id }
+        suggestions.noteDeleted(entry)
     }
 
     private func openSnapshotEditorIfAsked() {
         #if DEBUG
         if Self.snapshotOpensFirstEntry {
             editing = entries.first { $0.kind == .correction } ?? entries.first
+        }
+        if let snapshotFilter = Self.snapshotFilter {
+            filter = snapshotFilter
         }
         #endif
     }
@@ -151,6 +160,12 @@ private struct DictionaryOptionsGroup: View {
                        hint: "Also bias the model toward these terms while listening, not just fix them afterwards. Helps rare, distinctive words, but can over-correct short, common ones. Applies to every entry.",
                        indented: true) {
                 SSwitch(isOn: $viewModel.customDictionaryBoostEnabled)
+                    .disabled(!viewModel.customDictionaryEnabled)
+            }
+            SettingRow("Suggest words from your corrections",
+                       hint: "After a dictation, the field it went into is read again for up to a minute. A name or term you fix by hand is offered for the dictionary. It stays on your Mac, and the text read is never saved.",
+                       indented: true) {
+                SSwitch(isOn: $viewModel.suggestDictionaryWords)
                     .disabled(!viewModel.customDictionaryEnabled)
             }
             if !viewModel.customDictionaryEnabled {

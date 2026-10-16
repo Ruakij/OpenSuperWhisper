@@ -76,12 +76,15 @@ public enum LLMPostProcessor {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
 
         let prof = formatting ? profile(for: bundleID, in: prefs.appContextProfiles) : nil
+        let vocabulary = prefs.customDictionaryEnabled
+            ? cleanupVocabulary(CustomDictionary.boostTerms(entries: prefs.customDictionaryEntries), in: text) : []
         guard let system = assembleSystemPrompt(generalCleanup: general,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
                                                 profile: prof,
                                                 closingPrompt: prefs.aiPostProcessingClosing,
                                                 translating: translating,
-                                                translationPrompt: prefs.aiPostProcessingTranslation)
+                                                translationPrompt: prefs.aiPostProcessingTranslation,
+                                                vocabulary: vocabulary)
         else { return text }
 
         let backend = currentBackend()
@@ -107,7 +110,8 @@ public enum LLMPostProcessor {
                                               profile: prof,
                                               closingPrompt: prefs.aiPostProcessingClosing,
                                               translating: translating,
-                                              translationPrompt: prefs.aiPostProcessingTranslation)
+                                              translationPrompt: prefs.aiPostProcessingTranslation,
+                                              vocabulary: vocabulary)
             if echoesPrompt(output: result, system: shipped, input: text) {
                 print("AI post-processing returned its own instructions, using the raw transcription")
                 return text
@@ -204,7 +208,8 @@ public enum LLMPostProcessor {
                                     profile: AppContextProfile?,
                                     closingPrompt: String,
                                     translating: Bool,
-                                    translationPrompt: String) -> String {
+                                    translationPrompt: String,
+                                    vocabulary: [String] = []) -> String {
         func isShipped(_ text: String, _ shipped: [String]) -> Bool {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             return shipped.contains { $0.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed }
@@ -215,6 +220,9 @@ public enum LLMPostProcessor {
         }
         if translating, isShipped(translationPrompt, [defaultTranslationInstruction]) {
             sections.append(translationPrompt)
+        }
+        if let spellings = vocabularySection(vocabulary) {
+            sections.append(spellings)
         }
         if let profile, isShipped(profile.instructions, AppContextProfile.defaultPresets.map(\.instructions)) {
             sections.append(profile.instructions)
@@ -230,7 +238,8 @@ public enum LLMPostProcessor {
                                      profile: AppContextProfile?,
                                      closingPrompt: String = "",
                                      translating: Bool = false,
-                                     translationPrompt: String = "") -> String? {
+                                     translationPrompt: String = "",
+                                     vocabulary: [String] = []) -> String? {
         guard generalCleanup || profile != nil else { return nil }
 
         var sections: [String] = []
@@ -244,6 +253,11 @@ public enum LLMPostProcessor {
         // mixed languages and repetition loops (#86).
         if translating {
             sections.append(translationPrompt)
+        }
+        // After what the user asked for and before the app rules: a fact about the text, like
+        // the translation note, and one the closing guardrail must still come after.
+        if let spellings = vocabularySection(vocabulary) {
+            sections.append(spellings)
         }
         if let profile = profile {
             sections.append("App-specific formatting rules:\n\(profile.instructions)")

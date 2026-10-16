@@ -20016,6 +20016,146 @@
           }
         }
       }
+    },
+    "Add “%@” to your dictionary?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter « %@ » à votre dictionnaire ?"
+          }
+        }
+      }
+    },
+    "After a dictation, the field it went into is read again for up to a minute. A name or term you fix by hand is offered for the dictionary. It stays on your Mac, and the text read is never saved.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après une dictée, le champ où elle a été insérée est relu pendant une minute au plus. Un nom ou un terme que vous corrigez à la main vous est proposé pour le dictionnaire. Tout reste sur votre Mac, et le texte lu n'est jamais enregistré."
+          }
+        }
+      }
+    },
+    "Decide later, from Suggested in the Dictionary": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Décider plus tard, depuis Suggéré dans le dictionnaire"
+          }
+        }
+      }
+    },
+    "Heard as": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entendu"
+          }
+        }
+      }
+    },
+    "No suggestions yet. Fix a word in the text after a dictation, and it will be offered here.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune suggestion pour l'instant. Corrigez un mot dans le texte après une dictée, et il vous sera proposé ici."
+          }
+        }
+      }
+    },
+    "Not this one": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas celui-là"
+          }
+        }
+      }
+    },
+    "Off: the field is not read after a dictation.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé : le champ n'est pas relu après une dictée."
+          }
+        }
+      }
+    },
+    "Open the Dictionary": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir le dictionnaire"
+          }
+        }
+      }
+    },
+    "Suggest words from your corrections": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggérer des mots d'après vos corrections"
+          }
+        }
+      }
+    },
+    "Together these two are the system prompt. Nothing goes between them but any app rule and, while the dictionary is on, its words that are in the dictation, so the model keeps them spelled your way. The closing half stays the model's last word. A small model tends to answer in the language the prompt is written in, so write it in the language you dictate.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À elles deux, elles constituent l'invite système. Entre elles ne s'insèrent qu'une éventuelle règle d'app et, tant que le dictionnaire est activé, ceux de ses mots présents dans la dictée, pour que le modèle les garde écrits à votre façon. La partie finale reste le dernier mot adressé au modèle. Un petit modèle a tendance à répondre dans la langue de l'invite, alors rédigez-la dans la langue que vous dictez."
+          }
+        }
+      }
+    },
+    "Turn on “Suggest words from your corrections” above, and the words you fix by hand after a dictation will be offered here.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activez « Suggérer des mots d'après vos corrections » ci-dessus, et les mots que vous corrigez à la main après une dictée vous seront proposés ici."
+          }
+        }
+      }
+    },
+    "Words you corrected by hand after a dictation, waiting for your answer": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les mots corrigés à la main après une dictée, en attente de votre réponse"
+          }
+        }
+      }
+    },
+    "You wrote it in place of “%@”.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous l'avez écrit à la place de « %@ »."
+          }
+        }
+      }
+    },
+    "On: after a dictation, the field it went into is read again for up to a minute to spot the words you correct. Each word you are offered is kept with what was heard, until you answer or turn this off.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé : après une dictée, le champ où elle a été insérée est relu pendant une minute au plus, pour repérer les mots que vous corrigez. Chaque mot proposé est conservé avec ce qui a été entendu, jusqu'à votre réponse ou jusqu'à ce que vous désactiviez ce réglage."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -74,6 +74,9 @@ enum TranscriptInserter {
         let prefs = AppPreferences.shared
         let rule = AppInsertionRule.rule(for: targetBundleID, in: prefs.appInsertionRules)
         noteNewerTranscription()
+        // Whatever goes in now, a dictation, a paste-last or the pieces of a long prompt, is ours,
+        // and a watch still reading the field would take it for the user's correction (#169).
+        CorrectionWatch.endCurrent()
 
         let inserting = prefs.autoPasteTranscription || !honorAutoPastePreference
         // A rule for this app wins over the global switch, which is the whole point of having one.
