@@ -125,6 +125,7 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         "translateToEnglish",
         "typingPaceMilliseconds",
         "uiTheme",
+        "unloadBuiltInModelWhenIdle",
         "unloadWhisperModelWhenIdle",
         "useAsianAutocorrect",
         "useBeamSearch",
@@ -256,6 +257,7 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         assertWrites("aiRemoteEndpoint") { prefs.aiRemoteEndpoint = "http://remote" }
         assertWrites("aiRemoteModel") { prefs.aiRemoteModel = "remote-llm" }
         assertWrites("builtInModelFileName") { prefs.builtInModelFileName = "model.gguf" }
+        assertWrites("unloadBuiltInModelWhenIdle") { prefs.unloadBuiltInModelWhenIdle = false }
         assertWrites("aiPostProcessingPrompt") { prefs.aiPostProcessingPrompt = "open" }
         assertWrites("aiPostProcessingClosing") { prefs.aiPostProcessingClosing = "close" }
         assertWrites("aiPostProcessingTranslation") { prefs.aiPostProcessingTranslation = "translate" }
@@ -430,6 +432,7 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         // A file name on disk: a different default would point existing installs at a model
         // they never downloaded.
         XCTAssertEqual(prefs.builtInModelFileName, "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+        XCTAssertEqual(prefs.unloadBuiltInModelWhenIdle, true)
         // Hand-copied literals (see `ShippedCleanupPrompts`), not the LLMPostProcessor constants
         // the defaults are built from.
         XCTAssertEqual(prefs.aiPostProcessingPrompt, ShippedCleanupPrompts.opening)

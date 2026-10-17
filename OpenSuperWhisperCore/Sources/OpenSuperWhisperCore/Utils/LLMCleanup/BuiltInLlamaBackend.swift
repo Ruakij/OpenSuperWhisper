@@ -3,7 +3,8 @@ import Foundation
 /// Built-in LLM cleanup backend: a small GGUF model run locally via llama.cpp (`LlamaContext`),
 /// with no external server. The model downloads on first use (`LLMModelManager`); the inference
 /// context loads lazily, is reused by later dictations, and is released again after
-/// `idleUnloadDelay` without work. This is the zero-setup alternative to `OllamaBackend`.
+/// `idleUnloadDelay` without work unless `unloadBuiltInModelWhenIdle` is off and built-in cleanup
+/// still uses it. This is the zero-setup alternative to `OllamaBackend`.
 ///
 /// Threading: `llama_context` is not thread-safe and two transcriptions CAN overlap (a hotkey
 /// dictation and a file-drop/rerun pass run on different queues), so every touch of `context` —
@@ -50,6 +51,8 @@ public final class BuiltInLlamaBackend: LLMCleanupBackend {
     /// Loads the model ahead of first use, so the first cleanup doesn't pay the multi-second load.
     /// Called from Settings when the built-in backend is selected or its model finishes
     /// downloading — the user is right there, and the idle release reclaims the RAM if they leave.
+    /// Also called at launch while `unloadBuiltInModelWhenIdle` is off, and when the user turns
+    /// it off.
     public func preload() {
         guard isReady else { return }
         inferenceQueue.async { [weak self] in
@@ -71,6 +74,22 @@ public final class BuiltInLlamaBackend: LLMCleanupBackend {
                 continuation.resume(returning: output)
             }
         }
+    }
+
+    public static func shouldKeepModelLoaded(
+        unloadBuiltInModelWhenIdle: Bool,
+        aiBackend: String,
+        aiPostProcessingEnabled: Bool,
+        appContextFormattingEnabled: Bool,
+        modelFileName: String?,
+        selectedModelFileName: String,
+        modelDownloaded: Bool
+    ) -> Bool {
+        !unloadBuiltInModelWhenIdle
+            && aiBackend == "builtin"
+            && (aiPostProcessingEnabled || appContextFormattingEnabled)
+            && modelFileName == selectedModelFileName
+            && modelDownloaded
     }
 
     // MARK: - inferenceQueue-confined state
@@ -100,11 +119,27 @@ public final class BuiltInLlamaBackend: LLMCleanupBackend {
         idleUnloadWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
+            if self.shouldKeepContextOnQueue() {
+                self.scheduleIdleUnloadOnQueue()
+                return
+            }
             self.context = nil          // deinit frees the llama model + KV cache
             self.loadedFileName = nil
             self.idleUnloadWork = nil
         }
         idleUnloadWork = work
         inferenceQueue.asyncAfter(deadline: .now() + Self.idleUnloadDelay, execute: work)
+    }
+
+    private func shouldKeepContextOnQueue() -> Bool {
+        let preferences = CoreAccess.preferences
+        return Self.shouldKeepModelLoaded(
+            unloadBuiltInModelWhenIdle: preferences.unloadBuiltInModelWhenIdle,
+            aiBackend: preferences.aiBackend,
+            aiPostProcessingEnabled: preferences.aiPostProcessingEnabled,
+            appContextFormattingEnabled: preferences.appContextFormattingEnabled,
+            modelFileName: loadedFileName,
+            selectedModelFileName: selectedModel.fileName,
+            modelDownloaded: loadedFileName.map { manager.isModelDownloaded(name: $0) } ?? false)
     }
 }

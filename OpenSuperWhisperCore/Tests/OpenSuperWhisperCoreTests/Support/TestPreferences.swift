@@ -49,6 +49,7 @@ final class TestPreferences: CorePreferences, @unchecked Sendable {
         var aiPostProcessingClosing = LLMPostProcessor.defaultClosingInstruction
         var aiPostProcessingTranslation = LLMPostProcessor.defaultTranslationInstruction
         var builtInModelFileName = LLMModelManager.defaultModel.fileName
+        var unloadBuiltInModelWhenIdle = true
     }
 
     // Core code reads preferences from detached tasks and from llama's inference queue, while
@@ -204,5 +205,9 @@ final class TestPreferences: CorePreferences, @unchecked Sendable {
     var builtInModelFileName: String {
         get { self[\.builtInModelFileName] }
         set { self[\.builtInModelFileName] = newValue }
+    }
+    var unloadBuiltInModelWhenIdle: Bool {
+        get { self[\.unloadBuiltInModelWhenIdle] }
+        set { self[\.unloadBuiltInModelWhenIdle] = newValue }
     }
 }

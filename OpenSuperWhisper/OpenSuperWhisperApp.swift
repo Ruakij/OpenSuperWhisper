@@ -98,6 +98,21 @@ extension OpenSuperWhisperApp {
             RecordingStore.shared.startRetentionScheduler()
         }
     }
+
+    static func preloadCleanupModel() {
+        guard !DefaultsStore.isRunningTests else { return }
+        let preferences = AppPreferences.shared
+        if BuiltInLlamaBackend.shouldKeepModelLoaded(
+            unloadBuiltInModelWhenIdle: preferences.unloadBuiltInModelWhenIdle,
+            aiBackend: preferences.aiBackend,
+            aiPostProcessingEnabled: preferences.aiPostProcessingEnabled,
+            appContextFormattingEnabled: preferences.appContextFormattingEnabled,
+            modelFileName: preferences.builtInModelFileName,
+            selectedModelFileName: preferences.builtInModelFileName,
+            modelDownloaded: LLMModelManager.shared.isModelDownloaded(name: preferences.builtInModelFileName)) {
+            BuiltInLlamaBackend.shared.preload()
+        }
+    }
 }
 
 class AppState: ObservableObject {
@@ -169,6 +184,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
 
         OpenSuperWhisperApp.startTranscriptionQueue()
         OpenSuperWhisperApp.startRetentionScheduler()
+        OpenSuperWhisperApp.preloadCleanupModel()
         AgentBridge.registerRunningApp()
         AgentInbox.shared.start()
         observeMicrophoneChanges()
