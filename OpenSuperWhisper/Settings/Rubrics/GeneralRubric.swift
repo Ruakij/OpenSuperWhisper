@@ -1,7 +1,7 @@
 import SwiftUI
 import OpenSuperWhisperCore
 
-/// Settings › General: the interface language, how the app starts, and updates.
+/// Settings › General: the interface language, how the app starts, backup and sync, and updates.
 struct GeneralRubric: View {
     @ObservedObject var viewModel: SettingsViewModel
     @ObservedObject private var launchAtLogin = LaunchAtLoginManager.shared
@@ -16,6 +16,10 @@ struct GeneralRubric: View {
               keywords: "launch at login startup démarrage ouvrir à la connexion session"),
         .init(title: "Start in the menu bar", rubric: .general,
               keywords: "hidden menu bar barre des menus démarrer caché fenêtre"),
+        .init(title: "Settings file", rubric: .general,
+              keywords: "export import backup json sauvegarde exporter importer fichier réglages"),
+        .init(title: "GitHub sync", rubric: .general,
+              keywords: "gist github sync synchronisation sauvegarde autre mac"),
         .init(title: "Version", rubric: .general,
               keywords: "update check sparkle release mise à jour version nouveautés"),
     ]
@@ -36,6 +40,7 @@ struct GeneralRubric: View {
         RubricPage(.general, intro: "How the app starts and which language it speaks.", hasAdvanced: false) {
             languageGroup
             startupGroup
+            SettingsTransferGroup()
             updatesGroup
         }
         .onAppear { launchAtLogin.refresh() }

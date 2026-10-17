@@ -19946,6 +19946,296 @@
           }
         }
       }
+    },
+    "Backup and sync": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegarde et synchro"
+          }
+        }
+      }
+    },
+    "Copy code and open GitHub": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier le code et ouvrir GitHub"
+          }
+        }
+      }
+    },
+    "Enter this code on github.com, then come back here.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez ce code sur github.com, puis revenez ici."
+          }
+        }
+      }
+    },
+    "Export…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter…"
+          }
+        }
+      }
+    },
+    "Fetch": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Récupérer"
+          }
+        }
+      }
+    },
+    "GitHub answered with an error (%lld).": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub a répondu par une erreur (%lld)."
+          }
+        }
+      }
+    },
+    "GitHub no longer accepts this sign-in. Sign in again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub n'accepte plus cette connexion. Reconnectez-vous."
+          }
+        }
+      }
+    },
+    "GitHub sync": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchro GitHub"
+          }
+        }
+      }
+    },
+    "Import…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importer…"
+          }
+        }
+      }
+    },
+    "Keeps a copy in a secret gist on your GitHub account, to fetch on another Mac.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garde une copie dans un gist secret de votre compte GitHub, à récupérer sur un autre Mac."
+          }
+        }
+      }
+    },
+    "No settings saved on GitHub yet. Send them from a Mac first.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun réglage sur GitHub pour l'instant. Envoyez-les d'abord depuis un Mac."
+          }
+        }
+      }
+    },
+    "Replace my settings": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remplacer mes réglages"
+          }
+        }
+      }
+    },
+    "Replace your settings with the copy saved %@?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remplacer vos réglages par la copie enregistrée %@ ?"
+          }
+        }
+      }
+    },
+    "Replace your settings with this file?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remplacer vos réglages par ce fichier ?"
+          }
+        }
+      }
+    },
+    "Send saves this Mac's settings to your gist. Fetch replaces them with the saved copy.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyer enregistre les réglages de ce Mac dans votre gist. Récupérer les remplace par la copie enregistrée."
+          }
+        }
+      }
+    },
+    "Settings file": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichier de réglages"
+          }
+        }
+      }
+    },
+    "Settings imported. Relaunch to apply them.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages importés. Relancez pour les appliquer."
+          }
+        }
+      }
+    },
+    "Settings saved to %@.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages enregistrés dans %@."
+          }
+        }
+      }
+    },
+    "Settings sent to GitHub.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages envoyés sur GitHub."
+          }
+        }
+      }
+    },
+    "Settings that are not in the file stay as they are. A relaunch applies the new ones.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les réglages absents du fichier restent tels quels. Une relance applique les nouveaux."
+          }
+        }
+      }
+    },
+    "Sign in with GitHub": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se connecter avec GitHub"
+          }
+        }
+      }
+    },
+    "Sign out": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se déconnecter"
+          }
+        }
+      }
+    },
+    "Signed in as @%@. Send saves this Mac's settings to your gist. Fetch replaces them with the saved copy.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecté en tant que @%@. Envoyer enregistre les réglages de ce Mac dans votre gist. Récupérer les remplace par la copie enregistrée."
+          }
+        }
+      }
+    },
+    "Signed in to GitHub.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecté à GitHub."
+          }
+        }
+      }
+    },
+    "The GitHub code expired. Sign in again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le code GitHub a expiré. Reconnectez-vous."
+          }
+        }
+      }
+    },
+    "These settings come from a newer version of OpenSuperWhisper. Update the app, then try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ces réglages viennent d'une version plus récente d'OpenSuperWhisper. Mettez l'app à jour, puis réessayez."
+          }
+        }
+      }
+    },
+    "This file is not an OpenSuperWhisper settings file.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce fichier n'est pas un fichier de réglages OpenSuperWhisper."
+          }
+        }
+      }
+    },
+    "Waiting for GitHub…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En attente de GitHub…"
+          }
+        }
+      }
+    },
+    "Your preferences, dictionary and snippets in one file. API keys stay in this Mac's Keychain.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos préférences, votre dictionnaire et vos snippets dans un seul fichier. Les clés API restent dans le trousseau de ce Mac."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
