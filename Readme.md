@@ -64,7 +64,7 @@ permissions (microphone, and Accessibility to type into other apps), and a first
 - 📁 **Files too.** Drop audio files on the window or use **Import**, and they queue up.
 - 🌍 **Your language.** About 99 languages with auto-detect, or follow your keyboard layout.
   Translation to English with Whisper. The interface is in English, French, German, Spanish,
-  Italian, Portuguese (BR) and Vietnamese, light or dark.
+  Italian, Portuguese (BR), Vietnamese and Simplified Chinese, light or dark.
 
 ## Five engines
 

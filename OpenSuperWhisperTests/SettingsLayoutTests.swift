@@ -26,7 +26,7 @@ import XCTest
 @MainActor
 final class SettingsLayoutTests: XCTestCase {
 
-    private static let languages = ["en", "de", "es", "fr", "it", "pt-BR", "vi"]
+    private static let languages = ["en", "de", "es", "fr", "it", "pt-BR", "vi", "zh-Hans"]
     private static let defaultSize = CGSize(width: 1080, height: 760)
     /// The root view's own minimum; the window cannot be made narrower than this.
     private static let minimumSize = CGSize(width: 840, height: 640)
