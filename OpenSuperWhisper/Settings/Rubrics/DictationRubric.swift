@@ -74,7 +74,7 @@ struct DictationRubric: View {
     private var shortcutsGroup: some View {
         SettingsGroup("Shortcuts") {
             SettingRow("To dictate", hint: viewModel.holdToRecord
-                       ? "Short press: dictation starts and keeps going, press again to stop. Long press: it stops when you release."
+                       ? "Short press: dictation starts and keeps going, press again to stop. Held for a second or more: it stops when you release."
                        : "Press to start a dictation, press again to stop.") {
                 TriggerRecorderField(name: .toggleRecord,
                                      mouseButton: $viewModel.mouseButtonHotkey,

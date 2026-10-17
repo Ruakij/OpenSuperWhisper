@@ -15851,12 +15851,12 @@
         }
       }
     },
-    "Short press: dictation starts and keeps going, press again to stop. Long press: it stops when you release.": {
+    "Short press: dictation starts and keeps going, press again to stop. Held for a second or more: it stops when you release.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Appui court : la dictée démarre et continue seule, appuyez à nouveau pour arrêter. Appui long : elle s'arrête au relâchement."
+            "value": "Appui court : la dictée démarre et continue seule, appuyez à nouveau pour arrêter. Maintenu une seconde ou plus : elle s'arrête au relâchement."
           }
         }
       }
