@@ -399,7 +399,7 @@ class AudioRecorder: NSObject, ObservableObject {
         }
         // Only a take that goes on to be transcribed gets the end chime: a brushed key stays as
         // silent as it always was, and a cancel is not a stop.
-        if outcome.url != nil, AppPreferences.shared.playSoundOnRecordStart {
+        if outcome.url != nil, AppPreferences.shared.playSoundOnRecordStop {
             playNotificationSound(.stop)
         }
         return outcome

@@ -285,8 +285,11 @@ struct DictationRubric: View {
 
     private var whileDictatingGroup: some View {
         SettingsGroup("While dictating") {
-            SettingRow("Sound at start and end", hint: "Also plays when a recording is locked hands-free.") {
+            SettingRow("Sound at start", hint: "Also plays when a recording is locked hands-free.") {
                 SSwitch(isOn: $viewModel.playSoundOnRecordStart)
+            }
+            SettingRow("Sound at end", hint: "Plays when you stop and the text is on its way.") {
+                SSwitch(isOn: $viewModel.playSoundOnRecordStop)
             }
             SettingRow("Live text",
                        hint: isParakeet ? "Words appear while you speak." : "Only Parakeet shows words while you speak.",

@@ -18,6 +18,7 @@ final class AppPreferences {
         seedAppContextPresetsIfNeeded()
         migrateGroqToRemote()
         migrateAIProviderToBackend()
+        migrateEndChime()
         migrateIndicatorLayout()
         migrateRecordingTriggers()
         resolveTriggerConflicts()
@@ -153,6 +154,16 @@ final class AppPreferences {
               !old.isEmpty
         else { return }
         aiBackend = old
+    }
+
+    /// The end chime used to share the start chime's switch. Someone who had it on keeps both
+    /// chimes; it only runs while the end chime's own key is unset.
+    private func migrateEndChime() {
+        let defaults = DefaultsStore.current
+        guard defaults.object(forKey: "playSoundOnRecordStop") == nil,
+              defaults.object(forKey: "playSoundOnRecordStart") != nil
+        else { return }
+        playSoundOnRecordStop = playSoundOnRecordStart
     }
 
     // Engine settings
@@ -410,10 +421,13 @@ final class AppPreferences {
     @UserDefault(key: "debugMode", defaultValue: false)
     var debugMode: Bool
     
-    /// Chime at the start and at the end of a take. The key predates the end chime and stays
-    /// as it is so the setting carries over.
+    /// Chime at the start of a take, and when it is locked hands-free.
     @UserDefault(key: "playSoundOnRecordStart", defaultValue: false)
     var playSoundOnRecordStart: Bool
+
+    /// Chime when a take stops and goes on to be transcribed. See `migrateEndChime()`.
+    @UserDefault(key: "playSoundOnRecordStop", defaultValue: false)
+    var playSoundOnRecordStop: Bool
 
     /// Launch into the menu bar without showing the main window (opt-in).
     @UserDefault(key: "startHidden", defaultValue: false)

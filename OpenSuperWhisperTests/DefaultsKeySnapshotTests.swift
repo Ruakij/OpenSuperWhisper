@@ -81,6 +81,7 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         "pasteListsAsRichText",
         "pauseMediaOnRecord",
         "playSoundOnRecordStart",
+        "playSoundOnRecordStop",
         "postRecordHookCommand",
         "postRecordHookEnabled",
         "recordingTriggers",
@@ -216,6 +217,7 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         assertWrites("beamSize") { prefs.beamSize = 3 }
         assertWrites("debugMode") { prefs.debugMode = true }
         assertWrites("playSoundOnRecordStart") { prefs.playSoundOnRecordStart = true }
+        assertWrites("playSoundOnRecordStop") { prefs.playSoundOnRecordStop = true }
         assertWrites("startHidden") { prefs.startHidden = true }
         assertWrites("liveTranscriptionEnabled") { prefs.liveTranscriptionEnabled = true }
         assertWrites("hasCompletedOnboarding") { prefs.hasCompletedOnboarding = true }
@@ -389,6 +391,7 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         XCTAssertEqual(prefs.beamSize, 5)
         XCTAssertEqual(prefs.debugMode, false)
         XCTAssertEqual(prefs.playSoundOnRecordStart, false)
+        XCTAssertEqual(prefs.playSoundOnRecordStop, false)
         XCTAssertEqual(prefs.startHidden, false)
         XCTAssertEqual(prefs.liveTranscriptionEnabled, false)
         XCTAssertEqual(prefs.hasCompletedOnboarding, false)
