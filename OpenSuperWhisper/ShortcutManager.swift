@@ -147,6 +147,15 @@ class ShortcutManager {
 
     /// Whether this trigger press is the second half of a double-tap. Pure so the timing rule can
     /// be tested without an event tap.
+    /// Whether letting go of the trigger ends a take held in push-to-talk. A hold shorter than a
+    /// usable clip is a tap pressed a little long, not a dictation: stopping there produced a clip
+    /// under `AudioRecorder.minimumUsableDuration`, which is dropped without a word, so the bubble
+    /// opened and closed while the user went on talking into nothing (#220). That take carries on
+    /// as a toggle instead. A hold-only trigger always ends on release, as its name says.
+    static func releaseEndsTake(heldFor: TimeInterval, holdOnly: Bool) -> Bool {
+        holdOnly || heldFor >= AudioRecorder.minimumUsableDuration
+    }
+
     static func isDoubleTap(now: TimeInterval, previous: TimeInterval, threshold: TimeInterval) -> Bool {
         now - previous < threshold
     }
@@ -426,7 +435,8 @@ class ShortcutManager {
         holdWorkItem = nil
         
         let holdToRecordEnabled = AppPreferences.shared.holdToRecord || holdOnly
-        
+        let heldFor = ProcessInfo.processInfo.systemUptime - lastKeyDownTime
+
         Task { @MainActor in
             // A latched recording ignores the trigger key coming back up — that is the whole point
             // — and waits for Space (or the trigger) to stop it.
@@ -435,13 +445,17 @@ class ShortcutManager {
             // toggled take also arms the hold timer, so holding it past the threshold used to
             // send a second stop on release, which found no audio and reported the dictation
             // as lost while the first stop was already pasting it.
-            if holdToRecordEnabled && self.holdMode && !self.latched && self.activeVm != nil {
-                Diag.mark("keyUp → stop recording (hold)")
-                IndicatorWindowManager.shared.stopRecording()
-                self.activeVm = nil
-                LatchKeyMonitor.shared.stop()
+            guard holdToRecordEnabled && self.holdMode && !self.latched && self.activeVm != nil else { return }
+            guard Self.releaseEndsTake(heldFor: heldFor, holdOnly: holdOnly) else {
+                Diag.mark("keyUp after \(Int(heldFor * 1000))ms → too short for push-to-talk, recording goes on as a toggle")
                 self.holdMode = false
+                return
             }
+            Diag.mark("keyUp → stop recording (hold)")
+            IndicatorWindowManager.shared.stopRecording()
+            self.activeVm = nil
+            LatchKeyMonitor.shared.stop()
+            self.holdMode = false
         }
     }
 }
