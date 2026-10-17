@@ -162,6 +162,31 @@ final class AppPreferencesMigrationTests: XCTestCase {
         XCTAssertNil(prefs.remoteServerAPIKey)
     }
 
+    // MARK: - End chime
+
+    func testTheSharedChimeSwitchKeepsBothChimes() {
+        defaults.set(true, forKey: "playSoundOnRecordStart")
+
+        prefs.runMigrations()
+
+        XCTAssertTrue(prefs.playSoundOnRecordStop)
+    }
+
+    func testAnEndChimeTurnedOffStaysOff() {
+        defaults.set(true, forKey: "playSoundOnRecordStart")
+        defaults.set(false, forKey: "playSoundOnRecordStop")
+
+        prefs.runMigrations()
+
+        XCTAssertFalse(prefs.playSoundOnRecordStop)
+    }
+
+    func testAFreshInstallWritesNoEndChime() {
+        prefs.runMigrations()
+
+        XCTAssertNil(defaults.object(forKey: "playSoundOnRecordStop"))
+    }
+
     // MARK: - aiProvider
 
     func testLegacyAIProviderBecomesTheBackend() {

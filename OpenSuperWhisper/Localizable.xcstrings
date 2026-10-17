@@ -16051,12 +16051,22 @@
         }
       }
     },
-    "Sound at start and end": {
+    "Sound at end": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Son au début et à la fin"
+            "value": "Son à la fin"
+          }
+        }
+      }
+    },
+    "Sound at start": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son au début"
           }
         }
       }
@@ -19923,6 +19933,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Les suggestions ont besoin de l'Accessibilité pour relire le champ où va votre dictée, et OpenSuperWhisper n'y a pas encore accès."
+          }
+        }
+      }
+    },
+    "Plays when you stop and the text is on its way.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Joue quand vous arrêtez et que le texte arrive."
           }
         }
       }

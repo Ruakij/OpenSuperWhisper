@@ -324,6 +324,12 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var playSoundOnRecordStop: Bool {
+        didSet {
+            AppPreferences.shared.playSoundOnRecordStop = playSoundOnRecordStop
+        }
+    }
+
     @Published var startHidden: Bool {
         didSet {
             AppPreferences.shared.startHidden = startHidden
@@ -1040,6 +1046,7 @@ class SettingsViewModel: ObservableObject {
         self.beamSize = prefs.beamSize
         self.debugMode = prefs.debugMode
         self.playSoundOnRecordStart = prefs.playSoundOnRecordStart
+        self.playSoundOnRecordStop = prefs.playSoundOnRecordStop
         self.startHidden = prefs.startHidden
         self.indicatorPosition = prefs.indicatorPosition
         self.indicatorMeterMode = prefs.indicatorMeterMode
