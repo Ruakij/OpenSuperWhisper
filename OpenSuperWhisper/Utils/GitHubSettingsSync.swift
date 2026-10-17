@@ -10,7 +10,7 @@ import OpenSuperWhisperCore
 struct GitHubSettingsSync {
     /// The my-monkeys OAuth app, device flow enabled. Public by design: the device flow has no
     /// secret, and anyone signing in sees the app's name before approving.
-    static let clientID = "Ov23liREPLACE_ME"
+    static let clientID = "Ov23li9jBiaG8cMOPYRu"
     static let tokenAccount = "githubSettingsSyncToken"
     static let gistDescription = "OpenSuperWhisper settings"
 
