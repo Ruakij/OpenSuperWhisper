@@ -301,7 +301,8 @@ class ContentViewModel: ObservableObject {
                     // asking the workspace here would never match a profile.
                     let cleanedUp = await LLMPostProcessor.process(
                         cleanedText, bundleID: RecordingContext.shared.bundleID,
-                        translating: AppPreferences.shared.translateToEnglish)
+                        translating: AppPreferences.shared.translateToEnglish,
+                        writesLists: RichListPaste.cleanupWritesLists(into: RecordingContext.shared.bundleID))
                     // After the cleanup, as in the dictation pipeline, so the model cannot rewrite
                     // a snippet's text. (#167)
                     let text = AppPreferences.shared.expandSnippets(cleanedUp)

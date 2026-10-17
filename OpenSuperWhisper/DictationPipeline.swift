@@ -248,8 +248,9 @@ final class DictationPipeline: ObservableObject {
             if let cleanupOverride {
                 text = await cleanupOverride(text)
             } else {
-                text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID,
-                                                      translating: settings.translateToEnglish)
+                text = await LLMPostProcessor.process(
+                    text, bundleID: item.context.bundleID, translating: settings.translateToEnglish,
+                    writesLists: RichListPaste.cleanupWritesLists(into: item.context.bundleID))
             }
 
             // Trailing "press enter" voice command (opt-in): strip it and remember to press Return
