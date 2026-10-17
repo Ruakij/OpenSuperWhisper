@@ -30,6 +30,7 @@ struct GeneralRubric: View {
         ("it", "Italiano"),
         ("pt-BR", "Português (BR)"),
         ("vi", "Tiếng Việt"),
+        ("zh-Hans", "简体中文"),
     ]
 
     var body: some View {
