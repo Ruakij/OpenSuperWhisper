@@ -65,7 +65,7 @@ enum SettingsArchive {
         "latchRecordingWithSpace", "liveTranscriptionEnabled", "matchTextAroundCaret",
         "modifierOnlyHotkey", "mouseButtonHotkey", "noSpeechThreshold", "notifyWhenNoPasteTarget",
         "pasteAgentPromptsInPieces", "pasteInsteadOfTyping", "pasteIntoOriginalField",
-        "pasteListsAsRichText", "pauseMediaOnRecord", "playSoundOnRecordStart",
+        "pasteListsAsRichText", "pauseMediaOnRecord", "playSoundOnRecordStart", "playSoundOnRecordStop",
         "postRecordHookCommand", "postRecordHookEnabled", "recordingTriggers", "reduceVolumeLevel",
         "reduceVolumeOnRecord", "remoteFallbackEnabled", "remoteFallbackModelData",
         "remoteServerModel", "remoteServerTimeoutEnabled", "remoteServerTimeoutSeconds",
