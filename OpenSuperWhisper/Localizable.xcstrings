@@ -20476,7 +20476,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "短按：听写开始并持续进行，再按一次停止。长按：松开即停止。"
+            "value": "短按：听写开始并持续进行，再按一次停止。按住一秒或更久：松开即停止。"
           }
         }
       }
@@ -25320,7 +25320,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在支持格式化文本的应用（如备忘录、邮件、Slack、Notion、Word 和浏览器）中，粘贴的列表会变成真正的项目符号或编号。在其他所有地方（包括终端和代码编辑器），则保持为“- ”行。"
+            "value": "在支持格式化文本的应用（如备忘录、邮件、Slack、Notion、Word 和浏览器）中，粘贴的列表会变成真正的项目符号或编号。在其他所有地方（包括终端和代码编辑器），则保持为“- ”行。开启 AI 清理后，口述的列举内容会在这些应用中写成列表。"
           }
         }
       }
@@ -26932,6 +26932,12 @@
             "state": "translated",
             "value": "Sauvegarde et synchro"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "备份与同步"
+          }
         }
       }
     },
@@ -26941,6 +26947,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copier le code et ouvrir GitHub"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制代码并打开 GitHub"
           }
         }
       }
@@ -26952,6 +26964,12 @@
             "state": "translated",
             "value": "Saisissez ce code sur github.com, puis revenez ici."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 github.com 上输入此代码，然后回到这里。"
+          }
         }
       }
     },
@@ -26961,6 +26979,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Exporter…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出…"
           }
         }
       }
@@ -26972,6 +26996,12 @@
             "state": "translated",
             "value": "Récupérer"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取"
+          }
         }
       }
     },
@@ -26981,6 +27011,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "GitHub a répondu par une erreur (%lld)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 返回了错误（%lld）。"
           }
         }
       }
@@ -26992,6 +27028,12 @@
             "state": "translated",
             "value": "GitHub n'accepte plus cette connexion. Reconnectez-vous."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 已不再接受此登录，请重新登录。"
+          }
         }
       }
     },
@@ -27001,6 +27043,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Synchro GitHub"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 同步"
           }
         }
       }
@@ -27012,6 +27060,12 @@
             "state": "translated",
             "value": "Importer…"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入…"
+          }
         }
       }
     },
@@ -27021,6 +27075,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Garde une copie dans un gist secret de votre compte GitHub, à récupérer sur un autre Mac."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在你的 GitHub 账号中以私密 gist 保存一份副本，可在另一台 Mac 上获取。"
           }
         }
       }
@@ -27032,6 +27092,12 @@
             "state": "translated",
             "value": "Aucun réglage sur GitHub pour l'instant. Envoyez-les d'abord depuis un Mac."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 上还没有保存的设置。请先从一台 Mac 发送。"
+          }
         }
       }
     },
@@ -27041,6 +27107,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remplacer mes réglages"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换我的设置"
           }
         }
       }
@@ -27052,6 +27124,12 @@
             "state": "translated",
             "value": "Remplacer vos réglages par la copie enregistrée %@ ?"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要用 %@ 保存的副本替换你的设置吗？"
+          }
         }
       }
     },
@@ -27061,6 +27139,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remplacer vos réglages par ce fichier ?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要用此文件替换你的设置吗？"
           }
         }
       }
@@ -27072,6 +27156,12 @@
             "state": "translated",
             "value": "Envoyer enregistre les réglages de ce Mac dans votre gist. Récupérer les remplace par la copie enregistrée."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“发送”会把这台 Mac 的设置保存到你的 gist。“获取”会用已保存的副本替换它们。"
+          }
         }
       }
     },
@@ -27081,6 +27171,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fichier de réglages"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置文件"
           }
         }
       }
@@ -27092,6 +27188,12 @@
             "state": "translated",
             "value": "Réglages importés. Relancez pour les appliquer."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置已导入。重新启动后生效。"
+          }
         }
       }
     },
@@ -27101,6 +27203,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Réglages enregistrés dans %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置已保存到 %@。"
           }
         }
       }
@@ -27112,6 +27220,12 @@
             "state": "translated",
             "value": "Réglages envoyés sur GitHub."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置已发送到 GitHub。"
+          }
         }
       }
     },
@@ -27121,6 +27235,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Les réglages absents du fichier restent tels quels. Une relance applique les nouveaux."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件中没有的设置保持不变。重新启动后会应用新的设置。"
           }
         }
       }
@@ -27132,6 +27252,12 @@
             "state": "translated",
             "value": "Se connecter avec GitHub"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 GitHub 登录"
+          }
         }
       }
     },
@@ -27141,6 +27267,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Se déconnecter"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出登录"
           }
         }
       }
@@ -27152,6 +27284,12 @@
             "state": "translated",
             "value": "Connecté en tant que @%@. Envoyer enregistre les réglages de ce Mac dans votre gist. Récupérer les remplace par la copie enregistrée."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已登录为 @%@。“发送”会把这台 Mac 的设置保存到你的 gist。“获取”会用已保存的副本替换它们。"
+          }
         }
       }
     },
@@ -27161,6 +27299,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Connecté à GitHub."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已登录 GitHub。"
           }
         }
       }
@@ -27172,6 +27316,12 @@
             "state": "translated",
             "value": "Le code GitHub a expiré. Reconnectez-vous."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 代码已过期，请重新登录。"
+          }
         }
       }
     },
@@ -27181,6 +27331,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ces réglages viennent d'une version plus récente d'OpenSuperWhisper. Mettez l'app à jour, puis réessayez."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这些设置来自更新版本的 OpenSuperWhisper。请先更新应用，然后重试。"
           }
         }
       }
@@ -27192,6 +27348,12 @@
             "state": "translated",
             "value": "Ce fichier n'est pas un fichier de réglages OpenSuperWhisper."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文件不是 OpenSuperWhisper 设置文件。"
+          }
         }
       }
     },
@@ -27201,6 +27363,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "En attente de GitHub…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待 GitHub…"
           }
         }
       }
@@ -27212,6 +27380,12 @@
             "state": "translated",
             "value": "Vos préférences, votre dictionnaire et vos snippets dans un seul fichier. Les clés API restent dans le trousseau de ce Mac."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的偏好设置、词典和片段都在一个文件中。API 密钥保留在这台 Mac 的钥匙串中。"
+          }
         }
       }
     },
@@ -27222,6 +27396,12 @@
             "state": "translated",
             "value": "Dernier envoi %@"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次发送：%@"
+          }
         }
       }
     },
@@ -27231,6 +27411,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jamais envoyé"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从未发送"
           }
         }
       }
