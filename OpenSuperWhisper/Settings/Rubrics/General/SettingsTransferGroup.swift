@@ -61,6 +61,8 @@ struct SettingsTransferGroup: View {
                     Button("Fetch") { model.fetch() }
                     Button("Sign out") { model.signOut() }
                         .buttonStyle(.sQuiet)
+                    Spacer(minLength: 12)
+                    lastSentLabel
                 }
                 .buttonStyle(.sSecondary)
                 .disabled(model.isBusy)
@@ -79,6 +81,23 @@ struct SettingsTransferGroup: View {
             SettingNotice(LocalizedStringKey(error))
         } else if let status = model.status {
             SettingNotice(status)
+        }
+    }
+
+    /// Re-rendered every minute so "2 minutes ago" does not freeze while Settings stays open.
+    private var lastSentLabel: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { _ in
+            Group {
+                if let date = model.lastSentAt {
+                    Text("Last sent \(date.formatted(.relative(presentation: .named)))")
+                        .help(date.formatted(date: .long, time: .shortened))
+                } else {
+                    Text("Never sent")
+                }
+            }
+            .scaledFont(size: 12)
+            .foregroundColor(STheme.textSecondary)
+            .lineLimit(1)
         }
     }
 

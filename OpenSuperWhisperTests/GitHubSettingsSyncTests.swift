@@ -89,6 +89,16 @@ final class GitHubSettingsSyncTests: XCTestCase {
         XCTAssertNotNil(remote?.updatedAt)
     }
 
+    func testLastSentIsTheGistsLastUpdate() async throws {
+        var gist = settingsGist
+        gist["updated_at"] = "2026-10-17T09:11:52Z"
+        github.routes[firstPage] = (200, [gist])
+
+        let date = try await sync.lastSent(token: "t")
+
+        XCTAssertEqual(date, ISO8601DateFormatter().date(from: "2026-10-17T09:11:52Z"))
+    }
+
     func testFetchWithNoGistFindsNothing() async throws {
         github.routes[firstPage] = (200, [[String: Any]]())
         let remote = try await sync.fetch(token: "t")

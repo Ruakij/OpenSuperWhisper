@@ -19,6 +19,8 @@ final class SettingsTransferModel: ObservableObject {
     }
 
     @Published private(set) var github: GitHubState = .signedOut
+    /// When the gist was last written, from this Mac or another. Nil until known or if never sent.
+    @Published private(set) var lastSentAt: Date?
     @Published private(set) var isBusy = false
     @Published private(set) var status: LocalizedStringKey?
     @Published private(set) var errorMessage: String?
@@ -36,6 +38,7 @@ final class SettingsTransferModel: ObservableObject {
         Task {
             do {
                 github = .signedIn(login: try await sync.login(token: token))
+                lastSentAt = try await sync.lastSent(token: token)
             } catch GitHubSettingsSync.SyncError.signedOut {
                 signOut()
             } catch {}
@@ -106,12 +109,14 @@ final class SettingsTransferModel: ObservableObject {
     func signOut() {
         Keychain.set(nil, for: GitHubSettingsSync.tokenAccount)
         github = .signedOut
+        lastSentAt = nil
     }
 
     func send() {
         guard let token else { return signOut() }
         run {
             try await self.sync.upload(try self.exported(), token: token)
+            self.lastSentAt = Date()
             self.status = "Settings sent to GitHub."
         }
     }
@@ -136,6 +141,7 @@ final class SettingsTransferModel: ObservableObject {
             case .token(let token):
                 Keychain.set(token, for: GitHubSettingsSync.tokenAccount)
                 github = .signedIn(login: (try? await sync.login(token: token)) ?? "")
+                lastSentAt = try? await sync.lastSent(token: token)
                 status = "Signed in to GitHub."
                 return
             case .pending:

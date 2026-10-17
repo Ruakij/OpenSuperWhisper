@@ -20236,6 +20236,26 @@
           }
         }
       }
+    },
+    "Last sent %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernier envoi %@"
+          }
+        }
+      }
+    },
+    "Never sent": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jamais envoyé"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -98,9 +98,14 @@ struct GitHubSettingsSync {
 
     // MARK: - Gist
 
+    /// When the settings gist was last written, from any Mac. Nil when nothing was sent yet.
+    func lastSent(token: String) async throws -> Date? {
+        Self.date(try await findGist(token: token)?["updated_at"])
+    }
+
     /// The gist holding the settings file, found by its file name among the account's gists.
     func fetch(token: String) async throws -> RemoteSettings? {
-        guard let id = try await findGistID(token: token) else { return nil }
+        guard let id = try await findGist(token: token)?["id"] as? String else { return nil }
         let (data, _) = try await api("GET", "/gists/\(id)", token: token)
         let gist = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let files = gist?["files"] as? [String: Any]
@@ -113,7 +118,7 @@ struct GitHubSettingsSync {
     /// secret gist.
     func upload(_ content: Data, token: String) async throws {
         let files = [SettingsArchive.fileName: ["content": String(decoding: content, as: UTF8.self)]]
-        if let id = try await findGistID(token: token) {
+        if let id = try await findGist(token: token)?["id"] as? String {
             _ = try await api("PATCH", "/gists/\(id)", token: token, body: ["files": files])
         } else {
             _ = try await api("POST", "/gists", token: token, body: [
@@ -122,18 +127,16 @@ struct GitHubSettingsSync {
         }
     }
 
-    private func findGistID(token: String) async throws -> String? {
+    private func findGist(token: String) async throws -> [String: Any]? {
         for page in 1...10 {
             let (data, _) = try await api("GET", "/gists?per_page=100&page=\(page)", token: token)
             let gists = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
-            if let id = Self.settingsGistID(in: gists) { return id }
+            if let gist = gists.first(where: { ($0["files"] as? [String: Any])?[SettingsArchive.fileName] != nil }) {
+                return gist
+            }
             if gists.count < 100 { return nil }
         }
         return nil
-    }
-
-    static func settingsGistID(in gists: [[String: Any]]) -> String? {
-        gists.first { ($0["files"] as? [String: Any])?[SettingsArchive.fileName] != nil }?["id"] as? String
     }
 
     // MARK: - HTTP
