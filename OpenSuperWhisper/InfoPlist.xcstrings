@@ -1,0 +1,54 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSAppleEventsUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper needs accessibility access to provide system-wide functionality."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper 需要辅助功能权限，以提供全局功能。"
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper connects to remote transcription servers on your local network (e.g. a self-hosted Whisper/LiteLLM endpoint)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper 需要连接局域网中的远程转写服务器（例如自托管的 Whisper/LiteLLM 端点）。"
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper needs microphone access to record audio for transcription."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper 需要麦克风权限，以录制用于转写的音频。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
