@@ -18937,12 +18937,12 @@
         }
       }
     },
-    "A pasted list becomes real bullets or numbers in apps that take formatted text, like Notes, Mail, Slack, Notion, Word and browsers. Everywhere else, terminals and code editors included, it stays as “- ” lines.": {
+    "A pasted list becomes real bullets or numbers in apps that take formatted text, like Notes, Mail, Slack, Notion, Word and browsers. Everywhere else, terminals and code editors included, it stays as “- ” lines. With AI cleanup on, a spoken enumeration is written as a list for those apps.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Une liste collée devient de vraies puces ou de vrais numéros dans les apps qui acceptent le texte mis en forme, comme Notes, Mail, Slack, Notion, Word et les navigateurs. Partout ailleurs, terminaux et éditeurs de code compris, elle reste en lignes « - »."
+            "value": "Une liste collée devient de vraies puces ou de vrais numéros dans les apps qui acceptent le texte mis en forme, comme Notes, Mail, Slack, Notion, Word et les navigateurs. Partout ailleurs, terminaux et éditeurs de code compris, elle reste en lignes « - ». Avec le nettoyage IA, une énumération dictée est écrite en liste pour ces apps."
           }
         }
       }

@@ -43,6 +43,12 @@ enum RichListPaste {
     /// Fewer items than this and a leading dash is more likely punctuation than a list.
     static let minimumItems = 2
 
+    /// Whether AI cleanup should write a dictation's enumerations as "- " lines: only when the
+    /// paste will turn them into bullets, so nowhere else gets a new line break it did not ask for.
+    static func cleanupWritesLists(into bundleID: String?) -> Bool {
+        AppPreferences.shared.pasteListsAsRichText && acceptsRichText(bundleID)
+    }
+
     static func acceptsRichText(_ bundleID: String?) -> Bool {
         guard let bundleID else { return false }
         return richTextApps.contains(bundleID.lowercased())

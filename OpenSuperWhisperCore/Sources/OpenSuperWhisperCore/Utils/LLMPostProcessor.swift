@@ -67,7 +67,13 @@ public enum LLMPostProcessor {
     /// Cleans and/or app-formats `text` for the frontmost app identified by `bundleID`. Two
     /// independent capabilities feed one LLM pass: general prose cleanup (`aiPostProcessingEnabled`)
     /// and app-aware formatting (`appContextFormattingEnabled`). Either, both, or neither may run.
-    public static func process(_ text: String, bundleID: String?, translating: Bool = false) async -> String {
+    ///
+    /// `writesLists` asks the model to turn spoken enumerations into "- " lines, for a paste that
+    /// will make bullets of them (#166). A reply that grew instead of being reshaped kept the
+    /// sentence and added the list after it, which Apple's model does on some opinions and
+    /// options; that pass is run again without the request.
+    public static func process(_ text: String, bundleID: String?, translating: Bool = false,
+                               writesLists: Bool = false) async -> String {
         let prefs = CoreAccess.preferences
         let general = prefs.aiPostProcessingEnabled
         let formatting = prefs.appContextFormattingEnabled
@@ -84,7 +90,8 @@ public enum LLMPostProcessor {
                                                 closingPrompt: prefs.aiPostProcessingClosing,
                                                 translating: translating,
                                                 translationPrompt: prefs.aiPostProcessingTranslation,
-                                                vocabulary: vocabulary)
+                                                vocabulary: vocabulary,
+                                                writesLists: writesLists)
         else { return text }
 
         let backend = currentBackend()
@@ -111,7 +118,8 @@ public enum LLMPostProcessor {
                                               closingPrompt: prefs.aiPostProcessingClosing,
                                               translating: translating,
                                               translationPrompt: prefs.aiPostProcessingTranslation,
-                                              vocabulary: vocabulary)
+                                              vocabulary: vocabulary,
+                                              writesLists: writesLists)
             if echoesPrompt(output: result, system: shipped, input: text) {
                 print("AI post-processing returned its own instructions, using the raw transcription")
                 return text
@@ -119,6 +127,10 @@ public enum LLMPostProcessor {
             if backend.enforcesLengthRatio,
                !passesLengthGuard(input: text, output: result, condensingAllowed: prof != nil) {
                 return text
+            }
+            if writesLists, listRepeatsText(input: text, output: result) {
+                print("AI post-processing kept the sentence next to its list, running it again without lists")
+                return await process(text, bundleID: bundleID, translating: translating)
             }
             return result
         } catch {
@@ -181,6 +193,33 @@ public enum LLMPostProcessor {
         they are, and do not add anything the original did not say.
         """
 
+    /// Added while "Lists as bullets" is on and the dictation goes to an app that makes bullets of
+    /// "- " lines. Measured on dictations with and without enumerations: "The list replaces the
+    /// sentence it came from" and the last sentence are what keep a model from writing the
+    /// sentence and then the list, or making a list of an opinion.
+    public static let listInstruction = """
+        If the speaker enumerates three or more separate items, such as things to buy, tasks, \
+        steps or agenda points, turn that enumeration into a list: one item per line starting \
+        with "- ", or with "1. ", "2. " when the speaker numbered them or gave an order. The words \
+        that introduce the list go on their own line before it. The list replaces the sentence it \
+        came from: never write both. Questions, opinions and stories stay as sentences.
+        """
+
+    /// A list written in place of the sentence has about as many words as the dictation, often
+    /// fewer ("and", "then" go). Every reply that kept the sentence too came out at 1.7x or more,
+    /// every reshaped one at 1.15x or less.
+    static let listGrowthLimit = 1.4
+
+    /// Whether a reply asked for lists grew past what a reshaping can explain.
+    static func listRepeatsText(input: String, output: String) -> Bool {
+        func words(_ text: String) -> Int {
+            text.split(whereSeparator: { $0.isWhitespace }).filter { $0 != "-" }.count
+        }
+        let dictated = words(input)
+        guard dictated > 0 else { return false }
+        return Double(words(output)) > Double(dictated) * listGrowthLimit
+    }
+
     /// Builds the single system prompt for one LLM pass from the two independent contributors.
     /// Returns nil when neither contributes (general cleanup off AND no app profile), signalling
     /// the caller to skip the LLM entirely and return the text untouched.
@@ -209,7 +248,8 @@ public enum LLMPostProcessor {
                                     closingPrompt: String,
                                     translating: Bool,
                                     translationPrompt: String,
-                                    vocabulary: [String] = []) -> String {
+                                    vocabulary: [String] = [],
+                                    writesLists: Bool = false) -> String {
         func isShipped(_ text: String, _ shipped: [String]) -> Bool {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             return shipped.contains { $0.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed }
@@ -223,6 +263,9 @@ public enum LLMPostProcessor {
         }
         if let spellings = vocabularySection(vocabulary) {
             sections.append(spellings)
+        }
+        if writesLists {
+            sections.append(listInstruction)
         }
         if let profile, isShipped(profile.instructions, AppContextProfile.defaultPresets.map(\.instructions)) {
             sections.append(profile.instructions)
@@ -239,7 +282,8 @@ public enum LLMPostProcessor {
                                      closingPrompt: String = "",
                                      translating: Bool = false,
                                      translationPrompt: String = "",
-                                     vocabulary: [String] = []) -> String? {
+                                     vocabulary: [String] = [],
+                                     writesLists: Bool = false) -> String? {
         guard generalCleanup || profile != nil else { return nil }
 
         var sections: [String] = []
@@ -258,6 +302,11 @@ public enum LLMPostProcessor {
         // the translation note, and one the closing guardrail must still come after.
         if let spellings = vocabularySection(vocabulary) {
             sections.append(spellings)
+        }
+        // A request about the shape of the text, like the spellings: the app's own rules and the
+        // closing guardrail still come after it.
+        if writesLists {
+            sections.append(listInstruction)
         }
         if let profile = profile {
             sections.append("App-specific formatting rules:\n\(profile.instructions)")
