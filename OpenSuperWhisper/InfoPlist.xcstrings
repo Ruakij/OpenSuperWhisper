@@ -3,26 +3,98 @@
   "strings": {
     "NSAppleEventsUsageDescription": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper liest die Adresse des aktiven Browser-Tabs, um festzuhalten, wo ein Diktat stattfand, und Modellregeln pro Website anzuwenden."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "OpenSuperWhisper needs accessibility access to provide system-wide functionality."
+            "value": "OpenSuperWhisper reads the active browser tab's URL to record where a dictation happened and to apply per-site model rules."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper lee la dirección de la pestaña activa del navegador para registrar dónde se hizo un dictado y aplicar las reglas de modelo por sitio."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper lit l'adresse de l'onglet actif du navigateur pour noter où une dictée a eu lieu et appliquer les règles de modèle par site."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper legge l'indirizzo della scheda attiva del browser per registrare dove è avvenuta una dettatura e applicare le regole del modello per sito."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OpenSuperWhisper lê o endereço da aba ativa do navegador para registrar onde um ditado aconteceu e aplicar regras de modelo por site."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper đọc địa chỉ của tab trình duyệt đang mở để ghi lại nơi bạn đọc chính tả và áp dụng quy tắc mô hình theo từng trang."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "OpenSuperWhisper 需要辅助功能权限，以提供全局功能。"
+            "value": "OpenSuperWhisper 会读取浏览器当前标签页的网址，用于记录听写发生的位置，并应用按网站设置的模型规则。"
           }
         }
       }
     },
     "NSLocalNetworkUsageDescription": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper verbindet sich mit Transkriptionsservern in deinem lokalen Netzwerk (z. B. einem selbst gehosteten Whisper- oder LiteLLM-Server)."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "OpenSuperWhisper connects to remote transcription servers on your local network (e.g. a self-hosted Whisper/LiteLLM endpoint)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper se conecta a servidores de transcripción de tu red local (por ejemplo, un servidor Whisper o LiteLLM propio)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper se connecte aux serveurs de transcription de votre réseau local (par exemple un serveur Whisper ou LiteLLM auto-hébergé)."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper si collega ai server di trascrizione della tua rete locale (ad esempio un server Whisper o LiteLLM in self-hosting)."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OpenSuperWhisper se conecta a servidores de transcrição na sua rede local (por exemplo, um servidor Whisper ou LiteLLM próprio)."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper kết nối với các máy chủ chuyển giọng nói thành văn bản trong mạng nội bộ của bạn (ví dụ máy chủ Whisper hoặc LiteLLM tự lưu trữ)."
           }
         },
         "zh-Hans": {
@@ -35,10 +107,46 @@
     },
     "NSMicrophoneUsageDescription": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper braucht Zugriff auf das Mikrofon, um Audio für die Transkription aufzunehmen."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "OpenSuperWhisper needs microphone access to record audio for transcription."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper necesita acceso al micrófono para grabar el audio que va a transcribir."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper a besoin du micro pour enregistrer l'audio à transcrire."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper ha bisogno del microfono per registrare l'audio da trascrivere."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OpenSuperWhisper precisa de acesso ao microfone para gravar o áudio a ser transcrito."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenSuperWhisper cần quyền dùng micrô để ghi âm cho việc chuyển giọng nói thành văn bản."
           }
         },
         "zh-Hans": {
