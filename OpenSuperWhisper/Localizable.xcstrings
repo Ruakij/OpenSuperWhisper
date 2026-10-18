@@ -27660,6 +27660,52 @@
           }
         }
       }
+    },
+    "From now on, “%@” will be written “%@”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ab jetzt wird „%@“ als „%@“ geschrieben."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A partir de ahora, «%@» se escribirá «%@»."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désormais, « %@ » s'écrira « %@ »."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "D'ora in poi, «%@» verrà scritto «%@»."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A partir de agora, “%@” será escrito “%@”."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Từ giờ, “%@” sẽ được viết thành “%@”."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今后，“%@”将写成“%@”。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

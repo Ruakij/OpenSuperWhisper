@@ -51,18 +51,30 @@ final class DictionarySuggestionsTests: XCTestCase {
                        ["Parakeet"])
     }
 
-    func testAddPutsAWordInTheDictionary() throws {
+    /// What was heard becomes the correction's trigger, so the next dictation writes the term.
+    func testAddTurnsWhatWasHeardIntoTheTerm() throws {
         let store = DictionarySuggestions(prefs: prefs)
-        let suggestion = try XCTUnwrap(store.offer([candidate("Rsets")]).first)
+        let suggestion = try XCTUnwrap(store.offer([candidate("Maxim", heard: "Maxime")]).first)
         let changed = expectation(forNotification: .customDictionaryDidChange, object: nil)
         store.accept(suggestion)
         wait(for: [changed], timeout: 1)
         XCTAssertEqual(store.pending, [])
         let entry = try XCTUnwrap(prefs.customDictionaryEntries.first)
-        XCTAssertEqual(entry.original, "Rsets")
-        XCTAssertEqual(entry.replacement, "Rsets")
+        XCTAssertEqual(entry.original, "Maxime")
+        XCTAssertEqual(entry.replacement, "Maxim")
+        XCTAssertEqual(entry.kind, .correction)
+        XCTAssertEqual(CustomDictionary.apply("Merci Maxime !", entries: prefs.customDictionaryEntries),
+                       "Merci Maxim !")
+        XCTAssertEqual(CustomDictionary.boostTerms(entries: prefs.customDictionaryEntries), ["Maxim"])
+    }
+
+    /// Only the case was wrong: the term alone, which fixes its case wherever it is written.
+    func testAddKeepsAWordWhenOnlyTheCaseDiffered() throws {
+        let store = DictionarySuggestions(prefs: prefs)
+        store.accept(try XCTUnwrap(store.offer([candidate("GitHub", heard: "github")]).first))
+        let entry = try XCTUnwrap(prefs.customDictionaryEntries.first)
+        XCTAssertEqual(entry.original, "GitHub")
         XCTAssertEqual(entry.kind, .word, "a term, not a replacement rule")
-        XCTAssertEqual(CustomDictionary.boostTerms(entries: prefs.customDictionaryEntries), ["Rsets"])
     }
 
     func testAddTwiceAddsOnce() throws {

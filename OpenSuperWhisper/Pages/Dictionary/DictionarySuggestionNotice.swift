@@ -150,7 +150,9 @@ struct DictionarySuggestionCard: View {
                     .scaledFont(size: 14.5, weight: .semibold)
                     .foregroundColor(STheme.textBright)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("You wrote it in place of “\(suggestion.heard)”.")
+                Text(suggestion.correctsHeard
+                     ? "From now on, “\(suggestion.heard)” will be written “\(suggestion.term)”."
+                     : "You wrote it in place of “\(suggestion.heard)”.")
                     .scaledFont(size: 12.5)
                     .foregroundColor(STheme.hint)
                     .fixedSize(horizontal: false, vertical: true)

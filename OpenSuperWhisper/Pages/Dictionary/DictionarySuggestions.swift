@@ -9,6 +9,21 @@ struct DictionarySuggestion: Codable, Equatable, Identifiable, Sendable {
     let heard: String
 
     var id: String { term.lowercased() }
+
+    /// Whether what the engine wrote is another word, not the same one in another case. Then
+    /// adding it has to turn the one into the other, or the next dictation writes it wrong again.
+    var correctsHeard: Bool {
+        let heard = heard.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !heard.isEmpty && heard.caseInsensitiveCompare(term) != .orderedSame
+    }
+
+    /// The dictionary entry Add creates: a correction from what was heard to the term, so
+    /// "Maxime" is written "Maxim" from then on, or the term alone when only its case was wrong.
+    /// Either way the term is what gets boosted and named to the cleanup model.
+    var entry: CustomDictionaryEntry {
+        CustomDictionaryEntry(original: correctsHeard ? heard.trimmingCharacters(in: .whitespacesAndNewlines) : term,
+                              replacement: term)
+    }
 }
 
 /// The words the corrections after a dictation offered for the dictionary, and the ones the
@@ -72,15 +87,16 @@ final class DictionarySuggestions: ObservableObject {
             && !Set(prefs.dictionaryRefusedWords).contains(digest(term))
     }
 
-    /// Adds the term to the dictionary as a word: a rule that writes it as it is, which is what
-    /// feeds the recognition boost and the cleanup prompt and fixes its case.
+    /// Adds the term to the dictionary, see `DictionarySuggestion.entry`. It used to be added as
+    /// a word that rewrote only itself, so accepting "Maxim" for "Maxime" changed nothing in the
+    /// next dictation.
     func accept(_ suggestion: DictionarySuggestion) {
         remove(suggestion)
         guard !prefs.customDictionaryEntries.contains(where: {
             $0.trimmedReplacement.caseInsensitiveCompare(suggestion.term) == .orderedSame
         }) else { return }
         prefs.customDictionaryEntries.append(
-            CustomDictionaryEntry(original: suggestion.term, replacement: suggestion.term))
+            suggestion.entry)
         NotificationCenter.default.post(name: .customDictionaryDidChange, object: nil)
     }
 
