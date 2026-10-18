@@ -191,7 +191,11 @@ final class SettingsLayoutTests: XCTestCase {
                 failures += views.outside.map { "\(name): \($0)" }
             }
         }
-        XCTAssert(failures.isEmpty, "Outside the window:\n" + failures.joined(separator: "\n"))
+        // One failure per line: CI's log formatter keeps only the first line of a message, so a
+        // single assertion listing everything showed "Outside the window:" and nothing else.
+        for failure in failures {
+            XCTFail("Outside the window: \(failure)")
+        }
     }
 
     private func render(_ testCase: Case, language: String, size: CGSize,

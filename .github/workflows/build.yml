@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    timeout-minutes: 90
+    timeout-minutes: 110
     # Pinned to the macOS 26 runner: it ships only Xcode 26.x (macOS 26 SDK), so the
     # Apple Speech engine (SpeechTranscriber/AssetInventory, gated on
     # `#if canImport(FoundationModels)`) is always compiled and tested. `macos-latest`
@@ -63,7 +63,9 @@ jobs:
       # ClipboardRestoreTests) should hold on a VM, as their timers and checks share the main
       # queue, and a retry shows when they do not.
       - name: Run the unit tests
-        timeout-minutes: 45
+        # The layout suite renders every pane in eight languages at three sizes, about half an
+        # hour on its own on a hosted runner.
+        timeout-minutes: 60
         env:
           TEST_RUNNER_OSW_GOLDEN_MACHINE: "0"
         run: |
