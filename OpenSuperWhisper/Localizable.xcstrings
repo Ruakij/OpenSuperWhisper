@@ -27660,6 +27660,22 @@
           }
         }
       }
+    },
+    "From now on, “%@” will be written “%@”.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désormais, « %@ » s'écrira « %@ »."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今后，“%@”将写成“%@”。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
