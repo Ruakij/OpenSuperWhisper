@@ -15,7 +15,7 @@ struct PerAppRow: View {
 
     private static let insertionWidth: CGFloat = 150
     private static let modelWidth: CGFloat = 170
-    private static let styleWidth: CGFloat = 145
+    private static let styleWidth: CGFloat = 110
 
     private var store: PerAppStore { PerAppStore(viewModel: viewModel) }
     private var showsModelMenu: Bool { models.count > 1 && entry.hasBundle }
@@ -117,7 +117,9 @@ struct PerAppRow: View {
         let selection = Binding<String?>(get: { entry.style }, set: { store.setStyle($0, for: entry) })
         let styles = WritingStyle.builtIns + viewModel.customWritingStyles
         let label = entry.style.map { WritingStyleText.name(WritingStyle.resolve($0, custom: viewModel.customWritingStyles)) }
-        return RowMenu(label: label.map { Text(verbatim: $0) } ?? Text("Default style"), width: Self.styleWidth) {
+        // "Style" alone while the app follows the default, like the other menus' "Default …" but
+        // short enough for three menus on a row at the window's minimum width.
+        return RowMenu(label: label.map { Text(verbatim: $0) } ?? Text("Style"), width: Self.styleWidth) {
             Picker("", selection: selection) {
                 Text("Default style").tag(String?.none)
                 ForEach(styles) { style in
