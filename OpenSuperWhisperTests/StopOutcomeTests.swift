@@ -27,6 +27,13 @@ final class StopOutcomeTests: XCTestCase {
         }
     }
 
+    /// A short word spoken right after the key press is a dictation, not a brushed key.
+    func testAShortWordIsAClip() {
+        let outcome = AudioRecorder.StopOutcome.of(url: clip, duration: 0.7)
+
+        XCTAssertEqual(outcome.url, clip)
+    }
+
     /// Zero samples means the recording never began, which costs the user what they said.
     func testAnEmptyTakeIsNoAudio() {
         guard case .noAudio = AudioRecorder.StopOutcome.of(url: clip, duration: 0) else {

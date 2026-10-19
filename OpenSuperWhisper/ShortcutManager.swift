@@ -55,6 +55,9 @@ class ShortcutManager {
     /// the recording-start one — two beeps that read as a stutter, not as two events. Comfortably
     /// wider than the double-tap window, which is the case that produces it.
     static let latchSoundQuietWindow: TimeInterval = 0.6
+    /// A push-to-talk hold shorter than this is a tap pressed a little long: the take carries on as
+    /// a toggle. Not tied to `AudioRecorder.minimumUsableDuration`, the shortest clip kept.
+    static let minimumHoldToEndTake: TimeInterval = 1.0
 
     private init() {
         print("ShortcutManager init")
@@ -150,13 +153,12 @@ class ShortcutManager {
 
     /// Whether this trigger press is the second half of a double-tap. Pure so the timing rule can
     /// be tested without an event tap.
-    /// Whether letting go of the trigger ends a take held in push-to-talk. A hold shorter than a
-    /// usable clip is a tap pressed a little long, not a dictation: stopping there produced a clip
-    /// under `AudioRecorder.minimumUsableDuration`, which is dropped without a word, so the bubble
-    /// opened and closed while the user went on talking into nothing (#220). That take carries on
+    /// Whether letting go of the trigger ends a take held in push-to-talk. A hold shorter than
+    /// `minimumHoldToEndTake` is a tap pressed a little long, not a dictation: stopping there
+    /// closed the bubble while the user went on talking into nothing (#220). That take carries on
     /// as a toggle instead. A hold-only trigger always ends on release, as its name says.
     static func releaseEndsTake(heldFor: TimeInterval, holdOnly: Bool) -> Bool {
-        holdOnly || heldFor >= AudioRecorder.minimumUsableDuration
+        holdOnly || heldFor >= minimumHoldToEndTake
     }
 
     static func isDoubleTap(now: TimeInterval, previous: TimeInterval, threshold: TimeInterval) -> Bool {
