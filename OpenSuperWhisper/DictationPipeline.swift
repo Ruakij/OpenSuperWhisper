@@ -246,13 +246,14 @@ final class DictationPipeline: ObservableObject {
             // app-aware formatting rules are keyed off the app that was frontmost when the clip was
             // RECORDED — the app the user was dictating into — not whatever is frontmost now that
             // the background queue got to it. (parallel-recording)
+            let style = AppPreferences.shared.writingStyle(for: item.context.bundleID)
             if let cleanupOverride {
                 text = await cleanupOverride(text)
             } else {
                 text = await LLMPostProcessor.process(
                     text, bundleID: item.context.bundleID, translating: settings.translateToEnglish,
                     writesLists: RichListPaste.cleanupWritesLists(into: item.context.bundleID),
-                    style: AppPreferences.shared.writingStyle(for: item.context.bundleID).instructions)
+                    style: style.instructions)
             }
 
             // Trailing "press enter" voice command (opt-in): strip it and remember to press Return
@@ -303,7 +304,8 @@ final class DictationPipeline: ObservableObject {
                     id: recordingId, timestamp: timestamp, fileName: fileName,
                     finalURL: finalURL, transcription: text, rawTranscription: original.isEmpty ? nil : original,
                     status: .completed, progress: 1.0, context: item.context,
-                    modelUsed: modelUsed, wasFallback: wasFallback)
+                    modelUsed: modelUsed, wasFallback: wasFallback,
+                    styleUsed: HistoryRestyle.label(for: style))
             } else {
                 discardAudio(item.tempURL)
             }
@@ -403,7 +405,7 @@ final class DictationPipeline: ObservableObject {
                                 transcription: String, rawTranscription: String?,
                                 status: RecordingStatus, progress: Float,
                                 context: ContextSnapshot,
-                                modelUsed: String?, wasFallback: Bool) async {
+                                modelUsed: String?, wasFallback: Bool, styleUsed: String? = nil) async {
         // `modelUsed`/`wasFallback` are captured by the caller right after `transcribeAudio`
         // returns — NOT read here, because the `await` below can suspend long enough for another
         // transcription to overwrite them on the shared service. (parallel-recording review)
@@ -422,7 +424,8 @@ final class DictationPipeline: ObservableObject {
             sourceURL: context.fullURL,
             modelUsed: modelUsed,
             wasFallback: wasFallback,
-            rawTranscription: rawTranscription))
+            rawTranscription: rawTranscription,
+            styleUsed: styleUsed))
     }
 
     /// Move a temp recording to its permanent location after a FAILED transcription so the audio

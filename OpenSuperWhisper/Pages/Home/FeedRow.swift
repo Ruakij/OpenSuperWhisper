@@ -12,6 +12,8 @@ struct FeedRow: View {
     let onDelete: () -> Void
     /// nil → rerun with the current model; otherwise rerun once with that model. (F3)
     let onRegenerate: (DictationModelOption?) -> Void
+    /// Rewrites the text in another writing style, without transcribing again (#160).
+    let onRestyle: (WritingStyle) -> Void
     let onReport: () -> Void
     @ObservedObject private var audioRecorder = AudioRecorder.shared
     @State private var isExpanded = false
@@ -99,7 +101,7 @@ struct FeedRow: View {
     private var actions: some View {
         FeedRowActions(recording: recording, isHovered: isHovered, isPlaying: isPlaying,
                        isRegenerating: isRegenerating, onDelete: onDelete, onRegenerate: onRegenerate,
-                       onReport: onReport)
+                       onRestyle: onRestyle, onReport: onReport)
     }
 
     private var metaLine: some View {
@@ -173,6 +175,7 @@ private struct FeedRowMeta: View {
         if let model = recording.modelUsed {
             parts.append(recording.wasFallback ? Text(model).foregroundColor(STheme.warn) : Text(model))
         }
+        if let style = recording.styleUsed { parts.append(Text(style)) }
         if recording.duration > 0 { parts.append(Text(TextUtil.formatDuration(recording.duration))) }
         guard var line = parts.first else { return Text(verbatim: "") }
         for part in parts.dropFirst() {
@@ -246,6 +249,7 @@ private struct FeedRowActions: View {
     let isRegenerating: Bool
     let onDelete: () -> Void
     let onRegenerate: (DictationModelOption?) -> Void
+    let onRestyle: (WritingStyle) -> Void
     let onReport: () -> Void
     @State private var copied = false
 
@@ -287,6 +291,14 @@ private struct FeedRowActions: View {
                             Button(models[i].displayName) { onRegenerate(models[i]) }
                         }
                     }
+                    if HistoryRestyle.isAvailable(for: recording) {
+                        Divider()
+                        Section("Rewrite in a style") {
+                            ForEach(WritingStyle.builtIns + AppPreferences.shared.customWritingStyles) { style in
+                                Button(WritingStyleText.name(style)) { onRestyle(style) }
+                            }
+                        }
+                    }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .modifier(ActionChrome())
@@ -295,7 +307,7 @@ private struct FeedRowActions: View {
                 .menuIndicator(.hidden)
                 .buttonStyle(.plain)
                 .fixedSize()
-                .help("Regenerate, with the current model or another one")
+                .help("Regenerate with a model, or rewrite in another style")
                 .visible(isHovered)
             }
             if canReport {

@@ -81,6 +81,17 @@ extension RecordingStore {
 
         migrator.registerMigration("v7_add_transcription_reports", migrate: TranscriptionReport.createTable)
 
+        // Nullable for the same reason as v6: older rows had no style, and an older build that
+        // opens the file afterwards still writes without knowing the column.
+        migrator.registerMigration("v8_add_style_used") { db in
+            let columnNames = try db.columns(in: Recording.databaseTableName).map { $0.name }
+            if !columnNames.contains("styleUsed") {
+                try db.alter(table: Recording.databaseTableName) { t in
+                    t.add(column: "styleUsed", .text)
+                }
+            }
+        }
+
         return migrator
     }
 }
