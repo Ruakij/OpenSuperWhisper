@@ -79,6 +79,8 @@ struct OpenSuperWhisperApp: App {
         MainThreadWatchdog.shared.start()
         _ = ShortcutManager.shared
         _ = MicrophoneService.shared
+        // Creating it prepares the first take, so that one is ready at the first key press.
+        _ = AudioRecorder.shared
     }
 }
 

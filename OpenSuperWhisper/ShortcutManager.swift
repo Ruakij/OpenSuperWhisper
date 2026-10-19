@@ -395,6 +395,7 @@ class ShortcutManager {
         Task { @MainActor in
             if self.activeVm == nil {
                 Diag.mark("keyDown → start recording")
+                let recorderStarted = AudioRecorder.shared.startRecordingInBackground()
                 // Pressed while the agent panel has focus: the take answers the agent there,
                 // and the panel shows the recording instead of the bubble.
                 if AgentInbox.shared.claimTrigger() {
@@ -412,7 +413,7 @@ class ShortcutManager {
                 let vm = Diag.measure("IndicatorWindowManager.show") {
                     IndicatorWindowManager.shared.show(nearPoint: indicatorPoint)
                 }
-                Diag.measure("vm.startRecording") { vm.startRecording() }
+                Diag.measure("vm.startRecording") { vm.startRecording(recorderStarted: recorderStarted) }
                 self.activeVm = vm
                 self.recordingStartedUptime = ProcessInfo.processInfo.systemUptime
                 self.startLatchTapIfEnabled()
