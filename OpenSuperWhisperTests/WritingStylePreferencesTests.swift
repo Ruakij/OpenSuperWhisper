@@ -39,6 +39,17 @@ final class WritingStylePreferencesTests: XCTestCase {
         XCTAssertEqual(prefs.writingStyle(for: "com.apple.mail"), .pro)
     }
 
+    /// What a history row keeps: the style's name only when cleanup ran and the style added
+    /// something to it.
+    @MainActor
+    func testTheHistoryNamesAStyleOnlyWhenItShapedTheText() {
+        prefs.aiPostProcessingEnabled = false
+        XCTAssertNil(HistoryRestyle.label(for: .pro))
+        prefs.aiPostProcessingEnabled = true
+        XCTAssertEqual(HistoryRestyle.label(for: .pro), "Pro")
+        XCTAssertNil(HistoryRestyle.label(for: .raw))
+    }
+
     func testADeletedStyleFallsBackToRaw() {
         prefs.appWritingStyles = ["com.apple.mail": "gone"]
         XCTAssertEqual(prefs.writingStyle(for: "com.apple.mail"), .raw)

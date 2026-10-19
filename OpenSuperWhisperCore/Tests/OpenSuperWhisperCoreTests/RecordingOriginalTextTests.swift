@@ -39,6 +39,17 @@ final class RecordingOriginalTextTests: CoreTestCase {
         return try XCTUnwrap(caught)
     }
 
+    /// Rewriting a row in another style (#160) replaces the text and names the style, and keeps
+    /// the engine's original, which is what the next rewrite starts from.
+    func testARestyleKeepsTheOriginal() async throws {
+        try await store.restyle(recording, transcription: "Please send the mock-ups.", styleUsed: "Pro")
+
+        let row = try await stored()
+        XCTAssertEqual(row?.transcription, "Please send the mock-ups.")
+        XCTAssertEqual(row?.styleUsed, "Pro")
+        XCTAssertEqual(row?.rawTranscription, "um send the mock ups")
+    }
+
     func testARerunStoresItsOwnTextAsTheOriginal() async throws {
         let info = try await notification {
             await store.updateRecordingProgressOnlySync(recording.id, transcription: "Send the mock-ups.",

@@ -40,6 +40,9 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
     /// changed it, so "same text" and "never kept" stay apart. Imports and reruns store their own
     /// text here, since it is the engine's; nil means a row older than the column (or a failure).
     public var rawTranscription: String? = nil
+    /// The writing style AI cleanup wrote this text in, by name, as it was called then (#160).
+    /// Nil when no style shaped it: Raw, cleanup off, or a row older than the column.
+    public var styleUsed: String? = nil
 
     public var isRegeneration: Bool = false
 
@@ -48,7 +51,7 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
                 sourceFileURL: String? = nil, sourceAppName: String? = nil,
                 sourceWindowTitle: String? = nil, sourceURL: String? = nil,
                 modelUsed: String? = nil, wasFallback: Bool = false, rawTranscription: String? = nil,
-                isRegeneration: Bool = false) {
+                styleUsed: String? = nil, isRegeneration: Bool = false) {
         self.id = id
         self.timestamp = timestamp
         self.fileName = fileName
@@ -63,12 +66,14 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
         self.modelUsed = modelUsed
         self.wasFallback = wasFallback
         self.rawTranscription = rawTranscription
+        self.styleUsed = styleUsed
         self.isRegeneration = isRegeneration
     }
 
     enum CodingKeys: String, CodingKey {
         case id, timestamp, fileName, transcription, duration, status, progress, sourceFileURL
         case sourceAppName, sourceWindowTitle, sourceURL, modelUsed, wasFallback, rawTranscription
+        case styleUsed
     }
 
     public static func == (lhs: Recording, rhs: Recording) -> Bool {
@@ -77,6 +82,7 @@ public struct Recording: Identifiable, Codable, FetchableRecord, PersistableReco
                lhs.progress == rhs.progress &&
                lhs.transcription == rhs.transcription &&
                lhs.rawTranscription == rhs.rawTranscription &&
+               lhs.styleUsed == rhs.styleUsed &&
                lhs.isRegeneration == rhs.isRegeneration
     }
 
@@ -255,6 +261,15 @@ public class RecordingStore: ObservableObject {
         }
     }
     
+    /// Replaces a row's text with the same dictation rewritten in another writing style, from
+    /// the history (#160). The engine's original stays as it was.
+    public func restyle(_ recording: Recording, transcription: String, styleUsed: String?) async throws {
+        var updated = recording
+        updated.transcription = transcription
+        updated.styleUsed = styleUsed
+        try await updateRecordingSync(updated)
+    }
+
     func updateRecordingSync(_ recording: Recording) async throws {
         try await updateRecordingInDB(recording)
         await MainActor.run {
