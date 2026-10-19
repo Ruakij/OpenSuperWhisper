@@ -184,10 +184,11 @@ final class DictationPipeline: ObservableObject {
         do {
             let rawText: String
             if let clip = item.tempURL {
-                if let transcribeOverride {
-                    rawText = try await transcribeOverride(clip, settings)
-                } else {
-                    rawText = try await transcriptionService.transcribeAudio(
+                rawText = try await Self.retryingOnce(stop: { self.discarding }) {
+                    if let transcribeOverride {
+                        return try await transcribeOverride(clip, settings)
+                    }
+                    return try await self.transcriptionService.transcribeAudio(
                         url: clip, settings: settings, modelOverride: item.modelOption)
                 }
             } else {
@@ -374,6 +375,24 @@ final class DictationPipeline: ObservableObject {
                 discardAudio(item.tempURL)
             }
             IndicatorWindowManager.shared.flash(.error("Transcription failed"))
+        }
+    }
+
+    /// Runs a transcription, and once more if it throws. Engine failures are mostly passing ones
+    /// (a model still loading, a server that timed out once), and a failed dictation costs the
+    /// user a trip to the history to press ↻, then a copy and a paste by hand: someone reported
+    /// one in three to five like that. The second error is the one reported. Nothing is retried
+    /// once the dictation was thrown away, nor after a cancellation.
+    static func retryingOnce(stop: () -> Bool = { false },
+                             _ attempt: () async throws -> String) async throws -> String {
+        do {
+            return try await attempt()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            guard !stop() else { throw error }
+            Diag.mark("transcription failed (\(error.localizedDescription)), trying once more")
+            return try await attempt()
         }
     }
 
