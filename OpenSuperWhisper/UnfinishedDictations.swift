@@ -81,10 +81,7 @@ final class UnfinishedDictations: ObservableObject {
     }
 
     func refresh() {
-        var owned = DictationPipeline.shared.ownedClipNames
-        if let recording = AudioRecorder.shared.currentRecordingURL {
-            owned.insert(recording.lastPathComponent)
-        }
+        let owned = DictationPipeline.shared.ownedClipNames.union(AudioRecorder.shared.ownedFileNames)
         clips = Self.scan(in: Self.directory, owned: owned, now: Date())
     }
 
