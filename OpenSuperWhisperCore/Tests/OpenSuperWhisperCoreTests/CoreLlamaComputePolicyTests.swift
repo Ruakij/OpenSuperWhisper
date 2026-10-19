@@ -36,14 +36,4 @@ final class CoreLlamaComputePolicyTests: CoreTestCase {
         let output = try await backend.generate(system: "Reply with one word.", user: "Say hello.")
         XCTAssertFalse(output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
-
-    private func requireModel() throws -> URL {
-        guard let path = ProcessInfo.processInfo.environment["OSW_TEST_GGUF"], !path.isEmpty else {
-            throw XCTSkip("OSW_TEST_GGUF is not set")
-        }
-        guard FileManager.default.isReadableFile(atPath: path) else {
-            throw XCTSkip("OSW_TEST_GGUF does not name a readable file: \(path)")
-        }
-        return URL(fileURLWithPath: path)
-    }
 }

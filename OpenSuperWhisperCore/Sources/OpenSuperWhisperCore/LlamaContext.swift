@@ -40,6 +40,11 @@
 //    uint32_t              llama_n_ctx(const llama_context * ctx);
 //    llama_memory_t        llama_get_memory(const llama_context * ctx);
 //    void                  llama_memory_clear(llama_memory_t mem, bool data);
+//    llama_pos             llama_memory_seq_pos_max(llama_memory_t mem, llama_seq_id seq_id);
+//    bool                  llama_memory_seq_rm(llama_memory_t mem, llama_seq_id seq_id,
+//                                              llama_pos p0, llama_pos p1);
+//    void                  llama_memory_seq_cp(llama_memory_t mem, llama_seq_id seq_id_src,
+//                                              llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1);
 //    void                  llama_sampler_reset(llama_sampler * smpl);
 //    llama_sampler_chain_params llama_sampler_chain_default_params(void);
 //    llama_sampler *       llama_sampler_chain_init(llama_sampler_chain_params params);
@@ -79,9 +84,25 @@ final class LlamaContext {
     /// Whether the model's chat template has a thinking mode, which `generate` switches off.
     let supportsThinking: Bool
 
+    /// Generation runs in sequence 0. Sequence 1 holds the decoded system-prompt prefix.
+    private static let generationSequence: llama_seq_id = 0
+    private static let prefixSequence: llama_seq_id = 1
+
+    /// Tokens of the system-prompt prefix that sequence 1 holds decoded. A hybrid model such as
+    /// Qwen3.5 has recurrent layers that cannot drop the tail of a sequence (`llama_memory_seq_rm`
+    /// fails on a partial range), so the prefix lives in its own sequence and each prompt starts
+    /// from a copy of the whole of it.
+    private var keptPrefix: [LlamaToken]?
+
+    /// How many prompt tokens the last `generate` restored instead of decoding.
+    private(set) var reusedPrefixTokens = 0
+
     /// Assistant-turn prefill that turns thinking off: the empty block is how the Qwen3 and Qwen3.5
     /// templates render `enable_thinking=false`, and llama.cpp's template call has no switch for it.
     private static let emptyThinkBlock = "<think>\n\n</think>\n\n"
+
+    /// Stands in for the user's text while locating where the template puts it.
+    private static let userMarker = "<<OSW_USER_TEXT>>"
 
     // llama_backend_init() must be called once per process before loading any model.
     // Use a static token so repeated LlamaContext creations don't re-init the backend.
@@ -119,6 +140,10 @@ final class LlamaContext {
         var ctxParams = llama_context_default_params()
         ctxParams.n_ctx = contextLength
         ctxParams.n_batch = contextLength
+        // One cache shared by both sequences: the prefix copy tags the same cells instead of
+        // duplicating them, and `n_ctx` is not split per sequence.
+        ctxParams.n_seq_max = 2
+        ctxParams.kv_unified = true
         let cpuCount = Int32(max(1, ProcessInfo.processInfo.activeProcessorCount))
         ctxParams.n_threads = cpuCount
         ctxParams.n_threads_batch = cpuCount
@@ -267,6 +292,74 @@ final class LlamaContext {
         return llama_vocab_is_eog(vocab, token)
     }
 
+    // MARK: - Decoding
+
+    private func decode(_ tokens: [LlamaToken]) -> Bool {
+        guard let ctx else { return false }
+        var tokens = tokens
+        return tokens.withUnsafeMutableBufferPointer { buf -> Bool in
+            let batch = llama_batch_get_one(buf.baseAddress, Int32(buf.count))
+            return llama_decode(ctx, batch) == 0
+        }
+    }
+
+    /// Tokens of everything the template renders before the user's text. The system prompt is the
+    /// part that repeats between cleanups, so this is what is worth keeping decoded.
+    private func systemPrefixTokens(system: String) -> [LlamaToken] {
+        let rendered = formatChatPrompt(system: system, user: Self.userMarker)
+        guard let marker = rendered.range(of: Self.userMarker, options: .backwards) else { return [] }
+        return tokenize(String(rendered[..<marker.lowerBound]), addSpecial: true)
+    }
+
+    /// Replaces sequence 0 with a copy of sequence 1. Checks the resulting position because
+    /// `llama_batch_get_one` continues from wherever the cache says the sequence ends.
+    private func copyPrefixSequence(tokenCount: Int) -> Bool {
+        guard let ctx else { return false }
+        let mem = llama_get_memory(ctx)
+        guard llama_memory_seq_rm(mem, Self.generationSequence, -1, -1) else { return false }
+        llama_memory_seq_cp(mem, Self.prefixSequence, Self.generationSequence, -1, -1)
+        return llama_memory_seq_pos_max(mem, Self.generationSequence) == llama_pos(tokenCount - 1)
+    }
+
+    /// Decodes `promptTokens` into an emptied sequence 0. Every call is an independent completion,
+    /// and this is not optional hygiene: `llama_batch_get_one` carries no explicit positions, so
+    /// llama continues from wherever the last decode stopped. Without emptying it, dictation N+1
+    /// decodes appended to N (earlier dictations leak into this one's context) and once the
+    /// accumulated tokens pass `n_ctx`, `llama_decode` fails outright and every later cleanup
+    /// returns "" (a silent no-op until the app restarts).
+    ///
+    /// When the tokens start with the tokens of the system prompt, that prefix is copied from
+    /// sequence 1 and only the rest is decoded. A changed system prompt or a failed copy clears the
+    /// cache, decodes the prefix again and keeps it in sequence 1. A prompt that does not start
+    /// with the prefix (a truncated prompt) is decoded in full after clearing sequence 1 as well:
+    /// its cells are not shared with sequence 0 then, so they would eat into the `n_ctx` that the
+    /// truncation assumes to be free.
+    private func decodePrompt(_ promptTokens: [LlamaToken], system: String) -> Bool {
+        reusedPrefixTokens = 0
+        guard let ctx else { return false }
+        let mem = llama_get_memory(ctx)
+        let prefix = systemPrefixTokens(system: system)
+        // At least one token must stay behind: only a decode leaves logits to sample from.
+        guard !prefix.isEmpty, prefix.count < promptTokens.count,
+              promptTokens.starts(with: prefix) else {
+            llama_memory_clear(mem, true)
+            keptPrefix = nil
+            return decode(promptTokens)
+        }
+
+        if keptPrefix == prefix, copyPrefixSequence(tokenCount: prefix.count) {
+            reusedPrefixTokens = prefix.count
+        } else {
+            // A failed copy can leave a partial sequence behind.
+            llama_memory_clear(mem, true)
+            keptPrefix = nil
+            guard decode(prefix) else { return false }
+            llama_memory_seq_cp(mem, Self.generationSequence, Self.prefixSequence, -1, -1)
+            keptPrefix = prefix
+        }
+        return decode(Array(promptTokens.dropFirst(prefix.count)))
+    }
+
     // MARK: - Thinking
 
     /// Qwen3-style templates switch reasoning with `enable_thinking`.
@@ -287,14 +380,8 @@ final class LlamaContext {
     func generate(system: String, user: String, maxTokens: Int = 512) -> String {
         guard let ctx, let sampler else { return "" }
 
-        // Every call is an independent completion, so start from an empty KV cache. This is not
-        // optional hygiene: `llama_batch_get_one` carries no explicit positions, so llama continues
-        // from wherever the last decode stopped. Without the clear, dictation N+1 decodes appended
-        // to N — earlier dictations leak into this one's context — and once the accumulated tokens
-        // pass `n_ctx`, `llama_decode` fails outright and every later cleanup returns "" (a silent
-        // no-op until the app restarts). The sampler is reset for the same reason: its accepted-token
-        // history belongs to the previous generation.
-        llama_memory_clear(llama_get_memory(ctx), true)
+        // Every call is an independent completion: `decodePrompt` empties the KV cache sequence, and
+        // the sampler's accepted-token history belongs to the previous generation.
         llama_sampler_reset(sampler)
 
         var prompt = formatChatPrompt(system: system, user: user)
@@ -308,13 +395,8 @@ final class LlamaContext {
             promptTokens = Array(promptTokens.suffix(nCtx - 1))
         }
 
-        // Decode the prompt as one batch (llama_batch_get_one tracks positions for seq 0).
         var outputBytes: [UInt8] = []
-        var batchOK = promptTokens.withUnsafeMutableBufferPointer { buf -> Bool in
-            let batch = llama_batch_get_one(buf.baseAddress, Int32(buf.count))
-            return llama_decode(ctx, batch) == 0
-        }
-        guard batchOK else { return "" }
+        guard decodePrompt(promptTokens, system: system) else { return "" }
 
         var generated = 0
         var finished = false
@@ -332,12 +414,7 @@ final class LlamaContext {
             outputBytes.append(contentsOf: pieceBytes(for: nextToken))
 
             // Feed the sampled token back in for the next step.
-            var single = [LlamaToken](arrayLiteral: nextToken)
-            batchOK = single.withUnsafeMutableBufferPointer { buf -> Bool in
-                let batch = llama_batch_get_one(buf.baseAddress, Int32(buf.count))
-                return llama_decode(ctx, batch) == 0
-            }
-            if !batchOK { break }
+            if !decode([nextToken]) { break }
 
             generated += 1
         }
