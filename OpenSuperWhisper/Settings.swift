@@ -546,7 +546,13 @@ class SettingsViewModel: ObservableObject {
             do {
                 try await LLMModelManager.shared.downloadModel(url: model.downloadURL,
                                                                name: model.fileName) { progress in
-                    Task { @MainActor in self.builtInModelDownloadProgress = progress }
+                    // Each update hops to the main actor on its own, so the last one can land
+                    // after the download has finished and set this back to nil. It then stuck at
+                    // 100%, and picking the next model showed it as downloading at 100%.
+                    Task { @MainActor in
+                        guard self.builtInModelDownloadProgress != nil else { return }
+                        self.builtInModelDownloadProgress = progress
+                    }
                 }
                 self.builtInModelDownloaded =
                     LLMModelManager.shared.isModelDownloaded(name: self.builtInModelFileName)
