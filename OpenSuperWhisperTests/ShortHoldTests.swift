@@ -12,7 +12,7 @@ final class ShortHoldTests: XCTestCase {
     }
 
     func testAHoldLongEnoughForAClipEndsTheTake() {
-        XCTAssertTrue(ShortcutManager.releaseEndsTake(heldFor: AudioRecorder.minimumUsableDuration, holdOnly: false))
+        XCTAssertTrue(ShortcutManager.releaseEndsTake(heldFor: ShortcutManager.minimumHoldToEndTake, holdOnly: false))
         XCTAssertTrue(ShortcutManager.releaseEndsTake(heldFor: 4.2, holdOnly: false))
     }
 
