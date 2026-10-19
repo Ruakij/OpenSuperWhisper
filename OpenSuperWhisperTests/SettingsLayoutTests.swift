@@ -26,7 +26,18 @@ import XCTest
 @MainActor
 final class SettingsLayoutTests: XCTestCase {
 
-    private static let languages = ["en", "de", "es", "fr", "it", "pt-BR", "vi", "zh-Hans"]
+    private static let allLanguages = ["en", "de", "es", "fr", "it", "pt-BR", "vi", "zh-Hans"]
+
+    /// Every language unless `OSW_LAYOUT_LANGUAGES` names a few. CI runs pull requests on English
+    /// and German, the longest, which catches nearly every overflow in a fraction of the half
+    /// hour the full set takes, and runs all eight on master.
+    private static var languages: [String] {
+        guard let list = ProcessInfo.processInfo.environment["OSW_LAYOUT_LANGUAGES"], !list.isEmpty else {
+            return allLanguages
+        }
+        return list.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter(allLanguages.contains)
+    }
     private static let defaultSize = CGSize(width: 1080, height: 760)
     /// The root view's own minimum; the window cannot be made narrower than this.
     private static let minimumSize = CGSize(width: 840, height: 640)

@@ -15,7 +15,45 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # A pull request is merged with a merge commit. When master has not moved since the pull
+  # request's last green run, that commit holds exactly the files the run tested, and running
+  # everything again on master only queued macOS jobs behind the next pull request. Each green
+  # pull request run records the tree it tested as a commit status on the pull request's head
+  # (`record-tested-tree` below); a push to master whose tree matches one is skipped. Anything
+  # else, a pull request merged onto a newer master, a direct push or a manual run, runs in full.
+  decide:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: read
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          skip=false
+          if [ "$EVENT" = "push" ]; then
+            commit=$(gh api "repos/$REPO/commits/$SHA")
+            tree=$(jq -r '.commit.tree.sha' <<<"$commit")
+            set -- $(jq -r '[.parents[].sha] | join(" ")' <<<"$commit")
+            if [ $# -eq 2 ]; then
+              matches=$(gh api "repos/$REPO/commits/$2/statuses" --paginate \
+                --jq "[.[] | select(.context == \"tested-tree\" and .state == \"success\" and .description == \"$tree\")] | length" \
+                | awk '{ n += $1 } END { print n + 0 }')
+              [ "${matches:-0}" -gt 0 ] && skip=true
+            fi
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+          echo "Skip the macOS jobs: $skip"
+
   build:
+    needs: decide
+    if: ${{ needs.decide.outputs.skip != 'true' }}
     timeout-minutes: 110
     # Pinned to the macOS 26 runner: it ships only Xcode 26.x (macOS 26 SDK), so the
     # Apple Speech engine (SpeechTranscriber/AssetInventory, gated on
@@ -68,6 +106,8 @@ jobs:
         timeout-minutes: 60
         env:
           TEST_RUNNER_OSW_GOLDEN_MACHINE: "0"
+          # Pull requests: English and German only, see SettingsLayoutTests.languages.
+          TEST_RUNNER_OSW_LAYOUT_LANGUAGES: ${{ github.event_name == 'pull_request' && 'en,de' || '' }}
         run: |
           set -o pipefail
           xcodebuild test -scheme OpenSuperWhisper -derivedDataPath build -clonedSourcePackagesDirPath SourcePackages \
@@ -109,6 +149,8 @@ jobs:
   # On a cold cache the native build, run.sh's app build and the two core builds can take most
   # of the step budgets, so the job allows their sum.
   core-tests:
+    needs: decide
+    if: ${{ needs.decide.outputs.skip != 'true' }}
     runs-on: macos-26
     timeout-minutes: 140
     env:
@@ -194,6 +236,8 @@ jobs:
   # The Intel lane of notarize_app.sh, unsigned: nothing else compiles the x86_64 app, where
   # SenseVoice and onnxruntime must stay out. Built on Apple Silicon like a release, not tested.
   release-x86_64:
+    needs: decide
+    if: ${{ needs.decide.outputs.skip != 'true' }}
     runs-on: macos-26
     timeout-minutes: 120
     steps:
@@ -232,3 +276,24 @@ jobs:
             echo "::error::the x86_64 app links or embeds libomp, which the core's native build does not use"
             exit 1
           fi
+
+  # Records the tree a green pull request run tested, for `decide` on the push that merges it.
+  # A pull request from a fork gets a read-only token and records nothing, so its merge runs
+  # in full, as before.
+  record-tested-tree:
+    needs: [build, core-tests, release-x86_64]
+    if: ${{ github.event_name == 'pull_request' && success() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MERGE: ${{ github.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          tree=$(gh api "repos/$REPO/commits/$MERGE" --jq '.commit.tree.sha')
+          gh api -X POST "repos/$REPO/statuses/$HEAD" -f state=success -f context=tested-tree \
+            -f description="$tree" || echo "No permission to record the tested tree (fork)."
