@@ -53029,52 +53029,6 @@
         }
       }
     },
-    "A Qwen2.5 model running on this Mac. The 1.5B is quick but can change the meaning of a sentence; the 7B is more careful and uses about 4 GB of memory.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ein Qwen2.5-Modell, das auf diesem Mac läuft. Das 1.5B ist schnell, kann aber den Sinn eines Satzes verändern; das 7B ist sorgfältiger und belegt etwa 4 GB Speicher."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Un modelo Qwen2.5 que funciona en este Mac. El 1.5B es rápido pero puede cambiar el sentido de una frase; el 7B es más cuidadoso y usa unos 4 GB de memoria."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Un modèle Qwen2.5 qui tourne sur ce Mac. Le 1.5B est rapide mais peut changer le sens d'une phrase ; le 7B est plus soigneux et occupe environ 4 Go de mémoire."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Un modello Qwen2.5 che funziona su questo Mac. Il 1.5B è rapido ma può cambiare il significato di una frase; il 7B è più accurato e usa circa 4 GB di memoria."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Um modelo Qwen2.5 rodando neste Mac. O 1.5B é rápido, mas pode mudar o sentido de uma frase; o 7B é mais cuidadoso e usa cerca de 4 GB de memória."
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mô hình Qwen2.5 chạy trên Mac này. Bản 1.5B nhanh nhưng có thể làm đổi nghĩa câu; bản 7B cẩn thận hơn và dùng khoảng 4 GB bộ nhớ."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在本机上运行的 Qwen2.5 模型。1.5B 速度快但可能改变句意；7B 更严谨，约占 4 GB 内存。"
-          }
-        }
-      }
-    },
     "Apple's on-device model, built into macOS. The most careful one: it fixes grammar without adding or dropping words.": {
       "localizations": {
         "de": {
@@ -55877,6 +55831,144 @@
           "stringUnit": {
             "state": "translated",
             "value": "用某个模型重新生成，或按其他样式重写"
+          }
+        }
+      }
+    },
+    "The old Qwen2.5 model was deleted. To keep using the built-in AI cleanup, download %@ in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das alte Qwen2.5-Modell wurde gelöscht. Um die integrierte KI-Bereinigung weiter zu nutzen, muss %@ in den Einstellungen heruntergeladen werden."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ha eliminado el modelo Qwen2.5 anterior. Para seguir usando la limpieza con IA integrada, descarga %@ en Ajustes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'ancien modèle Qwen2.5 a été supprimé. Pour continuer à utiliser le nettoyage IA intégré, téléchargez %@ dans les Réglages."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il vecchio modello Qwen2.5 è stato eliminato. Per continuare a usare la pulizia IA integrata, scarica %@ in Impostazioni."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O modelo Qwen2.5 antigo foi excluído. Para continuar usando a limpeza com IA integrada, baixe %@ em Configurações."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mô hình Qwen2.5 cũ đã bị xóa. Để tiếp tục dùng tính năng dọn dẹp AI tích hợp, hãy tải %@ trong Cài đặt."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旧的 Qwen2.5 模型已被删除。要继续使用内置 AI 清理，请在“设置”中下载 %@。"
+          }
+        }
+      }
+    },
+    "The built-in cleanup model was replaced": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das integrierte Bereinigungsmodell wurde ersetzt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ha reemplazado el modelo de limpieza integrado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le modèle de nettoyage intégré a été remplacé"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il modello di pulizia integrato è stato sostituito"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O modelo de limpeza integrado foi substituído"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mô hình dọn dẹp tích hợp đã được thay thế"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内置清理模型已被替换"
+          }
+        }
+      }
+    },
+    "A Qwen3.5 model running on this Mac.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Qwen3.5-Modell, das auf diesem Mac läuft."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un modelo Qwen3.5 que funciona en este Mac."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un modèle Qwen3.5 qui tourne sur ce Mac."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un modello Qwen3.5 che funziona su questo Mac."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Um modelo Qwen3.5 rodando neste Mac."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mô hình Qwen3.5 chạy trên Mac này."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在本机上运行的 Qwen3.5 模型。"
           }
         }
       }

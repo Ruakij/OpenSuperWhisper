@@ -112,7 +112,7 @@ struct TextAICleanupGroup: View {
 
     private var backendHint: LocalizedStringKey {
         switch viewModel.aiBackend {
-        case "builtin": return "A Qwen2.5 model running on this Mac. The 1.5B is quick but can change the meaning of a sentence; the 7B is more careful and uses about 4 GB of memory."
+        case "builtin": return "A Qwen3.5 model running on this Mac."
         case "remote": return "Any OpenAI-compatible server."
         case "apple": return "Apple's on-device model, built into macOS. The most careful one: it fixes grammar without adding or dropping words."
         default: return "Your local Ollama server."

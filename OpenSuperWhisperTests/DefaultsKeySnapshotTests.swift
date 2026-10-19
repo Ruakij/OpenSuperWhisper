@@ -440,9 +440,9 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         XCTAssertEqual(prefs.aiOllamaModel, "llama3.2")
         XCTAssertEqual(prefs.aiRemoteEndpoint, "https://api.groq.com/openai/v1")
         XCTAssertEqual(prefs.aiRemoteModel, "llama-3.1-8b-instant")
-        // A file name on disk: a different default would point existing installs at a model
-        // they never downloaded.
-        XCTAssertEqual(prefs.builtInModelFileName, "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+        // A file name on disk: the default may only change together with a `supersededModels`
+        // entry, or existing installs point at a model they never downloaded.
+        XCTAssertEqual(prefs.builtInModelFileName, "Qwen3.5-2B-Q4_K_M.gguf")
         XCTAssertEqual(prefs.unloadBuiltInModelWhenIdle, true)
         // Hand-copied literals (see `ShippedCleanupPrompts`), not the LLMPostProcessor constants
         // the defaults are built from.

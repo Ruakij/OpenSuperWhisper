@@ -102,14 +102,16 @@ extension OpenSuperWhisperApp {
     static func preloadCleanupModel() {
         guard !DefaultsStore.isRunningTests else { return }
         let preferences = AppPreferences.shared
+        // The stored name may be a superseded one, which the backend resolves to its replacement.
+        let fileName = LLMModelManager.model(fileName: preferences.builtInModelFileName).fileName
         if BuiltInLlamaBackend.shouldKeepModelLoaded(
             unloadBuiltInModelWhenIdle: preferences.unloadBuiltInModelWhenIdle,
             aiBackend: preferences.aiBackend,
             aiPostProcessingEnabled: preferences.aiPostProcessingEnabled,
             appContextFormattingEnabled: preferences.appContextFormattingEnabled,
-            modelFileName: preferences.builtInModelFileName,
-            selectedModelFileName: preferences.builtInModelFileName,
-            modelDownloaded: LLMModelManager.shared.isModelDownloaded(name: preferences.builtInModelFileName)) {
+            modelFileName: fileName,
+            selectedModelFileName: fileName,
+            modelDownloaded: LLMModelManager.shared.isModelDownloaded(name: fileName)) {
             BuiltInLlamaBackend.shared.preload()
         }
     }
@@ -183,6 +185,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             name: NSWindow.willCloseNotification,
             object: nil)
 
+        // Deferred: the alert is modal and must not hold up the rest of the launch. Only a user
+        // whose cleanup depends on the deleted file needs to hear about it.
+        let removedSuperseded = LLMModelManager.shared.removeSupersededModels()
+        let preferences = AppPreferences.shared
+        if removedSuperseded, preferences.aiBackend == "builtin", preferences.aiPostProcessingEnabled {
+            DispatchQueue.main.async { [weak self] in self?.announceReplacedCleanupModel() }
+        }
         OpenSuperWhisperApp.startTranscriptionQueue()
         OpenSuperWhisperApp.startRetentionScheduler()
         OpenSuperWhisperApp.preloadCleanupModel()
@@ -197,6 +206,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             Task.detached(priority: .utility) { await AppleSpeechSupport.refreshCaches() }
         }
 #endif
+    }
+
+    /// Shown once, right after the old Qwen2.5 file is deleted: the replacement is never downloaded
+    /// behind the user's back, so built-in cleanup does nothing until they fetch it.
+    private func announceReplacedCleanupModel() {
+        let replacement = LLMModelManager.model(fileName: AppPreferences.shared.builtInModelFileName)
+        let alert = NSAlert()
+        alert.messageText = NSLocalizedString("The built-in cleanup model was replaced", comment: "")
+        alert.informativeText = String(
+            format: NSLocalizedString("The old Qwen2.5 model was deleted. To keep using the built-in AI cleanup, download %@ in Settings.", comment: ""),
+            replacement.displayName)
+        alert.addButton(withTitle: NSLocalizedString("OK", comment: ""))
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
