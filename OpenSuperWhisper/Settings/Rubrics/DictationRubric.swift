@@ -26,6 +26,8 @@ struct DictationRubric: View {
               keywords: "latch space hands-free verrouiller espace mains libres"),
         .init(title: "Dictate and send", rubric: .dictation, advanced: true,
               keywords: "submit return enter send envoyer entrée"),
+        .init(title: "Next writing style", rubric: .dictation, advanced: true,
+              keywords: "style shortcut cycle switch pro personal raccourci style suivant"),
         .init(title: "Paste the last dictation", rubric: .dictation, advanced: true,
               keywords: "paste last transcription again coller dernière dictée"),
         .init(title: "Confirm before cancelling", rubric: .dictation, advanced: true,
@@ -137,6 +139,16 @@ struct DictationRubric: View {
                        hint: "Inserts your latest dictation again wherever the cursor is.",
                        advanced: true) {
                 TriggerRecorderField(name: .pasteLastTranscription,
+                                     mouseButton: $viewModel.pasteMouseButtonUnused,
+                                     modifierKey: $viewModel.pasteModifierUnused,
+                                     allowsMouse: false,
+                                     allowsModifier: false,
+                                     style: .chips)
+            }
+            SettingRow("Next writing style",
+                       hint: "Switches the default style to the next one: Raw, Pro, Personal, then yours. Applies to AI cleanup.",
+                       advanced: true) {
+                TriggerRecorderField(name: .nextWritingStyle,
                                      mouseButton: $viewModel.pasteMouseButtonUnused,
                                      modifierKey: $viewModel.pasteModifierUnused,
                                      allowsMouse: false,

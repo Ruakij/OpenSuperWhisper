@@ -55696,6 +55696,98 @@
           }
         }
       }
+    },
+    "Next writing style": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächster Schreibstil"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siguiente estilo de escritura"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Style d'écriture suivant"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stile di scrittura successivo"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Próximo estilo de escrita"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phong cách viết tiếp theo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一个写作样式"
+          }
+        }
+      }
+    },
+    "Switches the default style to the next one: Raw, Pro, Personal, then yours. Applies to AI cleanup.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schaltet den Standardstil auf den nächsten: Roh, Pro, Privat, dann deine eigenen. Gilt für die KI-Bereinigung."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambia el estilo predeterminado al siguiente: Sin procesar, Pro, Personal y luego los tuyos. Se aplica a la limpieza con IA."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passe le style par défaut au suivant : Brut, Pro, Perso, puis les vôtres. S'applique au nettoyage IA."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passa lo stile predefinito al successivo: Grezzo, Pro, Personale, poi i tuoi. Si applica alla pulizia IA."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muda o estilo padrão para o próximo: Bruto, Pro, Pessoal e depois os seus. Vale para a limpeza por IA."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chuyển kiểu mặc định sang kiểu tiếp theo: Thô, Pro, Cá nhân, rồi đến kiểu của bạn. Áp dụng cho Dọn dẹp AI."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将默认样式切换到下一个：原始、Pro、个人，然后是你自定义的样式。作用于 AI 清理。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
