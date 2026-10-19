@@ -42,6 +42,14 @@ public struct WritingStyle: Codable, Identifiable, Equatable, Hashable, Sendable
 
     public var isBuiltIn: Bool { Self.builtIns.contains { $0.id == id } }
 
+    /// The style after `id` in the order the Style page shows them, back to the first after the
+    /// last, for the shortcut that steps through them.
+    public static func next(after id: String?, custom: [WritingStyle]) -> WritingStyle {
+        let all = builtIns + custom
+        guard let index = all.firstIndex(where: { $0.id == id }) else { return all[0] }
+        return all[(index + 1) % all.count]
+    }
+
     /// The style `id` names among the built-ins and `custom`, Raw when it names none, such as a
     /// custom style deleted while an app rule still pointed at it.
     public static func resolve(_ id: String?, custom: [WritingStyle]) -> WritingStyle {

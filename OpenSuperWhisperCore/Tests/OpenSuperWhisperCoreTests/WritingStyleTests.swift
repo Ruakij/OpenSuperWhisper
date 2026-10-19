@@ -46,6 +46,14 @@ final class WritingStyleTests: CoreTestCase {
         XCTAssertFalse(shipped("Warm and encouraging.").contains("Warm and encouraging."))
     }
 
+    func testNextStepsThroughEveryStyleAndWrapsAround() {
+        let charity = WritingStyle(id: "c1", name: "Charity", instructions: "Warm.")
+        XCTAssertEqual(WritingStyle.next(after: WritingStyle.rawID, custom: [charity]), .pro)
+        XCTAssertEqual(WritingStyle.next(after: WritingStyle.personalID, custom: [charity]), charity)
+        XCTAssertEqual(WritingStyle.next(after: "c1", custom: [charity]), .raw)
+        XCTAssertEqual(WritingStyle.next(after: "deleted", custom: []), .raw)
+    }
+
     func testAnUnknownStyleFallsBackToRaw() {
         let charity = WritingStyle(id: "c1", name: "Charity", instructions: "Warm.")
         XCTAssertEqual(WritingStyle.resolve("c1", custom: [charity]), charity)

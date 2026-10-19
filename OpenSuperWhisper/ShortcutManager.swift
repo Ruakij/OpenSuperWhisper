@@ -18,6 +18,9 @@ extension KeyboardShortcuts.Name {
     /// mouse button. Unbound by default: claiming a global combination for everyone isn't
     /// ours to do. (#50)
     static let toggleRecordAndSubmit = Self("toggleRecordAndSubmit")
+    /// Steps the default writing style to the next one (#160). Unbound by default, like the
+    /// other optional shortcuts.
+    static let nextWritingStyle = Self("nextWritingStyle")
 
     /// One registration handle per recorded key combination. Names are dynamic because the
     /// number of triggers is: the combinations themselves live in `recordingTriggers`, and
@@ -203,6 +206,18 @@ class ShortcutManager {
         KeyboardShortcuts.onKeyUp(for: .pasteLastTranscription) {
             Task { @MainActor in
                 await PasteLastTranscript.run()
+            }
+        }
+
+        KeyboardShortcuts.onKeyUp(for: .nextWritingStyle) {
+            Task { @MainActor in
+                let prefs = AppPreferences.shared
+                let style = WritingStyle.next(after: prefs.writingStyleID, custom: prefs.customWritingStyles)
+                prefs.writingStyleID = style.id
+                NotificationCenter.default.post(name: WritingStyle.didChangeNotification, object: nil)
+                // Said on the bubble, which steps aside during a take: the style still applies
+                // to it, since cleanup reads it once the take has ended.
+                IndicatorWindowManager.shared.flash(.info(String(localized: "Style: \(WritingStyleText.name(style))")))
             }
         }
 
