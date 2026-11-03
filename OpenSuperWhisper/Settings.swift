@@ -1115,7 +1115,7 @@ class SettingsViewModel: ObservableObject {
         self.aiPostProcessingPrompt = prefs.aiPostProcessingPrompt
         self.aiPostProcessingClosing = prefs.aiPostProcessingClosing
         self.aiPostProcessingTranslation = prefs.aiPostProcessingTranslation
-        // The file name the backend resolves to, so a stored name that is no longer offered shows
+        // The file name the backend resolves to, so a stored name outside the catalog shows
         // the model that will run, with its download button, not a blank picker and a file that
         // is on disk but unused.
         let selectedBuiltIn = LLMModelManager.model(fileName: prefs.builtInModelFileName)

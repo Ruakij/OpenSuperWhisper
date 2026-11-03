@@ -83,7 +83,7 @@ public class LLMModelManager {
         approxBytes: 1_280_835_840
     )
 
-    static let mediumModel = LLMModelDescriptor(
+    static let largeModel = LLMModelDescriptor(
         displayName: "Qwen3.5 4B",
         fileName: "Qwen3.5-4B-Q5_K_M.gguf",
         downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q5_K_M.gguf?download=true")!,
@@ -91,13 +91,13 @@ public class LLMModelManager {
     )
 
     /// Everything offered in Settings, smallest first.
-    public static let availableModels: [LLMModelDescriptor] = [tinyModel, defaultModel, mediumModel]
+    public static let availableModels: [LLMModelDescriptor] = [tinyModel, defaultModel, largeModel]
 
     /// The Qwen2.5 files earlier versions offered, each mapped to the replacement of its size
     /// class so a stored selection lands on the closest model.
     private static let supersededModels = [
         "qwen2.5-1.5b-instruct-q4_k_m.gguf": defaultModel.fileName,
-        "qwen2.5-7b-instruct-q3_k_m.gguf": mediumModel.fileName,
+        "qwen2.5-7b-instruct-q3_k_m.gguf": largeModel.fileName,
     ]
 
     /// The descriptor for a stored file name, falling back to the default so an unknown or stale
@@ -133,7 +133,7 @@ public class LLMModelManager {
         }
     }
 
-    /// Deletes the superseded files: no entry can select or delete them any more, and they are
+    /// Deletes the superseded files: no entry can select or delete them, and they are
     /// gigabytes. Only those exact names, never other files in the directory. Returns whether a
     /// file was deleted, which is what the user has to be told about.
     public func removeSupersededModels() -> Bool {
