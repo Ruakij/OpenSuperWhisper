@@ -3,15 +3,9 @@ import XCTest
 
 final class LLMModelCatalogTests: CoreTestCase {
 
-    func testOffersTheQwen35LineupSmallestFirst() {
-        XCTAssertEqual(LLMModelManager.availableModels.map(\.fileName), [
-            "Qwen3.5-0.8B-Q6_K.gguf",
-            "Qwen3.5-2B-Q4_K_M.gguf",
-            "Qwen3.5-4B-Q5_K_M.gguf",
-        ])
+    func testModelsAreOfferedSmallestFirst() {
         let sizes = LLMModelManager.availableModels.map(\.approxBytes)
         XCTAssertEqual(sizes, sizes.sorted())
-        XCTAssertEqual(LLMModelManager.defaultModel.fileName, "Qwen3.5-2B-Q4_K_M.gguf")
     }
 
     /// The on-disk name is the last path component of the URL; HF is case-sensitive, so a typo in

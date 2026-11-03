@@ -129,14 +129,16 @@ extension OpenSuperWhisperApp {
     static func preloadCleanupModel() {
         guard !DefaultsStore.isRunningTests else { return }
         let preferences = AppPreferences.shared
+        // The stored name may be a superseded one, which the backend resolves to its replacement.
+        let fileName = LLMModelManager.model(fileName: preferences.builtInModelFileName).fileName
         if BuiltInLlamaBackend.shouldKeepModelLoaded(
             unloadBuiltInModelWhenIdle: preferences.unloadBuiltInModelWhenIdle,
             aiBackend: preferences.aiBackend,
             aiPostProcessingEnabled: preferences.aiPostProcessingEnabled,
             appContextFormattingEnabled: preferences.appContextFormattingEnabled,
-            modelFileName: preferences.builtInModelFileName,
-            selectedModelFileName: preferences.builtInModelFileName,
-            modelDownloaded: LLMModelManager.shared.isModelDownloaded(name: preferences.builtInModelFileName)) {
+            modelFileName: fileName,
+            selectedModelFileName: fileName,
+            modelDownloaded: LLMModelManager.shared.isModelDownloaded(name: fileName)) {
             BuiltInLlamaBackend.shared.preload()
         }
     }
@@ -227,8 +229,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             name: NSWindow.willCloseNotification,
             object: nil)
 
-        // Deferred: the alert is modal and must not hold up the rest of the launch.
-        if LLMModelManager.shared.removeSupersededModels() {
+        // Deferred: the alert is modal and must not hold up the rest of the launch. Only a user
+        // whose cleanup depends on the deleted file needs to hear about it.
+        let removedSuperseded = LLMModelManager.shared.removeSupersededModels()
+        let preferences = AppPreferences.shared
+        if removedSuperseded, preferences.aiBackend == "builtin", preferences.aiPostProcessingEnabled {
             DispatchQueue.main.async { [weak self] in self?.announceReplacedCleanupModel() }
         }
         OpenSuperWhisperApp.startTranscriptionQueue()
@@ -260,11 +265,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         alert.informativeText = String(
             format: NSLocalizedString("The old Qwen2.5 model was deleted. To keep using the built-in AI cleanup, download %@ in Settings.", comment: ""),
             replacement.displayName)
-        alert.addButton(withTitle: NSLocalizedString("Settings...", comment: ""))
         alert.addButton(withTitle: NSLocalizedString("OK", comment: ""))
         NSApp.activate(ignoringOtherApps: true)
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        MainActor.assumeIsolated { AppNavigation.shared.openSettings(.textAndAI) }
+        alert.runModal()
     }
 
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
