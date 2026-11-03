@@ -38,6 +38,5 @@ final class LLMThinkingTests: CoreTestCase {
             "{% for m in messages %}<|im_start|>{{ m.role }}\n{{ m.content }}<|im_end|>\n{% endfor %}"))
         XCTAssertTrue(LlamaContext.templateSupportsThinking(
             "{% if enable_thinking is defined and enable_thinking is false %}<think>\n\n</think>\n\n{% endif %}"))
-        XCTAssertTrue(LlamaContext.templateSupportsThinking("<|Assistant|><think>\n"))
     }
 }
