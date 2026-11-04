@@ -738,8 +738,8 @@ class SettingsViewModel: ObservableObject {
             }
             do {
                 let fenced = "<<<TEXT\n\(paragraph)\nTEXT>>>"
-                let translated = try await backend.generate(system: system, user: fenced)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let translated = LLMPostProcessor.strippingThinking(
+                    try await backend.generate(system: system, user: fenced))
                     .replacingOccurrences(of: "<<<TEXT", with: "")
                     .replacingOccurrences(of: "TEXT>>>", with: "")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1115,10 +1115,14 @@ class SettingsViewModel: ObservableObject {
         self.aiPostProcessingPrompt = prefs.aiPostProcessingPrompt
         self.aiPostProcessingClosing = prefs.aiPostProcessingClosing
         self.aiPostProcessingTranslation = prefs.aiPostProcessingTranslation
-        self.builtInModelFileName = prefs.builtInModelFileName
+        // The file name the backend resolves to, so a stored name outside the catalog shows
+        // the model that will run, with its download button, not a blank picker and a file that
+        // is on disk but unused.
+        let selectedBuiltIn = LLMModelManager.model(fileName: prefs.builtInModelFileName)
+        self.builtInModelFileName = selectedBuiltIn.fileName
         self.unloadBuiltInModelWhenIdle = prefs.unloadBuiltInModelWhenIdle
         self.builtInModelDownloaded =
-            LLMModelManager.shared.isModelDownloaded(name: prefs.builtInModelFileName)
+            LLMModelManager.shared.isModelDownloaded(name: selectedBuiltIn.fileName)
         self.removeFillerWords = prefs.removeFillerWords
         self.fillerWordsPattern = prefs.fillerWordsPattern
         self.postRecordHookEnabled = prefs.postRecordHookEnabled

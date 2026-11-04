@@ -65,44 +65,46 @@ public struct LLMModelDescriptor: Sendable {
 public class LLMModelManager {
     public static let shared = LLMModelManager(storageRoot: CoreAccess.storageRoot)
 
-    /// Default built-in cleanup model: Qwen2.5-1.5B-Instruct, GGUF Q4_K_M.
-    /// Qwen2.5 is licensed Apache-2.0 (https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/blob/main/LICENSE),
-    /// so it is safe to bundle/download for a zero-setup local backend.
-    /// Source: official Qwen first-party GGUF repo. Filename casing is exact —
-    /// HF is case-sensitive and a wrong case is a silent 404 (verified 2026-06-27:
-    /// HTTP 200, 1,117,320,736 bytes).
+    /// Built-in cleanup models: Qwen3.5, licensed Apache-2.0 (https://huggingface.co/Qwen/Qwen3.5-2B),
+    /// as single-file GGUFs from unsloth/Qwen3.5-*-GGUF (the downloader handles one file per
+    /// model). File names and byte sizes verified against the Hugging Face API on 2026-10-12; HF
+    /// is case-sensitive and a wrong case is a silent 404.
+    static let tinyModel = LLMModelDescriptor(
+        displayName: "Qwen3.5 0.8B",
+        fileName: "Qwen3.5-0.8B-Q6_K.gguf",
+        downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q6_K.gguf?download=true")!,
+        approxBytes: 639_029_504
+    )
+
     public static let defaultModel = LLMModelDescriptor(
-        displayName: "Qwen2.5 1.5B Instruct (Q4_K_M)",
-        fileName: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        downloadURL: URL(string: "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true")!,
-        approxBytes: 1_117_320_736
+        displayName: "Qwen3.5 2B",
+        fileName: "Qwen3.5-2B-Q4_K_M.gguf",
+        downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf?download=true")!,
+        approxBytes: 1_280_835_840
     )
 
-    /// The bigger option. 1.5B is fine at punctuation but fails at anything needing real
-    /// instruction-following — it will happily obey an instruction it was asked to translate, or
-    /// rewrite a dictated letter in English. 7B handles both.
-    ///
-    /// Q3_K_M and not the usual Q4_K_M for one practical reason: every Q4 and larger quant of the
-    /// 7B is **split across multiple GGUF files** in the official repo, and the downloader here
-    /// handles one file per model. Q3_K_M is the largest single-file quant, and a 7B at Q3 is well
-    /// clear of a 1.5B at Q4. Apache-2.0, same first-party Qwen repo (verified 2026-08-11: single
-    /// file, 3.81 GB).
     static let largeModel = LLMModelDescriptor(
-        displayName: "Qwen2.5 7B Instruct (Q3_K_M)",
-        fileName: "qwen2.5-7b-instruct-q3_k_m.gguf",
-        downloadURL: URL(string: "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q3_k_m.gguf?download=true")!,
-        approxBytes: 3_808_391_040
+        displayName: "Qwen3.5 4B",
+        fileName: "Qwen3.5-4B-Q5_K_M.gguf",
+        downloadURL: URL(string: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q5_K_M.gguf?download=true")!,
+        approxBytes: 3_143_656_608
     )
 
-    /// Everything offered in Settings, smallest first. Only models whose licence allows shipping a
-    /// one-click download: Qwen2.5 is Apache-2.0 at 0.5B/1.5B/7B/14B — but **not** at 3B, which is
-    /// under the non-commercial Qwen Research licence despite being the obvious middle step.
-    public static let availableModels: [LLMModelDescriptor] = [defaultModel, largeModel]
+    /// Everything offered in Settings, smallest first.
+    public static let availableModels: [LLMModelDescriptor] = [tinyModel, defaultModel, largeModel]
+
+    /// The Qwen2.5 files earlier versions offered, each mapped to the replacement of its size
+    /// class so a stored selection lands on the closest model.
+    private static let supersededModels = [
+        "qwen2.5-1.5b-instruct-q4_k_m.gguf": defaultModel.fileName,
+        "qwen2.5-7b-instruct-q3_k_m.gguf": largeModel.fileName,
+    ]
 
     /// The descriptor for a stored file name, falling back to the default so an unknown or stale
     /// preference can never leave the app without a model.
     public static func model(fileName: String) -> LLMModelDescriptor {
-        availableModels.first { $0.fileName == fileName } ?? defaultModel
+        let name = supersededModels[fileName] ?? fileName
+        return availableModels.first { $0.fileName == name } ?? defaultModel
     }
 
     private static let modelsDirectoryName = "llm-models"
@@ -129,6 +131,17 @@ public class LLMModelManager {
         } catch {
             print("Failed to create LLM models directory: \(error)")
         }
+    }
+
+    /// Deletes the superseded files: no entry can select or delete them, and they are
+    /// gigabytes. Only those exact names, never other files in the directory. Returns whether a
+    /// file was deleted, which is what the user has to be told about.
+    public func removeSupersededModels() -> Bool {
+        var removed = false
+        for name in Self.supersededModels.keys where isModelDownloaded(name: name) {
+            if (try? FileManager.default.removeItem(at: localURL(for: name))) != nil { removed = true }
+        }
+        return removed
     }
 
     /// All downloaded .gguf models on disk.
