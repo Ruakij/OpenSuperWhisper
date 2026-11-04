@@ -143,6 +143,7 @@ public enum LLMPostProcessor {
                                                 writesLists: writesLists,
                                                 spokenFormatting: spokenFormatting,
                                                 style: style,
+                                                removingFillers: prefs.removeFillerWords,
                                                 extraInstruction: extraInstruction)
         else { return notRun }
 
@@ -295,6 +296,15 @@ public enum LLMPostProcessor {
         return Double(words(output)) > Double(dictated) * listGrowthLimit
     }
 
+    /// Added only while "Remove filler words" is on. The setting's regex catches the fillers it
+    /// lists; the model also drops the ones it cannot, in any language, which the opening
+    /// instruction ("never remove information") would otherwise keep. "er" is not listed because
+    /// it is the German pronoun.
+    static let fillerWordsInstruction = """
+        Drop filler words and hesitations that carry no meaning (um, uh, äh, ähm, and filler uses \
+        of words like "halt" or "also"); they are not information.
+        """
+
     /// Builds the single system prompt for one LLM pass from the two independent contributors.
     /// Returns nil when neither contributes (general cleanup off AND no app profile), signalling
     /// the caller to skip the LLM entirely and return the text untouched.
@@ -302,6 +312,7 @@ public enum LLMPostProcessor {
     /// Assembles the system prompt as the user's own text with the app rules in the middle:
     ///
     ///     opening instruction
+    ///     filler-word sentence               (only while "Remove filler words" is on)
     ///     App-specific formatting rules: …   (only when a profile matches)
     ///     closing instruction
     ///
@@ -369,6 +380,7 @@ public enum LLMPostProcessor {
                                      writesLists: Bool = false,
                                      spokenFormatting: Bool = false,
                                      style: String = "",
+                                     removingFillers: Bool = false,
                                      extraInstruction: String = "") -> String? {
         guard generalCleanup || profile != nil else { return nil }
 
@@ -379,6 +391,9 @@ public enum LLMPostProcessor {
             // Right after the contract it adjusts: the style says how to clean up, so it belongs
             // to general cleanup and goes with it. App rules still come later and win on format.
             sections.append(style)
+        }
+        if removingFillers {
+            sections.append(fillerWordsInstruction)
         }
         // A one-off request of the person rerunning the pass: it refines the style, so it sits
         // right after it, and the app rules and the closing guardrail still come after.

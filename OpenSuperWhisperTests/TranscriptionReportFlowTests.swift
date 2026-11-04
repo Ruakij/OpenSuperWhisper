@@ -276,11 +276,11 @@ final class DictationOriginalTextTests: XCTestCase {
     func testTheEngineTextIsKeptBesideTheFinalOne() async throws {
         let marker = UUID().uuidString.prefix(8)
 
-        let recording = try await dictate("um send the mock ups \(marker)", marker: marker)
+        let recording = try await dictate("uh send the mock ups \(marker)", marker: marker)
 
         XCTAssertEqual(recording.transcription, "send the mock ups \(marker)")
-        XCTAssertEqual(recording.rawTranscription, "um send the mock ups \(marker)")
-        XCTAssertEqual(recording.distinctOriginal, "um send the mock ups \(marker)")
+        XCTAssertEqual(recording.rawTranscription, "uh send the mock ups \(marker)")
+        XCTAssertEqual(recording.distinctOriginal, "uh send the mock ups \(marker)")
     }
 
     /// The spoken submit command comes off the original too: copying it back out must not bring
@@ -289,9 +289,9 @@ final class DictationOriginalTextTests: XCTestCase {
         AppPreferences.shared.submitOnVoiceCommand = true
         let marker = UUID().uuidString.prefix(8)
 
-        let recording = try await dictate("um send the mock ups \(marker), press enter.", marker: marker)
+        let recording = try await dictate("uh send the mock ups \(marker), press enter.", marker: marker)
 
         XCTAssertEqual(recording.transcription, "send the mock ups \(marker)")
-        XCTAssertEqual(recording.rawTranscription, "um send the mock ups \(marker)")
+        XCTAssertEqual(recording.rawTranscription, "uh send the mock ups \(marker)")
     }
 }
