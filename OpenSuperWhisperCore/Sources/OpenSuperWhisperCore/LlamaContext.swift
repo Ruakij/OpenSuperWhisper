@@ -111,11 +111,25 @@ final class LlamaContext {
         return ()
     }()
 
+    /// Precision of the K and V caches. Raw values are what the preference stores. A quantized V
+    /// cache needs flash attention, which `flash_attn_type`'s AUTO default enables on Metal.
+    enum KVCacheType: String {
+        case f16, q8_0
+
+        var ggmlType: ggml_type {
+            switch self {
+            case .f16: return GGML_TYPE_F16
+            case .q8_0: return GGML_TYPE_Q8_0
+            }
+        }
+    }
+
     // MARK: - Initialization
 
     /// Loads a GGUF model from disk and creates an inference context.
     /// GPU offload is enabled (all layers) so Metal is used, matching the whisper path.
-    init?(modelPath: String, contextLength: UInt32 = 4096, gpuLayers: Int32 = 999) {
+    init?(modelPath: String, contextLength: UInt32 = 4096, kvCacheType: KVCacheType = .f16,
+          gpuLayers: Int32 = 999) {
         _ = LlamaContext.backendInit
 
         // --- Load the model ---
@@ -144,6 +158,8 @@ final class LlamaContext {
         // duplicating them, and `n_ctx` is not split per sequence.
         ctxParams.n_seq_max = 2
         ctxParams.kv_unified = true
+        ctxParams.type_k = kvCacheType.ggmlType
+        ctxParams.type_v = kvCacheType.ggmlType
         let cpuCount = Int32(max(1, ProcessInfo.processInfo.activeProcessorCount))
         ctxParams.n_threads = cpuCount
         ctxParams.n_threads_batch = cpuCount
@@ -369,15 +385,22 @@ final class LlamaContext {
 
     // MARK: - Generation
 
+    /// Reply budget for a cleanup of `userTokenCount` tokens: the text comes back about as long as
+    /// it went in, so twice that leaves room for a reply that grows, and the floor covers short
+    /// inputs.
+    static func outputCap(userTokenCount: Int) -> Int { max(256, 2 * userTokenCount) }
+
     /// Runs a single-shot chat completion: formats the prompt, decodes the prompt
-    /// tokens, then greedily samples up to `maxTokens` tokens, stopping at EOG.
+    /// tokens, then greedily samples up to `maxTokens` tokens (default: `outputCap` of `user`),
+    /// stopping at EOG and at the end of the context window.
     ///
     /// A model with a thinking mode answers straight away: a cleanup gains little from reasoning
     /// and would wait many times longer.
     ///
-    /// Returns "" when the budget runs out before the model finishes: a cut-off reply is never
-    /// better than the text it was meant to improve, and callers treat "" as "use the original".
-    func generate(system: String, user: String, maxTokens: Int = 512) -> String {
+    /// Returns "" when the budget runs out before the model finishes, or when the prompt does not
+    /// fit the context window: a cut-off reply is never better than the text it was meant to
+    /// improve, and callers treat "" as "use the original".
+    func generate(system: String, user: String, maxTokens: Int? = nil) -> String {
         guard let ctx, let sampler else { return "" }
 
         // Every call is an independent completion: `decodePrompt` empties the KV cache sequence, and
@@ -386,21 +409,20 @@ final class LlamaContext {
 
         var prompt = formatChatPrompt(system: system, user: user)
         if supportsThinking { prompt += Self.emptyThinkBlock }
-        var promptTokens = tokenize(prompt, addSpecial: true)
+        let promptTokens = tokenize(prompt, addSpecial: true)
         guard !promptTokens.isEmpty else { return "" }
 
+        // Cutting a prompt that doesn't fit would drop its start, which is the system prompt.
         let nCtx = Int(llama_n_ctx(ctx))
-        if promptTokens.count >= nCtx {
-            // Truncate the prompt if it doesn't fit; leave room for the response.
-            promptTokens = Array(promptTokens.suffix(nCtx - 1))
-        }
+        guard promptTokens.count < nCtx else { return "" }
 
         var outputBytes: [UInt8] = []
         guard decodePrompt(promptTokens, system: system) else { return "" }
 
         var generated = 0
         var finished = false
-        let budget = min(maxTokens, max(0, nCtx - promptTokens.count))
+        let cap = maxTokens ?? Self.outputCap(userTokenCount: tokenize(user, addSpecial: false).count)
+        let budget = min(cap, nCtx - promptTokens.count)
         while generated < budget {
             // Sample the next token from the logits of the last decoded position.
             let nextToken = llama_sampler_sample(sampler, ctx, -1)

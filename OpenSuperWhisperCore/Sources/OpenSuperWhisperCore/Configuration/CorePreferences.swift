@@ -55,4 +55,6 @@ public protocol CorePreferences: AnyObject, Sendable {
     var aiSpokenFormattingEnabled: Bool { get }
     var builtInModelFileName: String { get }
     var unloadBuiltInModelWhenIdle: Bool { get }
+    var builtInContextLength: Int { get }
+    var builtInKVCacheType: String { get }
 }
