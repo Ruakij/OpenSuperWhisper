@@ -76,6 +76,13 @@ final class LlamaContext {
     private var sampler: UnsafeMutablePointer<llama_sampler>?
     private let vocab: OpaquePointer?
 
+    /// Whether the model's chat template has a thinking mode, which `generate` switches off.
+    let supportsThinking: Bool
+
+    /// Assistant-turn prefill that turns thinking off: the empty block is how the Qwen3 and Qwen3.5
+    /// templates render `enable_thinking=false`, and llama.cpp's template call has no switch for it.
+    private static let emptyThinkBlock = "<think>\n\n</think>\n\n"
+
     // llama_backend_init() must be called once per process before loading any model.
     // Use a static token so repeated LlamaContext creations don't re-init the backend.
     private static let backendInit: Void = {
@@ -105,6 +112,8 @@ final class LlamaContext {
         }
         self.model = loadedModel
         self.vocab = llama_model_get_vocab(loadedModel)
+        self.supportsThinking = Self.templateSupportsThinking(
+            llama_model_chat_template(loadedModel, nil).map { String(cString: $0) })
 
         // --- Create the context ---
         var ctxParams = llama_context_default_params()
@@ -258,6 +267,13 @@ final class LlamaContext {
         return llama_vocab_is_eog(vocab, token)
     }
 
+    // MARK: - Thinking
+
+    /// Qwen3-style templates switch reasoning with `enable_thinking`.
+    static func templateSupportsThinking(_ template: String?) -> Bool {
+        template?.contains("enable_thinking") ?? false
+    }
+
     // MARK: - Generation
 
     /// How a completion ended. Only `.finished` hands back everything the model meant to say.
@@ -288,6 +304,9 @@ final class LlamaContext {
     /// greedily samples until the end-of-generation token or the budget. `maxTokens` nil sizes
     /// the budget on `user` (`replyBudget`); the room left in the context caps it either way.
     ///
+    /// A model with a thinking mode answers straight away: a cleanup gains little from reasoning
+    /// and would wait many times longer.
+    ///
     /// The stop reason is the point: a flat 512-token budget used to end long dictations partway
     /// and the cut text was pasted as if complete (feedback of 2026-11-11).
     func generate(system: String, user: String, maxTokens: Int? = nil) -> Completion {
@@ -303,7 +322,8 @@ final class LlamaContext {
         llama_memory_clear(llama_get_memory(ctx), true)
         llama_sampler_reset(sampler)
 
-        let prompt = formatChatPrompt(system: system, user: user)
+        var prompt = formatChatPrompt(system: system, user: user)
+        if supportsThinking { prompt += Self.emptyThinkBlock }
         var promptTokens = tokenize(prompt, addSpecial: true)
         guard !promptTokens.isEmpty else { return Completion(text: "", stop: .decodeFailed) }
 
