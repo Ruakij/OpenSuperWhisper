@@ -58,6 +58,14 @@ final class RecordingContext {
     private(set) var focusTarget: FocusTarget?
     private init() {}
 
+    /// Times one capture step and logs it with `Diag.mark`. Not `Diag.measure`: the capture runs
+    /// inside the `vm.startRecording` measure, and a nested measure clears the in-flight name.
+    private func timed<T>(_ step: String, _ body: () -> T) -> T {
+        let start = UptimeClock.now()
+        defer { Diag.mark("\(step) took \(UptimeClock.milliseconds(from: start)) ms") }
+        return body()
+    }
+
     func update(appName: String?, bundleID: String?, host: String? = nil,
                 fullURL: String? = nil, windowTitle: String? = nil,
                 focusedText: String? = nil, keyboardLanguage: String? = nil) {
@@ -92,13 +100,15 @@ final class RecordingContext {
                                                ownBundleID: Bundle.main.bundleIdentifier,
                                                autoPaste: prefs.autoPasteTranscription,
                                                pasteIntoOriginalField: prefs.pasteIntoOriginalField)
-            focusTarget = wanted ? front.map(FocusTarget.capture) : nil
+            focusTarget = wanted
+                ? timed("captureFrontmost.focusTarget") { front.map(FocusTarget.capture) }
+                : nil
         }
         guard let front, let bundle = front.bundleIdentifier, bundle != Bundle.main.bundleIdentifier
         else { return }
-        let url = SourceCapture.browserURL(bundleID: bundle)
+        let url = timed("captureFrontmost.browserURL") { SourceCapture.browserURL(bundleID: bundle) }
         let host = SourceCapture.host(of: url)
-        let title = SourceCapture.focusedWindowTitle()
+        let title = timed("captureFrontmost.focusedWindowTitle") { SourceCapture.focusedWindowTitle() }
         // Only read the field when the setting asks for it AND the engine can use it. Reading
         // what someone is writing is not something to do speculatively and then discard, and an
         // engine that takes no prompt would have it discarded.
@@ -108,7 +118,9 @@ final class RecordingContext {
         // lookup. Only just now: from the menu, focusTarget belongs to the recording under way.
         let capturedElement = forRecording ? focusTarget?.element : nil
         let written = wantsField
-            ? (capturedElement.map(SourceCapture.focusedText(in:)) ?? SourceCapture.focusedText())
+            ? timed("captureFrontmost.focusedText") {
+                capturedElement.map(SourceCapture.focusedText(in:)) ?? SourceCapture.focusedText()
+            }
             : nil
         let layoutLanguage = prefs.whisperLanguage == KeyboardLanguage.selectionCode
             ? KeyboardLanguage.current(engine: prefs.selectedEngine,
