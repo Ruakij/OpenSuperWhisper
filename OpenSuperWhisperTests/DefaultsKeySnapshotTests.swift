@@ -44,6 +44,8 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         "autoCopyToClipboard",
         "autoPasteTranscription",
         "beamSize",
+        "builtInContextLength",
+        "builtInKVCacheType",
         "builtInModelFileName",
         "cachedRemoteModels",
         "clipboardRestoreDelayMs",
@@ -277,6 +279,8 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         assertWrites("aiRemoteModel") { prefs.aiRemoteModel = "remote-llm" }
         assertWrites("builtInModelFileName") { prefs.builtInModelFileName = "model.gguf" }
         assertWrites("unloadBuiltInModelWhenIdle") { prefs.unloadBuiltInModelWhenIdle = false }
+        assertWrites("builtInContextLength") { prefs.builtInContextLength = 16384 }
+        assertWrites("builtInKVCacheType") { prefs.builtInKVCacheType = "q8_0" }
         assertWrites("aiPostProcessingPrompt") { prefs.aiPostProcessingPrompt = "open" }
         assertWrites("aiPostProcessingClosing") { prefs.aiPostProcessingClosing = "close" }
         assertWrites("aiPostProcessingTranslation") { prefs.aiPostProcessingTranslation = "translate" }
@@ -455,10 +459,12 @@ final class DefaultsKeySnapshotTests: XCTestCase {
         XCTAssertEqual(prefs.aiRemoteEndpoint, "https://api.groq.com/openai/v1")
         XCTAssertEqual(prefs.aiRemoteModel, "llama-3.1-8b-instant")
         XCTAssertNil(prefs.aiRemoteDisableReasoning)
-        // A file name on disk: a different default would point existing installs at a model
-        // they never downloaded.
-        XCTAssertEqual(prefs.builtInModelFileName, "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+        // A file name on disk: the default may only change together with a `supersededModels`
+        // entry, or existing installs point at a model they never downloaded.
+        XCTAssertEqual(prefs.builtInModelFileName, "Qwen3.5-2B-Q4_K_M.gguf")
         XCTAssertEqual(prefs.unloadBuiltInModelWhenIdle, true)
+        XCTAssertEqual(prefs.builtInContextLength, 8192)
+        XCTAssertEqual(prefs.builtInKVCacheType, "f16")
         // Hand-copied literals (see `ShippedCleanupPrompts`), not the LLMPostProcessor constants
         // the defaults are built from.
         XCTAssertEqual(prefs.aiPostProcessingPrompt, ShippedCleanupPrompts.opening)

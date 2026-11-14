@@ -54,10 +54,10 @@ final class EngineLifecycleStressTests: XCTestCase {
     /// whisper must still give the golden.
     ///
     /// Needs a GGUF model and never downloads one or looks in the user's Application Support:
-    /// `OSW_TEST_GGUF`, passed as `TEST_RUNNER_OSW_TEST_GGUF` through xcodebuild, names it (the
-    /// app's smallest cleanup model, qwen2.5-1.5b-instruct-q4_k_m.gguf, is the one this was
-    /// written against). Without it the test skips, which keeps the test host away from the
-    /// user's data; a run that must cover llama sets it. Each llama load takes a second or so.
+    /// `OSW_TEST_GGUF`, passed as `TEST_RUNNER_OSW_TEST_GGUF` through xcodebuild, names it; the
+    /// app's smallest cleanup model, Qwen3.5-0.8B-Q6_K.gguf, loads fastest. Without it the test
+    /// skips, which keeps the test host away from the user's data; a run that must cover llama sets
+    /// it. Each llama load takes a second or so.
     func testWhisperAndLlamaContextsComeAndGoInEitherOrder() async throws {
         let modelPath = try Self.ggufModelFromEnvironment()
         AppPreferences.shared.unloadWhisperModelWhenIdle = true

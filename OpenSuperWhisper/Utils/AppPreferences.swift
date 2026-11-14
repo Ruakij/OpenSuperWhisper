@@ -793,12 +793,22 @@ final class AppPreferences {
 
     // Which built-in GGUF the local cleanup backend loads. Stored as the file name so an entry
     // that disappears from `LLMModelManager.availableModels` degrades to the default instead of
-    // crashing. Unset means the small model everyone already has downloaded.
+    // crashing. Unset means the default model.
     @UserDefault(key: "builtInModelFileName", defaultValue: LLMModelManager.defaultModel.fileName)
     var builtInModelFileName: String
 
     @UserDefault(key: "unloadBuiltInModelWhenIdle", defaultValue: true)
     var unloadBuiltInModelWhenIdle: Bool
+
+    // Token window of the built-in model's context (4096...32768). A longer one fits a longer
+    // dictation but holds a bigger KV cache in memory.
+    @UserDefault(key: "builtInContextLength", defaultValue: 8192)
+    var builtInContextLength: Int
+
+    // Precision of that KV cache, a `LlamaContext.KVCacheType` raw value: "f16" or "q8_0", which
+    // takes half the memory.
+    @UserDefault(key: "builtInKVCacheType", defaultValue: "f16")
+    var builtInKVCacheType: String
 
     // The complete system prompt for the cleanup pass. The app wraps nothing around it and
     // substitutes nothing in it, so this field is the whole contract — including the guardrail

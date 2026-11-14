@@ -529,6 +529,22 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// Token window and KV cache precision of the built-in model's context. The backend reloads
+    /// on the next use when they change; preloading does it now, while the user is in Settings.
+    @Published var builtInContextLength: Int {
+        didSet {
+            AppPreferences.shared.builtInContextLength = builtInContextLength
+            if builtInModelDownloaded { BuiltInLlamaBackend.shared.preload() }
+        }
+    }
+
+    @Published var builtInKVCacheType: String {
+        didSet {
+            AppPreferences.shared.builtInKVCacheType = builtInKVCacheType
+            if builtInModelDownloaded { BuiltInLlamaBackend.shared.preload() }
+        }
+    }
+
     var builtInModel: LLMModelDescriptor { LLMModelManager.model(fileName: builtInModelFileName) }
 
     /// Download size of the selected model, for the download button ("3.8 GB").
@@ -744,8 +760,8 @@ class SettingsViewModel: ObservableObject {
             }
             do {
                 let fenced = "<<<TEXT\n\(paragraph)\nTEXT>>>"
-                let translated = try await backend.generate(system: system, user: fenced)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let translated = LLMPostProcessor.strippingThinking(
+                    try await backend.generate(system: system, user: fenced))
                     .replacingOccurrences(of: "<<<TEXT", with: "")
                     .replacingOccurrences(of: "TEXT>>>", with: "")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1121,10 +1137,16 @@ class SettingsViewModel: ObservableObject {
         self.aiPostProcessingPrompt = prefs.aiPostProcessingPrompt
         self.aiPostProcessingClosing = prefs.aiPostProcessingClosing
         self.aiPostProcessingTranslation = prefs.aiPostProcessingTranslation
-        self.builtInModelFileName = prefs.builtInModelFileName
+        // The file name the backend resolves to, so a stored name outside the catalog shows
+        // the model that will run, with its download button, not a blank picker and a file that
+        // is on disk but unused.
+        let selectedBuiltIn = LLMModelManager.model(fileName: prefs.builtInModelFileName)
+        self.builtInModelFileName = selectedBuiltIn.fileName
         self.unloadBuiltInModelWhenIdle = prefs.unloadBuiltInModelWhenIdle
+        self.builtInContextLength = prefs.builtInContextLength
+        self.builtInKVCacheType = prefs.builtInKVCacheType
         self.builtInModelDownloaded =
-            LLMModelManager.shared.isModelDownloaded(name: prefs.builtInModelFileName)
+            LLMModelManager.shared.isModelDownloaded(name: selectedBuiltIn.fileName)
         self.removeFillerWords = prefs.removeFillerWords
         self.fillerWordsPattern = prefs.fillerWordsPattern
         self.postRecordHookEnabled = prefs.postRecordHookEnabled
