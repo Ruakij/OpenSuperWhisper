@@ -16,4 +16,15 @@ class CoreTestCase: XCTestCase {
         CoreTestEnvironment.preferences.reset()
         super.tearDown()
     }
+
+    /// The model the llama tests run against, from `OSW_TEST_GGUF`; skips without one.
+    func requireModel() throws -> URL {
+        guard let path = ProcessInfo.processInfo.environment["OSW_TEST_GGUF"], !path.isEmpty else {
+            throw XCTSkip("OSW_TEST_GGUF is not set")
+        }
+        guard FileManager.default.isReadableFile(atPath: path) else {
+            throw XCTSkip("OSW_TEST_GGUF does not name a readable file: \(path)")
+        }
+        return URL(fileURLWithPath: path)
+    }
 }
