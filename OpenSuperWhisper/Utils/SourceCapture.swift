@@ -116,10 +116,68 @@ enum SourceCapture {
         browserScripts.keys.contains { $0.caseInsensitiveCompare(bundleID) == .orderedSame }
     }
 
-    /// Active-tab URL for a known browser bundle id, or nil (not a browser, no
-    /// window, or automation permission denied). Synchronous — call on the main
-    /// thread (NSAppleScript requirement).
+    /// Where a dictation happened: the active tab's URL and its host, and the window title.
+    struct Details: Sendable {
+        var fullURL: String?
+        var host: String?
+        var windowTitle: String?
+    }
+
+    /// The URL, host and window title of the frontmost app at record start. Run off the main
+    /// thread: the browser's reply and the Accessibility lookup both wait on the target app.
+    static func details(bundleID: String) async -> Details {
+        async let url = browserURL(bundleID: bundleID, timeout: 1)
+        let title = focusedWindowTitle()
+        let fullURL = await url
+        return Details(fullURL: fullURL, host: host(of: fullURL), windowTitle: title)
+    }
+
+    /// Scripts run one at a time. NSAppleScript is not thread-safe, and a hung browser must not
+    /// leave a new thread blocked for every take.
+    private static let scriptQueue = DispatchQueue(label: "SourceCapture.scripts")
+
+    /// Runs the script for a known browser and passes its URL to `completion`, once: nil when the
+    /// bundle is not a browser (no queueing), when the script fails, or when `timeout` passes first.
+    /// A script still queued at the timeout is skipped, so a hung browser leaves at most one
+    /// script blocking the queue, not a backlog.
+    private static func queueScript(bundleID: String, timeout: TimeInterval,
+                                    completion: @escaping (String?) -> Void) {
+        guard browserScripts[bundleID] != nil else {
+            completion(nil)
+            return
+        }
+        let once = ResumeOnce()
+        scriptQueue.async {
+            guard !once.isDone else { return }
+            let url = runBrowserScript(bundleID: bundleID)
+            once.run { completion(url) }
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+            once.run { completion(nil) }
+        }
+    }
+
+    /// Active-tab URL for a known browser bundle id, for the menu, which is open on main. Waits
+    /// at most 0.3 s, then gives no URL.
     static func browserURL(bundleID: String) -> String? {
+        var url: String?
+        let replied = DispatchSemaphore(value: 0)
+        queueScript(bundleID: bundleID, timeout: 0.3) { reply in
+            url = reply
+            replied.signal()
+        }
+        replied.wait()
+        return url
+    }
+
+    /// `browserURL` for a recording: nil when the browser has not answered within `timeout`.
+    static func browserURL(bundleID: String, timeout: TimeInterval) async -> String? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+            queueScript(bundleID: bundleID, timeout: timeout) { continuation.resume(returning: $0) }
+        }
+    }
+
+    private static func runBrowserScript(bundleID: String) -> String? {
         guard let source = browserScripts[bundleID],
               let script = NSAppleScript(source: source) else { return nil }
         var error: NSDictionary?
@@ -143,5 +201,25 @@ enum SourceCapture {
     static func normalizedHost(_ input: String) -> String? {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         return host(of: trimmed.contains("://") ? trimmed : "https://" + trimmed)?.lowercased()
+    }
+}
+
+/// Lets the first of two racing completions resume a continuation; the second is dropped.
+private final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+
+    var isDone: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return done
+    }
+
+    func run(_ resume: () -> Void) {
+        lock.lock()
+        let first = !done
+        done = true
+        lock.unlock()
+        if first { resume() }
     }
 }

@@ -236,9 +236,16 @@ class ContentViewModel: ObservableObject {
         installEscapeMonitor()
 
         // Capture where the dictation is happening (frontmost app + browser site) and
-        // apply any context-aware model rule before the engine spins up. See F2.
-        RecordingContext.shared.captureFrontmost()
-        ContextModelSwitcher.applyForCurrentContext()
+        // apply any context-aware model rule once the site is known. See F2.
+        let source = RecordingContext.shared.captureFrontmost()
+        let awaitsURL = RecordingContext.shared.bundleID.map { SourceCapture.isSupportedBrowser(bundleID: $0) } ?? false
+        if !awaitsURL {
+            ContextModelSwitcher.applyForCurrentContext(host: nil)
+        } else {
+            Task { @MainActor in
+                ContextModelSwitcher.applyForCurrentContext(host: await source.value.host)
+            }
+        }
 
         if microphoneService.isActiveMicrophoneRequiresConnection() {
             state = .connecting
@@ -298,6 +305,7 @@ class ContentViewModel: ObservableObject {
 
         IndicatorWindowManager.shared.hide()
 
+        let recordingSource = RecordingContext.shared.source
         if let tempURL = recorder.stopRecording().url {
             Task { [weak self] in
                 guard let self = self else { return }
@@ -309,12 +317,13 @@ class ContentViewModel: ObservableObject {
                     let rawText = try await transcriptionService.transcribeAudio(url: tempURL, settings: settings)
                     let spokenLanguage = settings.translateToEnglish ? "en" : settings.selectedLanguage
                     let cleanedText = AppPreferences.shared.cleanTranscription(rawText, language: spokenLanguage)
+                    let details = await recordingSource?.value
                     // Optional LLM cleanup (no-op when disabled; returns the raw text on failure).
                     // App-aware formatting keys off the app captured at record-start, not the
                     // frontmost app: recording from the main window makes OSW itself frontmost, so
                     // asking the workspace here would never match a profile.
                     let bundleID = RecordingContext.shared.bundleID
-                    let host = RecordingContext.shared.host
+                    let host = details?.host
                     let cleanup = await LLMPostProcessor.processWithOutcome(
                         cleanedText, bundleID: bundleID,
                         translating: AppPreferences.shared.translateToEnglish,
@@ -368,8 +377,8 @@ class ContentViewModel: ObservableObject {
                                 progress: 1.0,
                                 sourceFileURL: nil,
                                 sourceAppName: ctx.appName,
-                                sourceWindowTitle: ctx.windowTitle,
-                                sourceURL: ctx.fullURL,
+                                sourceWindowTitle: details?.windowTitle,
+                                sourceURL: details?.fullURL,
                                 modelUsed: modelUsed,
                                 wasFallback: wasFallback,
                                 rawTranscription: original.isEmpty ? nil : original,
