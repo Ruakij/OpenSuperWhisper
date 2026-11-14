@@ -56,6 +56,11 @@ final class RecordingContext {
     /// The field that had the focus when recording started, so the text can go back to it if
     /// the user clicks elsewhere while it is transcribed (#164).
     private(set) var focusTarget: FocusTarget?
+    /// URL, host and window title of the take in progress, read off the main thread when it
+    /// started. Readers await it. `host`, `fullURL` and `windowTitle` follow the latest capture.
+    private(set) var source: Task<SourceCapture.Details, Never>?
+    /// Counts captures, so a recording's late read only writes the fields while it is the latest.
+    private var captureGeneration = 0
     private init() {}
 
     /// Times one capture step and logs it with `Diag.mark`. Not `Diag.measure`: the capture runs
@@ -66,14 +71,10 @@ final class RecordingContext {
         return body()
     }
 
-    func update(appName: String?, bundleID: String?, host: String? = nil,
-                fullURL: String? = nil, windowTitle: String? = nil,
+    func update(appName: String?, bundleID: String?,
                 focusedText: String? = nil, keyboardLanguage: String? = nil) {
         self.appName = appName
         self.bundleID = bundleID
-        self.host = host
-        self.fullURL = fullURL
-        self.windowTitle = windowTitle
         self.focusedText = focusedText
         self.keyboardLanguage = keyboardLanguage
     }
@@ -91,9 +92,16 @@ final class RecordingContext {
     ///   remembering. The status-bar menu passes `false`: it only needs the app for the model
     ///   rules, the field lookup would be Accessibility traffic on the main thread for nothing,
     ///   and a recording under way keeps the field it started in.
-    func captureFrontmost(forRecording: Bool = true) {
+    ///
+    /// A recording reads the browser URL and window title off the main thread: the returned task
+    /// yields them and is kept as `source` for that take; it also writes them to `host`, `fullURL`
+    /// and `windowTitle` once read, if no later capture came first. The menu reads them synchronously.
+    @discardableResult
+    func captureFrontmost(forRecording: Bool = true) -> Task<SourceCapture.Details, Never> {
         let prefs = AppPreferences.shared
         let front = NSWorkspace.shared.frontmostApplication
+        captureGeneration += 1
+        let generation = captureGeneration
         if forRecording {
             // A field left over from an earlier dictation is never where this one started.
             let wanted = Self.wantsFocusTarget(frontBundleID: front?.bundleIdentifier,
@@ -105,10 +113,39 @@ final class RecordingContext {
                 : nil
         }
         guard let front, let bundle = front.bundleIdentifier, bundle != Bundle.main.bundleIdentifier
-        else { return }
-        let url = timed("captureFrontmost.browserURL") { SourceCapture.browserURL(bundleID: bundle) }
-        let host = SourceCapture.host(of: url)
-        let title = timed("captureFrontmost.focusedWindowTitle") { SourceCapture.focusedWindowTitle() }
+        else {
+            // Our own window keeps the context of the last capture.
+            let kept = SourceCapture.Details(fullURL: fullURL, host: host, windowTitle: windowTitle)
+            let task = Task { kept }
+            if forRecording { source = task }
+            return task
+        }
+        let details: Task<SourceCapture.Details, Never>
+        if forRecording {
+            // The fields follow the latest capture: cleared now, filled when this read lands
+            // unless a later capture has replaced it by then.
+            host = nil
+            fullURL = nil
+            windowTitle = nil
+            let read = Task.detached { await SourceCapture.details(bundleID: bundle) }
+            details = Task { @MainActor in
+                let found = await read.value
+                if self.captureGeneration == generation {
+                    self.host = found.host
+                    self.fullURL = found.fullURL
+                    self.windowTitle = found.windowTitle
+                }
+                return found
+            }
+        } else {
+            let url = timed("captureFrontmost.browserURL") { SourceCapture.browserURL(bundleID: bundle) }
+            let title = timed("captureFrontmost.focusedWindowTitle") { SourceCapture.focusedWindowTitle() }
+            let host = SourceCapture.host(of: url)
+            self.host = host
+            fullURL = url
+            windowTitle = title
+            details = Task { SourceCapture.Details(fullURL: url, host: host, windowTitle: title) }
+        }
         // Only read the field when the setting asks for it AND the engine can use it. Reading
         // what someone is writing is not something to do speculatively and then discard, and an
         // engine that takes no prompt would have it discarded.
@@ -126,9 +163,10 @@ final class RecordingContext {
             ? KeyboardLanguage.current(engine: prefs.selectedEngine,
                                        fluidAudioModelVersion: prefs.fluidAudioModelVersion)
             : nil
-        update(appName: front.localizedName, bundleID: bundle, host: host,
-               fullURL: url, windowTitle: title, focusedText: written,
-               keyboardLanguage: layoutLanguage)
+        update(appName: front.localizedName, bundleID: bundle,
+               focusedText: written, keyboardLanguage: layoutLanguage)
+        if forRecording { source = details }
+        return details
     }
 
     /// Whether to remember the field a recording starts in (#164). Only when the text will be
@@ -231,12 +269,11 @@ enum AppContextModelRules {
 enum ContextModelSwitcher {
     /// Switch to the model bound to the current app/site (if any), honoring a
     /// pending one-time override. No-op when the mode doesn't auto-switch or when
-    /// the bound model is already active. Reads the live `RecordingContext`, so
-    /// call `RecordingContext.shared.captureFrontmost()` first.
-    static func applyForCurrentContext() {
+    /// the bound model is already active. Reads the app from the live `RecordingContext`
+    /// and takes the site from the caller, who awaits the capture's `source` first.
+    static func applyForCurrentContext(host: String?) {
         guard AppPreferences.shared.contextAwareModelMode.autoSwitches,
               let bundleID = RecordingContext.shared.bundleID else { return }
-        let host = RecordingContext.shared.host
 
         // A "Just This Time" override wins for exactly the next recording.
         if let once = RecordingContext.shared.consumeOneTimeModel(for: bundleID) {

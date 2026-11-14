@@ -65,6 +65,8 @@ class IndicatorViewModel: ObservableObject {
     private var hideTimer: Timer?
     private var confirmCancelTimer: Timer?
     private var liveStreamingActive = false
+    /// The record-start step that switches the model and starts live streaming once the source is read.
+    private var liveStart: Task<Void, Never>?
     /// Listens to the live caption for the stop phrase while a take records (#145).
     private var stopPhraseWatch: AnyCancellable?
     private var stopPhraseCheck: Timer?
@@ -164,11 +166,15 @@ class IndicatorViewModel: ObservableObject {
         }
 
         // Capture where the dictation is happening (frontmost app, browser site/URL,
-        // window title) and apply any context-aware model rule before recording. This
-        // runs AppleScript/Accessibility synchronously on the main thread; it's quick,
-        // but see the note in RecordingContext.captureFrontmost. (F2/F3)
-        RecordingContext.shared.captureFrontmost()
-        ContextModelSwitcher.applyForCurrentContext()
+        // window title). The URL and title are read in the background, see
+        // RecordingContext.captureFrontmost. (F2/F3)
+        let source = RecordingContext.shared.captureFrontmost()
+        // Only a supported browser's URL can change the rule. Any other app switches now, so a
+        // take that stops before the read finishes still has its rule and its "Just This Time".
+        let awaitsURL = RecordingContext.shared.bundleID.map { SourceCapture.isSupportedBrowser(bundleID: $0) } ?? false
+        if !awaitsURL {
+            ContextModelSwitcher.applyForCurrentContext(host: nil)
+        }
 
         // Show recording immediately and optimistically. Whether the mic needs a
         // connection is decided off the main thread inside `recorder.startRecording()`
@@ -194,7 +200,18 @@ class IndicatorViewModel: ObservableObject {
         // still produces the text; only the on-bubble preview is dropped for this clip. A previous
         // dictation that is only in its cleanup model or insertion doesn't count: skipping there
         // left back-to-back dictations without a preview (#250). (parallel-recording review)
-        if Self.shouldUseLiveStreaming && !DictationPipeline.shared.isTranscribing && !isTranscriptionBusy {
+        // A browser's model switch needs its site, and the live-streaming gate reads the engine the
+        // switch can change, so both wait for the capture. Ending the take (stop or cancel) cancels
+        // this step, and a take that has already ended gets neither the switch nor the stream.
+        liveStart?.cancel()
+        liveStart = Task { @MainActor [weak self] in
+            let details = await source.value
+            guard let self, !Task.isCancelled, !self.takeEnded else { return }
+            if awaitsURL {
+                ContextModelSwitcher.applyForCurrentContext(host: details.host)
+            }
+            guard Self.shouldUseLiveStreaming && !DictationPipeline.shared.isTranscribing && !isTranscriptionBusy
+            else { return }
             liveStreamingActive = true
             let terms = RecognitionBoost.terms(dictionary: AppPreferences.shared.dictionaryBoostTerms,
                                                snippets: AppPreferences.shared.dictationSnippetTriggers)
@@ -297,6 +314,7 @@ class IndicatorViewModel: ObservableObject {
         // would find the recorder empty and report the dictation as lost.
         guard state != .decoding else { return }
         takeEnded = true
+        liveStart?.cancel()
         // The stop press is the origin of the whole measurement (#262), so it is taken on the
         // first line: everything below it — cancel-confirmation reset, the live-preview hand-off,
         // the agent-reply disarm — is time the user waits after letting go.
@@ -359,10 +377,10 @@ class IndicatorViewModel: ObservableObject {
         let ctx = RecordingContext.shared
         let snapshot = DictationPipeline.ContextSnapshot(
             appName: ctx.appName, bundleID: ctx.bundleID,
-            windowTitle: ctx.windowTitle, fullURL: ctx.fullURL,
             keyboardLanguage: ctx.keyboardLanguage,
             focusedText: ctx.focusedText,
             focusTarget: ctx.focusTarget,
+            source: ctx.source,
             agentReplyID: agentReplyID)
         let modelOption = ModelCatalog.activeOption()
         // Stop press → the clip is on its way. Everything between is recorder finalisation.
@@ -440,6 +458,7 @@ class IndicatorViewModel: ObservableObject {
     }
 
     func cleanup() {
+        liveStart?.cancel()
         stopBlinking()
         stopListeningForSound()
         resetCancelConfirmation()
@@ -453,6 +472,7 @@ class IndicatorViewModel: ObservableObject {
 
     func cancelRecording() {
         takeEnded = true
+        liveStart?.cancel()
         stopListeningForSound()
         hideTimer?.invalidate()
         hideTimer = nil

@@ -34,6 +34,9 @@ final class DictationPipeline: ObservableObject {
         /// The field that had the focus at record start, where the text goes back to even if the
         /// user has clicked elsewhere by the time it is transcribed (#164).
         var focusTarget: FocusTarget? = nil
+        /// The URL and window title read when recording started. `process` copies them into
+        /// `fullURL` and `windowTitle` before any reader gets to them.
+        var source: Task<SourceCapture.Details, Never>? = nil
         /// The waiting agent this dictation answers, from the agent panel. Its text goes back
         /// to that agent instead of into the focused app.
         var agentReplyID: String? = nil
@@ -49,7 +52,7 @@ final class DictationPipeline: ObservableObject {
         /// the audio is missing, so only the audio steps are skipped (#128).
         let tempURL: URL?
         let streamedFallback: String
-        let context: ContextSnapshot
+        var context: ContextSnapshot
         /// Model that was active when this clip was recorded. Applied for this clip's transcription
         /// even if a later recording has since switched the global model. (#model-snapshot)
         let modelOption: DictationModelOption?
@@ -236,6 +239,11 @@ final class DictationPipeline: ObservableObject {
     private func process(_ pending: PendingDictation) async {
         var item = pending
         item.timing.queueWaitMs = UptimeClock.milliseconds(from: item.enqueuedAtUptime, to: uptime())
+        if let source = item.context.source {
+            let details = await source.value
+            item.context.fullURL = details.fullURL
+            item.context.windowTitle = details.windowTitle
+        }
         var engineAttempts = 0
         var transcribeStart: UInt64?
         var settings = Settings()
