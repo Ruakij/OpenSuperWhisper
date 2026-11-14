@@ -6,7 +6,7 @@ import XCTest
 ///
 /// Reported by a user whose AirPods leave the bubble on "Connecting" for ever, needing a force
 /// quit, where the built-in microphone is fine. Connecting a Bluetooth microphone reconfigures
-/// the input route under the recorder, `AVAudioRecorder` gives up, and its delegate clears the
+/// the input route under the recorder, the recorder gives up, and its failure handler clears the
 /// recording URL. That URL is also what the connection wait guards on, so the wait was left
 /// spinning with nothing to measure and could not even reach its own timeout.
 final class RecordingFailureTests: XCTestCase {

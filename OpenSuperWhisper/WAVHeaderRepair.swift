@@ -2,9 +2,10 @@ import Foundation
 
 /// Repairs the header of a WAV that a crash cut short.
 ///
-/// AVAudioRecorder writes the samples as it goes but only fills in the RIFF and data sizes when
-/// the file is closed, so a take interrupted by a crash or a force-quit has the right audio and
-/// sizes that say it is empty. Players and decoders trust the sizes, so the audio is unreadable
+/// A take is written sample by sample, but a WAV writer may fill in the RIFF and data sizes only
+/// when the file is closed (`InputQueueRecorder` asks for them with every write, `AVAudioRecorder`
+/// does not), so a take interrupted by a crash or a force-quit can have the right audio
+/// and sizes that say it is empty. Players and decoders trust the sizes, so the audio is unreadable
 /// until they are rewritten from the length the file really has.
 enum WAVHeaderRepair {
     struct Repaired: Equatable {
@@ -13,7 +14,7 @@ enum WAVHeaderRepair {
         let duration: TimeInterval
     }
 
-    /// Enough for every header AVAudioRecorder writes, including its alignment filler chunk.
+    /// Enough for every header the AudioFile WAV writer produces, including its alignment filler chunk.
     static let headerWindow = 4096
     private static let unsetSize: UInt32 = 0xFFFF_FFFF
 
