@@ -49,8 +49,8 @@ enum InputDeviceChoice: Equatable {
 ///   file is closed.
 /// - `currentTime`: frames written so far over the sample rate.
 /// - `takePeakDBFS()`: the loudest sample since the previous call, tracked by the writer.
-/// - `addTap(_:)`: hands the same samples to the visualiser and the live transcription, so they
-///   need no microphone of their own.
+/// - `onSamples`: hands the same samples on for the visualiser and the live transcription, so
+///   they need no microphone of their own.
 /// - `onFailure`: fires once, off the main thread, when the queue stops by itself or the device
 ///   dies; never after `stop()`.
 /// - `onStartMeasured`: fires once with when the first sample was captured and how much of the
@@ -151,6 +151,10 @@ final class InputQueueRecorder {
     /// `silenceThreshold` arrives or the silence reaches `silenceCap`.
     var onStartMeasured: ((StartMeasurement) -> Void)?
 
+    /// Set before `record()`. Called with each buffer's samples, mono and 16 kHz, on the writer
+    /// queue, so it must hand off quickly.
+    var onSamples: (([Float]) -> Void)?
+
     let channelCount: Int
     let choice: InputDeviceChoice
     let url: URL
@@ -163,7 +167,6 @@ final class InputQueueRecorder {
     private var file: AudioFileID?
     private var framesWritten: Int64 = 0
     private var peakSinceLastRead: Float = 0
-    private var taps: [UUID: ([Float]) -> Void] = [:]
     private let writerQueue = DispatchQueue(label: "InputQueueRecorder.writer", qos: .userInitiated)
     private let bytesPerFrame: UInt32
     /// Writer-queue state of the start measurement; `startMeasured` ends it.
@@ -269,18 +272,6 @@ final class InputQueueRecorder {
         finish(failure: nil)
     }
 
-    /// Subscribes to the take's samples: mono, 16 kHz, one call per queue buffer on the writer
-    /// queue, so `tap` must hand off quickly. Returns the id to unsubscribe with.
-    func addTap(_ tap: @escaping ([Float]) -> Void) -> UUID {
-        let id = UUID()
-        lock.lock(); taps[id] = tap; lock.unlock()
-        return id
-    }
-
-    func removeTap(_ id: UUID) {
-        lock.lock(); taps[id] = nil; lock.unlock()
-    }
-
     /// The loudest sample since the last call, in dBFS, across all channels.
     func takePeakDBFS() -> Float {
         lock.lock()
@@ -315,12 +306,8 @@ final class InputQueueRecorder {
             lock.lock()
             framesWritten += Int64(packets)
             peakSinceLastRead = max(peakSinceLastRead, peak)
-            let listeners = Array(taps.values)
             lock.unlock()
-            if !listeners.isEmpty {
-                let mono = Self.monitorSamples(samples, channelCount: channelCount)
-                for listener in listeners { listener(mono) }
-            }
+            onSamples?(Self.monitorSamples(samples, channelCount: channelCount))
         }
         lock.lock()
         let running = state == .running

@@ -9,7 +9,7 @@ import Foundation
 /// right after the recorder has taken the device, which is when a route or format change is in
 /// flight (#114), it cannot be pointed at every input (an engine bound to a Bluetooth headset
 /// refuses to start, -10868), and building its I/O unit blocks the main thread for up to 600 ms.
-/// The recorder's samples are 16 kHz, which is the 8 kHz the bands top out at.
+/// The recorder's samples are 16 kHz, so they carry the 8 kHz the bands top out at.
 @MainActor
 final class SpectrumAnalyzer: ObservableObject {
     static let shared = SpectrumAnalyzer()
@@ -32,9 +32,12 @@ final class SpectrumAnalyzer: ObservableObject {
     private var window: [Float]
     /// Ring of the newest samples, so a short buffer still produces a full transform.
     private var sampleBuffer: [Float] = []
+    /// FFT bins per band, fixed by the recorder's sample rate.
+    private let binRanges: [Range<Int>]
 
     private init() {
         log2n = vDSP_Length(log2(Float(fftSize)))
+        binRanges = SpectrumBands.binRanges(sampleRate: Float(InputQueueRecorder.sampleRate), fftSize: fftSize)
         window = [Float](repeating: 0, count: fftSize)
         vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
         fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))
@@ -50,17 +53,15 @@ final class SpectrumAnalyzer: ObservableObject {
         layout.contains(.waveform)
     }
 
-    /// Subscribes to the take in progress. Does nothing when no take is recording (it ended
-    /// before this ran).
+    /// Subscribes to the take in progress. Does nothing when that take's stop already ran, which
+    /// would otherwise leave the subscription open until the next take's stop.
     func start() {
-        guard !isRunning, fftSetup != nil else { return }
+        guard !isRunning, fftSetup != nil, AudioRecorder.shared.isTakeRecording else { return }
         guard Self.shouldRun(layout: IndicatorLayout.load(from: AppPreferences.shared.indicatorLayout))
         else { return }
-        let sampleRate = Float(InputQueueRecorder.sampleRate)
-        guard let unsubscribe = AudioRecorder.shared.addSampleTap({ [weak self] samples in
-            Task { @MainActor in self?.consume(samples, sampleRate: sampleRate) }
-        }) else { return }
-        removeTap = unsubscribe
+        removeTap = AudioRecorder.shared.addSampleTap { [weak self] samples in
+            Task { @MainActor in self?.consume(samples) }
+        }
         isRunning = true
     }
 
@@ -70,27 +71,12 @@ final class SpectrumAnalyzer: ObservableObject {
         removeTap = nil
         isRunning = false
         sampleBuffer.removeAll(keepingCapacity: true)
-        cachedRanges = nil
         bands = Array(repeating: 0, count: SpectrumBands.count)
     }
 
-
-    /// Band edges for one sample rate, kept so they are not recomputed for every buffer. Keyed by
-    /// the rate rather than computed once at start, because the device can change rate underneath
-    /// a running tap.
-    private var cachedRanges: (sampleRate: Float, ranges: [Range<Int>])?
-
-    private func binRanges(for sampleRate: Float) -> [Range<Int>] {
-        if let cachedRanges, cachedRanges.sampleRate == sampleRate { return cachedRanges.ranges }
-        let ranges = SpectrumBands.binRanges(sampleRate: sampleRate, fftSize: fftSize)
-        cachedRanges = (sampleRate, ranges)
-        return ranges
-    }
-
-    private func consume(_ samples: [Float], sampleRate: Float) {
+    private func consume(_ samples: [Float]) {
         // A buffer already in flight when the take stopped must not lift the bands back up.
-        guard isRunning, sampleRate > 0 else { return }
-        let ranges = binRanges(for: sampleRate)
+        guard isRunning else { return }
         sampleBuffer.append(contentsOf: samples)
         guard sampleBuffer.count >= fftSize else { return }
         // Keep only the newest window; older audio has already been drawn.
@@ -99,7 +85,7 @@ final class SpectrumAnalyzer: ObservableObject {
         let magnitudes = transform(sampleBuffer)
         guard !magnitudes.isEmpty else { return }
 
-        bands = ranges.enumerated().map { index, range in
+        bands = binRanges.enumerated().map { index, range in
             let slice = magnitudes[range.clamped(to: 0..<magnitudes.count)]
             guard !slice.isEmpty else { return 0 }
             let peak = slice.max() ?? 0

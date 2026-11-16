@@ -37,9 +37,6 @@ final class StreamingTranscriptionController: ObservableObject {
 
     /// Unsubscribes from the recorder's samples; nil while not streaming.
     private var removeSampleTap: (() -> Void)?
-
-    /// Streaming needs a take in progress to listen to; none began within a second.
-    private struct NoRecordingError: Error {}
     private var manager: SlidingWindowAsrManager?
     private var updatesTask: Task<Void, Never>?
     private var feederTask: Task<Void, Never>?
@@ -109,7 +106,7 @@ final class StreamingTranscriptionController: ObservableObject {
             }
         }
 
-        // The mic tap runs on the audio thread; it can't await the actor, so it yields buffers
+        // The recorder's samples arrive on its writer queue, which can't await the actor, so it yields buffers
         // into a stream that a single feeder task drains in order into `streamAudio`.
         let (bufferStream, bufferContinuation) = AsyncStream<AVAudioPCMBuffer>.makeStream()
         self.bufferContinuation = bufferContinuation
@@ -122,21 +119,17 @@ final class StreamingTranscriptionController: ObservableObject {
         // The recorder hands over mono 16 kHz samples, the manager's own input format.
         let voiceActivity = self.voiceActivity
         voiceActivity.reset()
-        guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: InputQueueRecorder.sampleRate,
-                                         channels: 1, interleaved: false),
-              let unsubscribe = await AudioRecorder.shared.addSampleTap(waitingUpTo: 1, { samples in
-                  guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
-                        let channel = buffer.floatChannelData?[0] else { return }
-                  buffer.frameLength = AVAudioFrameCount(samples.count)
-                  samples.withUnsafeBufferPointer { channel.update(from: $0.baseAddress!, count: samples.count) }
-                  voiceActivity.observe(buffer)
-                  bufferContinuation.yield(buffer)
-              })
-        else {
-            await abandonStart(manager)
-            throw NoRecordingError()
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: InputQueueRecorder.sampleRate,
+                                   channels: 1, interleaved: false)
+        removeSampleTap = AudioRecorder.shared.addSampleTap { samples in
+            guard let format,
+                  let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
+                  let channel = buffer.floatChannelData?[0] else { return }
+            buffer.frameLength = AVAudioFrameCount(samples.count)
+            samples.withUnsafeBufferPointer { channel.update(from: $0.baseAddress!, count: samples.count) }
+            voiceActivity.observe(buffer)
+            bufferContinuation.yield(buffer)
         }
-        removeSampleTap = unsubscribe
         isRunning = true
     }
 

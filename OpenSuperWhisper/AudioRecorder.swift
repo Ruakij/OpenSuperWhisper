@@ -1,5 +1,4 @@
 import AVFoundation
-import Combine
 import Foundation
 import SwiftUI
 import AppKit
@@ -14,8 +13,10 @@ class AudioRecorder: NSObject, ObservableObject {
     @Published var canRecord = false
     @Published var isConnecting = false
     
-    /// Fires when a take has begun recording, for whoever asked for its samples a moment early.
-    private let recorderStarted = PassthroughSubject<Void, Never>()
+    /// Listeners to the samples of whichever take records, for the visualiser and the live
+    /// caption. Kept across takes and handed each new recorder's samples, so a listener that
+    /// subscribes before the take has begun (it starts on its own task) needs no wait for it.
+    private let sampleTaps = OSAllocatedUnfairLock<[UUID: @Sendable ([Float]) -> Void]>(initialState: [:])
     private var audioPlayer: AVAudioPlayer?
     private var notificationSound: NSSound?
     /// The volume duck waiting for the start chime to finish. Cancelled by a stop that lands
@@ -356,13 +357,16 @@ class AudioRecorder: NSObject, ObservableObject {
                 if let pressedAt, Diag.isEnabled {
                     recorder.onStartMeasured = { Self.logStart($0, pressedAt: pressedAt) }
                 }
+                recorder.onSamples = { [weak self] samples in
+                    guard let taps = self?.sampleTaps.withLock({ Array($0.values) }) else { return }
+                    for tap in taps { tap(samples) }
+                }
                 // Published before `record()` so a stop landing meanwhile can reach it.
                 take.withLockUnchecked { $0.recorder = recorder }
                 try recorder.record()
                 return recorder
             }
             if abandonStartIfEnded(recorder, fileURL: fileURL) { return }
-            recorderStarted.send()
             Task { @MainActor in SpectrumAnalyzer.shared.start() }
             if monitorConnection {
                 startConnectionMonitoring()
@@ -383,7 +387,7 @@ class AudioRecorder: NSObject, ObservableObject {
         }
     }
     
-    /// Whether a start finds its take already ended: a stop, a cancel or the delegate cleared the
+    /// Whether a start finds its take already ended: a stop, a cancel or a recorder failure cleared the
     /// URL while the recorder was being made, or the next take has replaced it.
     static func startWasAbandoned(startedURL: URL, currentURL: URL?) -> Bool {
         currentURL != startedURL
@@ -392,13 +396,13 @@ class AudioRecorder: NSObject, ObservableObject {
     /// Cleans up after a start that a stop beat to it. The recorder it just began is an orphan
     /// that nobody will stop, so it would keep the microphone open and write a file for good.
     private func abandonStartIfEnded(_ recorder: InputQueueRecorder, fileURL: URL) -> Bool {
-        // A newer take keeps its own activity and the input, so neither is touched for it.
-        let orphan = take.withLockUnchecked { state -> (abandoned: Bool, newerTake: Bool, activity: NSObjectProtocol?) in
-            guard Self.startWasAbandoned(startedURL: fileURL, currentURL: state.url) else { return (false, false, nil) }
+        // A newer take keeps its own activity, so it is not touched for it.
+        let orphan = take.withLockUnchecked { state -> (abandoned: Bool, activity: NSObjectProtocol?) in
+            guard Self.startWasAbandoned(startedURL: fileURL, currentURL: state.url) else { return (false, nil) }
             if state.recorder === recorder { state.recorder = nil }
-            guard state.url == nil else { return (true, true, nil) }
+            guard state.url == nil else { return (true, nil) }
             defer { state.activity = nil }
-            return (true, false, state.activity)
+            return (true, state.activity)
         }
         guard orphan.abandoned else { return false }
         recorder.stop()
@@ -408,30 +412,17 @@ class AudioRecorder: NSObject, ObservableObject {
         return true
     }
 
-    /// Subscribes to the samples of the take in progress (mono, 16 kHz), for the visualiser and the
-    /// live caption. Returns what unsubscribes, or nil when no take is recording.
-    func addSampleTap(_ tap: @escaping ([Float]) -> Void) -> (() -> Void)? {
-        guard let recorder = take.withLockUnchecked({ $0.recorder }), recorder.isRecording else { return nil }
-        let id = recorder.addTap(tap)
-        return { [weak recorder] in recorder?.removeTap(id) }
+    /// Subscribes to the samples of every take from now on (mono, 16 kHz, on the recorder's writer
+    /// queue, so `tap` must hand off quickly) until the returned closure unsubscribes.
+    func addSampleTap(_ tap: @escaping @Sendable ([Float]) -> Void) -> () -> Void {
+        let id = UUID()
+        sampleTaps.withLock { $0[id] = tap }
+        return { [weak self] in _ = self?.sampleTaps.withLock { $0.removeValue(forKey: id) } }
     }
 
-    /// `addSampleTap`, for a caller that may run before the take has begun (the recording starts
-    /// on its own task): waits for it up to `timeout`, then gives up with nil.
-    func addSampleTap(waitingUpTo timeout: TimeInterval,
-                      _ tap: @escaping ([Float]) -> Void) async -> (() -> Void)? {
-        if let unsubscribe = addSampleTap(tap) { return unsubscribe }
-        // Subscribed before the second look, so a take that begins in between is not missed.
-        let started = AsyncStream<Void> { continuation in
-            let subscription = recorderStarted.sink { continuation.yield() }
-            continuation.onTermination = { _ in subscription.cancel() }
-            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { continuation.finish() }
-        }
-        if let unsubscribe = addSampleTap(tap) { return unsubscribe }
-        for await _ in started {
-            if let unsubscribe = addSampleTap(tap) { return unsubscribe }
-        }
-        return nil
+    /// Whether a take is recording right now; false once its stop has run.
+    var isTakeRecording: Bool {
+        take.withLockUnchecked { $0.recorder }?.isRecording ?? false
     }
 
     /// The loudest sample since the last reading, in dBFS, across the recorded channels; nil
