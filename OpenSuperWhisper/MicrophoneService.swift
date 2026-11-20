@@ -248,30 +248,6 @@ class MicrophoneService: ObservableObject {
         return status == noErr ? audioDeviceID : nil
     }
     
-    func setAsSystemDefaultInput(_ device: AudioDevice) -> Bool {
-        guard let deviceID = getCoreAudioDeviceID(for: device) else {
-            return false
-        }
-        
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultInputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        
-        var mutableDeviceID = deviceID
-        let status = AudioObjectSetPropertyData(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            0,
-            nil,
-            UInt32(MemoryLayout<AudioDeviceID>.size),
-            &mutableDeviceID
-        )
-        
-        return status == noErr
-    }
-    
     func getCurrentSystemDefaultInputDevice() -> AudioDeviceID? {
         var deviceID = AudioDeviceID()
         var propertySize = UInt32(MemoryLayout<AudioDeviceID>.size)
