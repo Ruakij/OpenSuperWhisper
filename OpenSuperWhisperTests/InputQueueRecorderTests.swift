@@ -58,6 +58,43 @@ final class InputQueueRecorderTests: XCTestCase {
                        .unavailable(uid: "x"), "the unknown device ID counts as gone")
     }
 
+    // MARK: Monitor samples
+
+    func testOneChannelPassesThroughUnchanged() {
+        let samples: [Float] = [0.1, -0.2, 0.3]
+        let mono = samples.withUnsafeBufferPointer { InputQueueRecorder.monitorSamples($0, channelCount: 1) }
+        XCTAssertEqual(mono, samples)
+    }
+
+    /// Interleaved L R L R with the voice on the right input only: the silent left channel
+    /// is not averaged in.
+    func testOnlyChannelsWithSignalAreMixed() {
+        let samples: [Float] = [0, 0.5, 0, -0.4, 0, 0.3]
+        let mono = samples.withUnsafeBufferPointer { InputQueueRecorder.monitorSamples($0, channelCount: 2) }
+        XCTAssertEqual(mono, [0.5, -0.4, 0.3])
+    }
+
+    func testTwoActiveChannelsAreAveraged() {
+        let samples: [Float] = [0.2, 0.6, -0.4, 0.0, 0.1, 0.3]
+        let mono = samples.withUnsafeBufferPointer { InputQueueRecorder.monitorSamples($0, channelCount: 2) }
+        XCTAssertEqual(mono.count, 3)
+        XCTAssertEqual(mono[0], 0.4, accuracy: 1e-6)
+        XCTAssertEqual(mono[1], -0.2, accuracy: 1e-6)
+        XCTAssertEqual(mono[2], 0.2, accuracy: 1e-6)
+    }
+
+    func testATrailingPartialFrameIsDropped() {
+        let samples: [Float] = [0.1, 0.9, 0.2, 0.8, 0.7]
+        let mono = samples.withUnsafeBufferPointer { InputQueueRecorder.monitorSamples($0, channelCount: 2) }
+        XCTAssertEqual(mono.count, 2)
+    }
+
+    func testSilenceMonitorsAsSilence() {
+        let samples = [Float](repeating: 0, count: 8)
+        let mono = samples.withUnsafeBufferPointer { InputQueueRecorder.monitorSamples($0, channelCount: 2) }
+        XCTAssertEqual(mono, [0, 0, 0, 0])
+    }
+
     // MARK: Meter
 
     func testThePeakIsTheLoudestSampleOfEitherSign() {

@@ -13,6 +13,10 @@ class AudioRecorder: NSObject, ObservableObject {
     @Published var canRecord = false
     @Published var isConnecting = false
     
+    /// Listeners to the samples of whichever take records, for the visualiser and the live
+    /// caption. Kept across takes and handed each new recorder's samples, so a listener that
+    /// subscribes before the take has begun (it starts on its own task) needs no wait for it.
+    private let sampleTaps = OSAllocatedUnfairLock<[UUID: @Sendable ([Float]) -> Void]>(initialState: [:])
     private var audioPlayer: AVAudioPlayer?
     private var notificationSound: NSSound?
     /// The volume duck waiting for the start chime to finish. Cancelled by a stop that lands
@@ -335,6 +339,7 @@ class AudioRecorder: NSObject, ObservableObject {
                     // On the main thread, where `stopRecording` runs: both own the same state.
                     DispatchQueue.main.async { self.recorderDidFail(recorder, error: error) }
                 }
+                recorder.onSamples = { [weak self] in self?.deliverSamples($0) }
                 // Published before `record()` so a stop landing meanwhile can reach it.
                 take.withLockUnchecked { $0.recorder = recorder }
                 published = recorder
@@ -405,6 +410,28 @@ class AudioRecorder: NSObject, ObservableObject {
         orphan.activity.map(ProcessInfo.processInfo.endActivity)
         Diag.mark("recorder.start abandoned: stopped during start")
         return true
+    }
+
+    /// Hands one buffer of a take's samples to every subscriber.
+    func deliverSamples(_ samples: [Float]) {
+        let taps = sampleTaps.withLock { Array($0.values) }
+        for tap in taps { tap(samples) }
+    }
+
+    /// How many subscribers listen to the samples right now.
+    var sampleTapCount: Int { sampleTaps.withLock { $0.count } }
+
+    /// Subscribes to the samples of every take from now on (mono, 16 kHz, on the recorder's writer
+    /// queue, so `tap` must hand off quickly) until the returned closure unsubscribes.
+    func addSampleTap(_ tap: @escaping @Sendable ([Float]) -> Void) -> () -> Void {
+        let id = UUID()
+        sampleTaps.withLock { $0[id] = tap }
+        return { [weak self] in _ = self?.sampleTaps.withLock { $0.removeValue(forKey: id) } }
+    }
+
+    /// Whether a take is recording right now; false once its stop has run.
+    var isTakeRecording: Bool {
+        take.withLockUnchecked { $0.recorder }?.isRecording ?? false
     }
 
     /// The loudest sample of the last 250 ms, in dBFS, across the recorded channels; nil while

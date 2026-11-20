@@ -1,6 +1,7 @@
 import AudioToolbox
 import CoreAudio
 import Foundation
+import OpenSuperWhisperCore
 import os
 
 /// The microphone a take records from, as the recorder can use it.
@@ -119,6 +120,37 @@ final class InputQueueRecorder {
         return peak
     }
 
+    /// An interleaved buffer as mono, for the visualiser and the live caption. The channels that
+    /// carry signal are averaged and the silent ones left out, as the converter does for the
+    /// file: a multi-input interface can have the voice on any one of its inputs, and averaging
+    /// it with silent channels would halve it (the recording itself keeps them all). With no
+    /// channel above the threshold all are averaged. A trailing partial frame is dropped.
+    static func monitorSamples(_ samples: UnsafeBufferPointer<Float>, channelCount: Int) -> [Float] {
+        guard channelCount > 1 else { return Array(samples) }
+        let frames = samples.count / channelCount
+        guard frames > 0 else { return [] }
+
+        var active: [Int] = []
+        for channel in 0..<channelCount {
+            var energy: Float = 0
+            for frame in 0..<frames {
+                let sample = samples[frame * channelCount + channel]
+                energy += sample * sample
+            }
+            if (energy / Float(frames)).squareRoot() > AudioPCMConverter.channelActivityThreshold {
+                active.append(channel)
+            }
+        }
+        if active.isEmpty { active = Array(0..<channelCount) }
+
+        let normalization = 1 / Float(active.count)
+        return (0..<frames).map { frame in
+            var mixed: Float = 0
+            for channel in active { mixed += samples[frame * channelCount + channel] }
+            return mixed * normalization
+        }
+    }
+
     /// A linear peak in dBFS, floored at -160.
     static func decibels(fromPeak peak: Float) -> Float {
         peak > 0 ? max(20 * log10(peak), -160) : -160
@@ -133,6 +165,10 @@ final class InputQueueRecorder {
     /// Set before `record()`. Called once on a background queue when the take ends by itself, or
     /// when a failure beats a concurrent `stop()`; the file is closed by then.
     var onFailure: ((Error) -> Void)?
+
+    /// Set before `record()`. Called with each buffer's samples, mono and 16 kHz, on the writer
+    /// queue, so it must hand off quickly.
+    var onSamples: (([Float]) -> Void)?
 
     let channelCount: Int
     let choice: InputDeviceChoice
@@ -266,6 +302,7 @@ final class InputQueueRecorder {
             }
             framesWritten += Int64(packets)
             peaks.withLock { $0.record(peak: peak, at: ProcessInfo.processInfo.systemUptime) }
+            onSamples?(Self.monitorSamples(samples, channelCount: channelCount))
         }
         if lifecycle.reenqueues { AudioQueueEnqueueBuffer(queue, buffer, 0, nil) }
     }

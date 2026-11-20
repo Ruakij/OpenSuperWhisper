@@ -11,7 +11,10 @@ import Accelerate
 /// silence, and the engine reports "No speech detected".
 ///
 /// A clip recorded far too quiet comes out lifted by `QuietClipGain`; the file is not touched.
-enum AudioPCMConverter {
+public enum AudioPCMConverter {
+    /// The RMS above which a channel counts as carrying signal when channels are mixed down.
+    public static let channelActivityThreshold: Float = 0.0001
+
     private static func resolveFileURL(_ fileURL: URL) throws -> (URL, Bool) {
         let data = try Data(contentsOf: fileURL, options: [.mappedIfSafe])
         guard data.count >= 12 else { return (fileURL, false) }
@@ -250,7 +253,6 @@ enum AudioPCMConverter {
             return
         }
         
-        let activityThreshold: Float = 0.0001
         var activeChannels: [Int] = []
         activeChannels.reserveCapacity(channelCount)
         
@@ -261,7 +263,7 @@ enum AudioPCMConverter {
                 energy += sample * sample
             }
             let rms = sqrtf(energy / Float(frameCount))
-            if rms > activityThreshold {
+            if rms > channelActivityThreshold {
                 activeChannels.append(channel)
             }
         }
