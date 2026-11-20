@@ -3,8 +3,8 @@ import Foundation
 /// Pauses/resumes system media playback via the private MediaRemote framework.
 ///
 /// The pause is always sent **unconditionally** — a synchronous "is something playing?" probe at
-/// record-start reads false, because starting `AVAudioRecorder` transiently clears the system Now
-/// Playing flag (#126), so a probe there wrongly skips the pause (browser tabs like YouTube never
+/// record-start can read false, because starting a recorder can clear the system Now Playing
+/// flag for a moment (#126), so a probe there wrongly skips the pause (browser tabs like YouTube never
 /// paused). A pause command is a harmless no-op when nothing plays, so this is safe and reliable.
 ///
 /// The resume is where it gets subtle: we want to resume only what was actually playing, so an

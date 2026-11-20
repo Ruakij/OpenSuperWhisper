@@ -234,14 +234,11 @@ class AudioRecorder: NSObject, ObservableObject {
 
         print("start record file to \(fileURL)")
 
-        #if os(macOS)
-        if let activeMic = MicrophoneService.shared.getActiveMicrophone() {
-            Diag.measure("setAsSystemDefaultInput") {
-                _ = MicrophoneService.shared.setAsSystemDefaultInput(activeMic)
-            }
-            print("Set system default input to: \(activeMic.displayName)")
+        // The take reads the chosen microphone directly.
+        let activeMic = MicrophoneService.shared.getActiveMicrophone()
+        let inputDevice = InputDeviceChoice.resolve(uid: activeMic?.id) {
+            MicrophoneService.shared.getCoreAudioDeviceID(forUID: $0)
         }
-        #endif
 
         let requiresConnection = Diag.measure("isActiveMicrophoneRequiresConnection") {
             MicrophoneService.shared.isActiveMicrophoneRequiresConnection()
@@ -249,23 +246,22 @@ class AudioRecorder: NSObject, ObservableObject {
         // Which device a take ran on, whether it has to connect first and how many of its
         // channels are recorded: the facts that pick the start path and the file's format, and
         // the first worth knowing from a report of a take going wrong.
-        let channels = recordingChannels()
-        Diag.mark("recorder.device=\(MicrophoneService.shared.getActiveMicrophone()?.displayName ?? "none") "
+        let channels = recordingChannels(for: inputDevice, mic: activeMic)
+        Diag.mark("recorder.device=\(activeMic?.displayName ?? "none") input=\(inputDevice.description) "
             + "requiresConnection=\(requiresConnection) channels=\(channels.description)")
         updateRecordingState(isRecording: false, isConnecting: requiresConnection)
-        startRecordingWithRecorder(fileURL: fileURL, channelCount: channels.recorded,
-                                   monitorConnection: requiresConnection)
+        let started = startRecordingWithRecorder(
+            fileURL: fileURL, channelCount: channels.recorded, device: inputDevice,
+            monitorConnection: requiresConnection)
 
-        // After the mic is open: pausing media, the chime and the duck cost ~100ms that would
-        // otherwise sit between the key press and the first captured sample. A failed start has
-        // no stop to undo them, so it skips them.
-        guard currentRecordingURL != nil else { return }
+        // After the mic is open: the chime and the duck cost ~100ms that would otherwise sit
+        // between the key press and the first captured sample. A start that failed or was ended
+        // meanwhile has no stop left to undo them, so it skips them. The media pause runs with
+        // the live state, on main (see `startRecordingWithRecorder`).
+        guard started, currentRecordingURL != nil else { return }
         if let pressedAt {
             let ms = Double(DispatchTime.now().uptimeNanoseconds &- pressedAt.uptimeNanoseconds) / 1_000_000
             Diag.mark("key press -> recording started after \(Int(ms.rounded())) ms")
-        }
-        if AppPreferences.shared.pauseMediaOnRecord {
-            Diag.measure("media.pause") { MediaPlaybackController.shared.pauseMedia() }
         }
         // Chime first, then lower the volume: ducked first, the start chime would play at the
         // ducked level, 10% by default, and be inaudible, while the end chime plays after the
@@ -310,57 +306,83 @@ class AudioRecorder: NSObject, ObservableObject {
         isBuiltIn ? 1 : max(reportedChannels, 1)
     }
 
-    private func recordingChannels() -> ChannelChoice {
+    /// The channel count follows the device the queue really reads. A take that falls back to the
+    /// system default (nothing chosen, or the chosen device is gone) records one channel: the
+    /// default input is not the microphone whose channels were counted.
+    static func recordingChannelCount(for device: InputDeviceChoice, isBuiltIn: Bool, reportedChannels: Int) -> Int {
+        guard case .device = device else { return 1 }
+        return recordingChannelCount(isBuiltIn: isBuiltIn, reportedChannels: reportedChannels)
+    }
+
+    private func recordingChannels(for device: InputDeviceChoice, mic: MicrophoneService.AudioDevice?) -> ChannelChoice {
+        guard let mic else { return ChannelChoice(recorded: 1, reported: 1, isBuiltIn: false) }
         let service = MicrophoneService.shared
-        guard let activeMic = service.getActiveMicrophone() else {
-            return ChannelChoice(recorded: 1, reported: 1, isBuiltIn: false)
-        }
-        let isBuiltIn = service.hasBuiltInTransport(activeMic)
-        let reported = service.getInputChannelCount(for: activeMic)
+        let isBuiltIn = service.hasBuiltInTransport(mic)
+        let reported = service.getInputChannelCount(for: mic)
         return ChannelChoice(
-            recorded: Self.recordingChannelCount(isBuiltIn: isBuiltIn, reportedChannels: reported),
+            recorded: Self.recordingChannelCount(for: device, isBuiltIn: isBuiltIn, reportedChannels: reported),
             reported: reported, isBuiltIn: isBuiltIn)
     }
 
-    private func startRecordingWithRecorder(fileURL: URL, channelCount: Int, monitorConnection: Bool) {
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatLinearPCM),
-            AVSampleRateKey: 16000.0,
-            AVNumberOfChannelsKey: channelCount,
-            AVLinearPCMBitDepthKey: 32,
-            AVLinearPCMIsFloatKey: true
-        ]
-        
+    private func startRecordingWithRecorder(fileURL: URL, channelCount: Int, device: InputDeviceChoice,
+                                            monitorConnection: Bool) -> Bool {
+        var published: InputQueueRecorder?
         do {
-            let recorder = try Diag.measure("AVAudioRecorder init+record") { () throws -> AVAudioRecorder in
-                let recorder = try AVAudioRecorder(url: fileURL, settings: settings)
-                recorder.delegate = self
-                // Always on: the bubble reads it to notice a microphone that hears nothing.
-                recorder.isMeteringEnabled = true
+            let (recorder, running) = try Diag.measure("InputQueueRecorder init+record") { () throws -> (InputQueueRecorder, Bool) in
+                let recorder = try InputQueueRecorder(url: fileURL, channelCount: channelCount, choice: device)
+                recorder.onFailure = { [weak self, weak recorder] error in
+                    guard let self, let recorder else { return }
+                    // On the main thread, where `stopRecording` runs: both own the same state.
+                    DispatchQueue.main.async { self.recorderDidFail(recorder, error: error) }
+                }
                 // Published before `record()` so a stop landing meanwhile can reach it.
                 take.withLockUnchecked { $0.recorder = recorder }
-                recorder.record()
-                return recorder
+                published = recorder
+                return (recorder, try recorder.record())
             }
-            if abandonStartIfEnded(recorder, fileURL: fileURL) { return }
+            // A stop or a failure ended the take while it started: whoever ended it cleans up.
+            guard running else { return false }
+            if abandonStartIfEnded(recorder, fileURL: fileURL) { return false }
             Task { @MainActor in SpectrumAnalyzer.shared.start() }
-            if monitorConnection {
-                startConnectionMonitoring()
-            } else {
-                updateRecordingState(isRecording: true, isConnecting: false)
+            // The effects a stop undoes (the live state, the media pause) happen in one main-queue
+            // block, and only while this take is the current one. A stop, a cancel or a failure
+            // also runs on main and clears the URL: this block then runs before it, which undoes
+            // the effects, or after it, which skips them. Off main, a stop landing in between
+            // would find nothing paused to resume and leave the media paused for good, or be
+            // overwritten with `isRecording = true` for a take that no longer exists.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.currentRecordingURL == fileURL else { return }
+                if monitorConnection {
+                    self.startConnectionMonitoring()
+                } else {
+                    self.isRecording = true
+                    self.isConnecting = false
+                }
+                if AppPreferences.shared.pauseMediaOnRecord {
+                    Diag.measure("media.pause") { MediaPlaybackController.shared.pauseMedia() }
+                }
             }
             print("Recording started successfully")
+            return true
         } catch {
             print("Failed to start recording: \(error)")
-            take.withLockUnchecked { $0.url = nil }
+            // Only this take's state: a stop may have ended it while it started, and a newer take
+            // may have published its own url and recorder since.
+            let ownsTake = take.withLockUnchecked { state -> Bool in
+                if let published, state.recorder === published { state.recorder = nil }
+                guard state.url == fileURL else { return false }
+                state.url = nil
+                return true
+            }
             // No recording to protect, and nothing will call `stopRecording` for a start that
             // never happened — so release the assertion here or it is held for ever.
-            endRecordingActivity()
+            if ownsTake { endRecordingActivity() }
             reportStartFailure(String(localized: "Recording could not start"))
+            return false
         }
     }
     
-    /// Whether a start finds its take already ended: a stop, a cancel or the delegate cleared the
+    /// Whether a start finds its take already ended: a stop, a cancel or a recorder failure cleared the
     /// URL while the recorder was being made, or the next take has replaced it.
     static func startWasAbandoned(startedURL: URL, currentURL: URL?) -> Bool {
         currentURL != startedURL
@@ -368,7 +390,7 @@ class AudioRecorder: NSObject, ObservableObject {
 
     /// Cleans up after a start that a stop beat to it. The recorder it just began is an orphan
     /// that nobody will stop, so it would keep the microphone open and write a file for good.
-    private func abandonStartIfEnded(_ recorder: AVAudioRecorder, fileURL: URL) -> Bool {
+    private func abandonStartIfEnded(_ recorder: InputQueueRecorder, fileURL: URL) -> Bool {
         // A newer take keeps its own activity, so it is not touched for it.
         let orphan = take.withLockUnchecked { state -> (abandoned: Bool, activity: NSObjectProtocol?) in
             guard Self.startWasAbandoned(startedURL: fileURL, currentURL: state.url) else { return (false, nil) }
@@ -385,13 +407,11 @@ class AudioRecorder: NSObject, ObservableObject {
         return true
     }
 
-    /// The loudest sample since the last reading, in dBFS, across the recorded channels; nil
-    /// while nothing records.
+    /// The loudest sample of the last 250 ms, in dBFS, across the recorded channels; nil while
+    /// nothing records.
     func peakPowerDBFS() -> Float? {
         guard let recorder = take.withLockUnchecked({ $0.recorder }), recorder.isRecording else { return nil }
-        recorder.updateMeters()
-        let channels = Int(recorder.format.channelCount)
-        return (0..<max(channels, 1)).map { recorder.peakPower(forChannel: $0) }.max()
+        return recorder.recentPeakDBFS()
     }
 
     /// What a stop produced. A clip and an accidental tap used to be the same `nil`, so a
@@ -431,11 +451,11 @@ class AudioRecorder: NSObject, ObservableObject {
         // Runs on the main thread (IndicatorViewModel is @MainActor). AudioQueueStop waits for the
         // queue to drain, so an input device pulled out from under it could stall the app here —
         // timed so a `▶` with no `◀` would name it rather than leaving a silent freeze.
-        let recorder = take.withLockUnchecked { state -> AVAudioRecorder? in
+        let recorder = take.withLockUnchecked { state -> InputQueueRecorder? in
             defer { state.recorder = nil }
             return state.recorder
         }
-        Diag.measure("AVAudioRecorder.stop") { recorder?.stop() }
+        Diag.measure("InputQueueRecorder.stop") { recorder?.stop() }
         endRecordingActivity()
 
         updateRecordingState(isRecording: false, isConnecting: false)
@@ -480,11 +500,11 @@ class AudioRecorder: NSObject, ObservableObject {
 
     func cancelRecording() {
         // Same blocking AudioQueueStop as `stopRecording`, timed for the same reason.
-        let recorder = take.withLockUnchecked { state -> AVAudioRecorder? in
+        let recorder = take.withLockUnchecked { state -> InputQueueRecorder? in
             defer { state.recorder = nil }
             return state.recorder
         }
-        Diag.measure("AVAudioRecorder.stop (cancel)") { recorder?.stop() }
+        Diag.measure("InputQueueRecorder.stop (cancel)") { recorder?.stop() }
         endRecordingActivity()
         updateRecordingState(isRecording: false, isConnecting: false)
         Task { @MainActor in SpectrumAnalyzer.shared.stop() }
@@ -576,7 +596,7 @@ class AudioRecorder: NSObject, ObservableObject {
 
     /// Peak level below which the recorder's meter is reading digital silence.
     ///
-    /// `AVAudioRecorder` metering bottoms out at -160 dBFS for samples that are exactly zero,
+    /// The recorder's peak meter bottoms out at -160 dBFS for samples that are exactly zero,
     /// while a live microphone in a quiet room sits around -60 to -90. The floor is far under
     /// any real input and far above the metering floor, so only true zeros fall below it.
     static let silenceFloorDBFS: Float = -140
@@ -650,10 +670,17 @@ class AudioRecorder: NSObject, ObservableObject {
     }
 }
 
-extension AudioRecorder: AVAudioRecorderDelegate {
-    func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
-        guard !flag else { return }
-        Diag.mark("recorder.didFinishRecording failed - clip discarded")
+extension AudioRecorder {
+    /// The take ended without a stop: the queue stopped by itself or the device went away. A
+    /// failure of an earlier take, arriving after the next one began, is not this take's.
+    fileprivate func recorderDidFail(_ recorder: InputQueueRecorder, error: Error) {
+        let isCurrent = take.withLockUnchecked { state -> Bool in
+            guard state.recorder === recorder else { return false }
+            state.recorder = nil
+            return true
+        }
+        guard isCurrent else { return }
+        Diag.mark("recorder.failed (\(error)) - clip discarded")
 
         // Clearing the URL is also what the connection wait guards on, so on its own it left that
         // timer running at 20Hz with nothing to measure and no way to reach its own timeout. The
@@ -666,16 +693,22 @@ extension AudioRecorder: AVAudioRecorderDelegate {
         endRecordingActivity()
         updateRecordingState(isRecording: false, isConnecting: false)
 
+        // Nothing else ends this take, so the media it paused and the volume it ducked are given
+        // back here, as `stopRecording` does.
+        if AppPreferences.shared.pauseMediaOnRecord {
+            MediaPlaybackController.shared.resumeMedia()
+        }
+        if AppPreferences.shared.reduceVolumeOnRecord {
+            cancelPendingDuck()
+            SystemVolumeController.shared.restore()
+        }
+
         Task { @MainActor in
             SpectrumAnalyzer.shared.stop()
             // Said out loud rather than left to be noticed. A take that captured nothing is
             // otherwise indistinguishable from one the user simply has not finished (#117).
             IndicatorWindowManager.shared.reportRecordingFailure(String(localized: "Recording stopped: the microphone dropped out"))
         }
-    }
-
-    func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
-        Diag.mark("recorder.encodeError \(error?.localizedDescription ?? "unknown")")
     }
 }
 
