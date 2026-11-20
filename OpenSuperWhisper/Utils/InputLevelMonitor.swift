@@ -48,8 +48,8 @@ protocol InputLevelSource: AnyObject {
 /// The live level of the microphone the next dictation will record from, for the pickers.
 ///
 /// A capture of its own, separate from the recorder and from the bubble's spectrum: those only
-/// run during a take and follow the system input, while a picker shows a microphone before any
-/// take and may show one macOS is not using yet. Several views can show it at once, so it is
+/// run during a take, while a picker shows a microphone before any take and may show one macOS
+/// is not using yet. Several views can show it at once, so it is
 /// reference counted: open while at least one of them holds a token, closed (and the microphone
 /// indicator off) as soon as the last one lets go.
 @MainActor

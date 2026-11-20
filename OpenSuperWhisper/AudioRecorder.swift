@@ -13,6 +13,10 @@ class AudioRecorder: NSObject, ObservableObject {
     @Published var canRecord = false
     @Published var isConnecting = false
     
+    /// Listeners to the samples of whichever take records, for the visualiser and the live
+    /// caption. Kept across takes and handed each new recorder's samples, so a listener that
+    /// subscribes before the take has begun (it starts on its own task) needs no wait for it.
+    private let sampleTaps = OSAllocatedUnfairLock<[UUID: @Sendable ([Float]) -> Void]>(initialState: [:])
     private var audioPlayer: AVAudioPlayer?
     private var notificationSound: NSSound?
     /// The volume duck waiting for the start chime to finish. Cancelled by a stop that lands
@@ -353,6 +357,10 @@ class AudioRecorder: NSObject, ObservableObject {
                 if let pressedAt, Diag.isEnabled {
                     recorder.onStartMeasured = { Self.logStart($0, pressedAt: pressedAt) }
                 }
+                recorder.onSamples = { [weak self] samples in
+                    guard let taps = self?.sampleTaps.withLock({ Array($0.values) }) else { return }
+                    for tap in taps { tap(samples) }
+                }
                 // Published before `record()` so a stop landing meanwhile can reach it.
                 take.withLockUnchecked { $0.recorder = recorder }
                 try recorder.record()
@@ -402,6 +410,19 @@ class AudioRecorder: NSObject, ObservableObject {
         orphan.activity.map(ProcessInfo.processInfo.endActivity)
         Diag.mark("recorder.start abandoned: stopped during start")
         return true
+    }
+
+    /// Subscribes to the samples of every take from now on (mono, 16 kHz, on the recorder's writer
+    /// queue, so `tap` must hand off quickly) until the returned closure unsubscribes.
+    func addSampleTap(_ tap: @escaping @Sendable ([Float]) -> Void) -> () -> Void {
+        let id = UUID()
+        sampleTaps.withLock { $0[id] = tap }
+        return { [weak self] in _ = self?.sampleTaps.withLock { $0.removeValue(forKey: id) } }
+    }
+
+    /// Whether a take is recording right now; false once its stop has run.
+    var isTakeRecording: Bool {
+        take.withLockUnchecked { $0.recorder }?.isRecording ?? false
     }
 
     /// The loudest sample since the last reading, in dBFS, across the recorded channels; nil

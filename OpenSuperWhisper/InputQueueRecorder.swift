@@ -44,9 +44,10 @@ enum InputDeviceChoice: Equatable {
 /// chosen microphone without touching the system default input. `AVAudioRecorder` cannot name a
 /// device; it reads whatever the default is.
 ///
-/// `stop()` is a synchronous `AudioQueueStop`, after which the file is closed. `onFailure` fires
-/// once, off the main thread, when the queue stops by itself or the device dies; never after
-/// `stop()`.
+/// `stop()` is a synchronous `AudioQueueStop`, after which the file is closed. `onSamples` hands
+/// the same samples on for the visualiser and the live transcription, so they need no microphone
+/// of their own. `onFailure` fires once, off the main thread, when the queue stops by itself or
+/// the device dies; never after `stop()`.
 final class InputQueueRecorder {
     static let sampleRate: Float64 = 16_000
     /// Each buffer is handed to the file as soon as it is full, so the file grows every 50 ms
@@ -95,6 +96,22 @@ final class InputQueueRecorder {
         return peak
     }
 
+    /// One channel of an interleaved buffer, for the visualiser and the live caption, which want
+    /// mono. The channel that carries the most signal wins: a multi-input interface can have the
+    /// voice on any one of its inputs (the recording itself keeps them all).
+    static func monitorSamples(_ samples: UnsafeBufferPointer<Float>, channelCount: Int) -> [Float] {
+        guard channelCount > 1 else { return Array(samples) }
+        let frames = samples.count / channelCount
+        var loudest = 0
+        var loudestPeak: Float = -1
+        for channel in 0..<channelCount {
+            var peak: Float = 0
+            for frame in 0..<frames { peak = max(peak, abs(samples[frame * channelCount + channel])) }
+            if peak > loudestPeak { loudest = channel; loudestPeak = peak }
+        }
+        return (0..<frames).map { samples[$0 * channelCount + loudest] }
+    }
+
     /// A linear peak in dBFS, floored at -160.
     static func decibels(fromPeak peak: Float) -> Float {
         peak > 0 ? max(20 * log10(peak), -160) : -160
@@ -126,6 +143,10 @@ final class InputQueueRecorder {
     /// Set before `record()`. Called once on the writer queue, when the first sample at or above
     /// `silenceThreshold` arrives or the silence reaches `silenceCap`.
     var onStartMeasured: ((StartMeasurement) -> Void)?
+
+    /// Set before `record()`. Called with each buffer's samples, mono and 16 kHz, on the writer
+    /// queue, so it must hand off quickly.
+    var onSamples: (([Float]) -> Void)?
 
     let channelCount: Int
     let choice: InputDeviceChoice
@@ -267,6 +288,7 @@ final class InputQueueRecorder {
             lock.lock()
             peakSinceLastRead = max(peakSinceLastRead, peak)
             lock.unlock()
+            onSamples?(Self.monitorSamples(samples, channelCount: channelCount))
         }
         lock.lock()
         let running = state == .running

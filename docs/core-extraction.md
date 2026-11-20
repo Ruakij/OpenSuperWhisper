@@ -143,7 +143,7 @@ compiles to an empty module elsewhere and the core depends on it unconditionally
 building for iOS.
 
 Stays in the app: everything AppKit, audio capture and device handling (including
-`StreamingTranscriptionController`, which owns the mic tap and its ObjCException guard), text
+`StreamingTranscriptionController`, which feeds the recorder's samples to the engine), text
 insertion, triggers and shortcuts, the indicator, agents, Sparkle, `DictationPipeline`
 (macOS outputs) and the Rust autocorrect library (no iOS build yet).
 

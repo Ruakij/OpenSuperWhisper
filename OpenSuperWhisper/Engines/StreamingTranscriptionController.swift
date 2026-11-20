@@ -5,10 +5,12 @@ import OpenSuperWhisperCore
 
 /// Drives live (streaming) transcription on the Parakeet/FluidAudio engine.
 ///
-/// Owns a `SlidingWindowAsrManager` plus its own microphone tap (an `AVAudioEngine`), running in
-/// parallel with the WAV recorder so playback/history stay intact. Mic buffers are fed to the
-/// manager, which emits `volatileTranscript` (in-progress, may change) and `confirmedTranscript`
-/// (locked-in); we publish their combination for the live caption. On stop, `finish()` returns
+/// Owns a `SlidingWindowAsrManager` fed from the samples the WAV recorder captures, so playback
+/// and history stay intact and the live caption hears exactly the microphone the file does. It
+/// opens no microphone of its own: a second engine on the same device cannot be pointed at every
+/// input (one bound to a Bluetooth headset refuses to start, -10868), and building one blocks the
+/// main thread for up to 600 ms. The manager emits `volatileTranscript` (in-progress, may change) and
+/// `confirmedTranscript` (locked-in); we publish their combination for the live caption. On stop, `finish()` returns
 /// the complete text for normal post-processing + insertion.
 @MainActor
 final class StreamingTranscriptionController: ObservableObject {
@@ -33,7 +35,8 @@ final class StreamingTranscriptionController: ObservableObject {
     }
     #endif
 
-    private let audioEngine = AVAudioEngine()
+    /// Unsubscribes from the recorder's samples; nil while not streaming.
+    private var removeSampleTap: (() -> Void)?
     private var manager: SlidingWindowAsrManager?
     private var updatesTask: Task<Void, Never>?
     private var feederTask: Task<Void, Never>?
@@ -103,51 +106,31 @@ final class StreamingTranscriptionController: ObservableObject {
             }
         }
 
-        // The mic tap runs on the audio thread; it can't await the actor, so it yields buffers
+        // The recorder's samples arrive on its writer queue, which can't await the actor, so it yields buffers
         // into a stream that a single feeder task drains in order into `streamAudio`.
         let (bufferStream, bufferContinuation) = AsyncStream<AVAudioPCMBuffer>.makeStream()
         self.bufferContinuation = bufferContinuation
         feederTask = Task {
             for await buffer in bufferStream {
-                await manager.streamAudio(buffer)  // any format → converted to 16k mono internally
+                await manager.streamAudio(buffer)
             }
         }
 
-        // `format: nil`, for the reason SpectrumAnalyzer spells out: a format read here goes stale
-        // while the recorder is still taking the device, and the tap is refused. The manager
-        // converts whatever arrives. The exception is caught for the same reason too — raised
-        // inside this main-actor task, it would leave the app to crash on the next click.
-        let input = audioEngine.inputNode
-        do {
-            try ObjCExceptionError.catching {
-                let voiceActivity = self.voiceActivity
-                voiceActivity.reset()
-                input.installTap(onBus: 0, bufferSize: 4096, format: nil) { buffer, _ in
-                    voiceActivity.observe(buffer)
-                    bufferContinuation.yield(buffer)
-                }
-            }
-        } catch {
-            await abandonStart(manager)
-            throw error
-        }
-        do {
-            try ObjCExceptionError.catching { audioEngine.prepare() }
-            try audioEngine.start()
-        } catch {
-            input.removeTap(onBus: 0)
-            await abandonStart(manager)
-            throw error
+        // The recorder hands over mono 16 kHz samples, the manager's own input format.
+        let voiceActivity = self.voiceActivity
+        voiceActivity.reset()
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: InputQueueRecorder.sampleRate,
+                                   channels: 1, interleaved: false)
+        removeSampleTap = AudioRecorder.shared.addSampleTap { samples in
+            guard let format,
+                  let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
+                  let channel = buffer.floatChannelData?[0] else { return }
+            buffer.frameLength = AVAudioFrameCount(samples.count)
+            samples.withUnsafeBufferPointer { channel.update(from: $0.baseAddress!, count: samples.count) }
+            voiceActivity.observe(buffer)
+            bufferContinuation.yield(buffer)
         }
         isRunning = true
-    }
-
-    /// Undoes a start() that got as far as its tasks but never reached a running engine, so the
-    /// caller's fallback to the file pass does not leave a feeder and a manager running behind it.
-    private func abandonStart(_ manager: SlidingWindowAsrManager) async {
-        stopAudio()
-        await manager.cancel()
-        self.manager = nil
     }
 
     /// Stops streaming and returns the complete transcript (nil if streaming wasn't running).
@@ -174,10 +157,8 @@ final class StreamingTranscriptionController: ObservableObject {
     }
 
     private func stopAudio() {
-        if audioEngine.isRunning {
-            audioEngine.inputNode.removeTap(onBus: 0)
-            audioEngine.stop()
-        }
+        removeSampleTap?()
+        removeSampleTap = nil
         bufferContinuation?.finish()
         bufferContinuation = nil
         feederTask?.cancel()
