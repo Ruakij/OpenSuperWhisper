@@ -11,7 +11,9 @@ import LiquidGlass
 final class SpectrumAnalyzer: ObservableObject {
     static let shared = SpectrumAnalyzer()
 
-    /// Per-band levels, 0...1, oldest-to-highest frequency. All zeros while stopped.
+    /// Per-band levels, 0...1, oldest-to-highest frequency. All zeros while stopped. Published at
+    /// `AmbientMotion.smallFrameRate` at most: every view of the levels redraws per publication, and the
+    /// window server re-renders for each of them.
     @Published private(set) var bands: [Float] = Array(repeating: 0, count: SpectrumBands.count) {
         didSet { feed.levels = bands }
     }
@@ -24,6 +26,10 @@ final class SpectrumAnalyzer: ObservableObject {
     /// Stages levels without a microphone, for the indicator probe's screenshots and GIFs.
     func stageBands(_ levels: [Float]) { bands = levels }
     #endif
+
+    /// The newest analysed levels, copied into `bands` by the publish timer.
+    private var latest: [Float] = Array(repeating: 0, count: SpectrumBands.count)
+    private var publishTimer: Timer?
 
     /// Unsubscribes from the recorder's samples; nil between takes.
     private var removeTap: (() -> Void)?
@@ -64,14 +70,25 @@ final class SpectrumAnalyzer: ObservableObject {
         removeTap = AudioRecorder.shared.addSampleTap { [weak self] samples in
             Task { @MainActor in self?.consume(samples) }
         }
+        let timer = Timer(timeInterval: 1 / Double(AmbientMotion.smallFrameRate), repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.bands != self.latest else { return }
+                self.bands = self.latest
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        publishTimer = timer
     }
 
     func stop() {
         guard let removeTap else { return }
         removeTap()
         self.removeTap = nil
+        publishTimer?.invalidate()
+        publishTimer = nil
         sampleBuffer.removeAll(keepingCapacity: true)
-        bands = Array(repeating: 0, count: SpectrumBands.count)
+        latest = Array(repeating: 0, count: SpectrumBands.count)
+        bands = latest
     }
 
     private func consume(_ samples: [Float]) {
@@ -85,12 +102,12 @@ final class SpectrumAnalyzer: ObservableObject {
         let magnitudes = transform(sampleBuffer)
         guard !magnitudes.isEmpty else { return }
 
-        bands = binRanges.enumerated().map { index, range in
+        latest = binRanges.enumerated().map { index, range in
             let slice = magnitudes[range.clamped(to: 0..<magnitudes.count)]
             guard !slice.isEmpty else { return 0 }
             let peak = slice.max() ?? 0
             let target = SpectrumBands.normalize(magnitude: peak)
-            let previous = index < bands.count ? bands[index] : 0
+            let previous = index < latest.count ? latest[index] : 0
             return SpectrumBands.smooth(previous: previous, next: target)
         }
     }

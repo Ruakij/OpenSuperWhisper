@@ -484,40 +484,29 @@ struct RecordingIndicator: View {
     @Environment(\.textScaleFactor) private var scale
 
     var body: some View {
-        Circle()
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color.red.opacity(0.8),
-                        Color.red
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+        let side = (isLatched ? 11 : 8) * scale
+        // Latched reads as steady-and-pulsing rather than blinking: a solid dot says the
+        // recording no longer depends on anything being held down. The fade and the ring run on
+        // Core Animation at the ambient rate, not as SwiftUI animations at the display rate.
+        FadingContent(opacity: isLatched ? 1.0 : (isBlinking ? 0.3 : 1.0), duration: 0.4, bleed: 14) {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.red.opacity(0.8),
+                            Color.red
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 )
-            )
-            .frame(width: (isLatched ? 11 : 8) * scale, height: (isLatched ? 11 : 8) * scale)
-            .shadow(color: .red.opacity(0.5), radius: isLatched ? 6 : 4)
-            // Latched reads as steady-and-pulsing rather than blinking: a solid dot says the
-            // recording no longer depends on anything being held down.
-            .opacity(isLatched ? 1.0 : (isBlinking ? 0.3 : 1.0))
-            .overlay { if isLatched { LatchPulse() } }
-            .animation(.easeInOut(duration: 0.4), value: isBlinking)
-            .animation(.spring(response: 0.32, dampingFraction: 0.55), value: isLatched)
-    }
-}
-
-/// The ring that expands out of the latched dot and fades, once per beat. Deliberately slow: it is
-/// an ambient "still going" cue, not something to keep looking at.
-private struct LatchPulse: View {
-    @State private var expanded = false
-
-    var body: some View {
-        Circle()
-            .stroke(Color.red.opacity(0.55), lineWidth: 1.5)
-            .scaleEffect(expanded ? 2.1 : 1)
-            .opacity(expanded ? 0 : 0.7)
-            .animation(.easeOut(duration: 1.4).repeatForever(autoreverses: false), value: expanded)
-            .onAppear { expanded = true }
+                .frame(width: side, height: side)
+                .shadow(color: .red.opacity(0.5), radius: isLatched ? 6 : 4)
+                .animation(.spring(response: 0.32, dampingFraction: 0.55), value: isLatched)
+        }
+        .frame(width: side, height: side)
+        .overlay { if isLatched { AmbientRing(color: .red.opacity(0.55)) } }
+        .animation(.spring(response: 0.32, dampingFraction: 0.55), value: isLatched)
     }
 }
 
@@ -896,8 +885,7 @@ struct IndicatorWindow: View {
             switch viewModel.state {
             case .connecting:
                 HStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.7)
+                    AmbientSpinner(diameter: 22)
                         .frame(width: 24)
                     
                     Text("Connecting...")
@@ -1230,9 +1218,7 @@ struct IndicatorWindow: View {
     @ViewBuilder private func notchLeadingContent(_ geometry: NotchGeometry) -> some View {
         switch viewModel.state {
         case .connecting:
-            ProgressView()
-                .progressViewStyle(.circular)
-                .controlSize(.small)
+            AmbientSpinner(diameter: 16)
         case .idle:
             EmptyView()
         default:

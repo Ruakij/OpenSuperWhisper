@@ -1,3 +1,4 @@
+import LiquidGlass
 import SwiftUI
 
 /// Seven bands of the mic spectrum, so the bubble shows the shape of what it is hearing
@@ -13,11 +14,12 @@ struct InputLevelMeter: View {
     /// Set by the caller from the layout: the notch and the pill have more vertical room
     /// than the compact bubble, and taller bars read better there.
     var height: CGFloat = 16
+    @Environment(\.displayScale) private var displayScale
 
     private static let barWidth: CGFloat = 2.5
     private static let barSpacing: CGFloat = 2.5
     /// Enough to stay visible while silent, so the meter reads as "quiet" and not "missing".
-    private static let restHeight: CGFloat = 2.5
+    static let restHeight: CGFloat = 2.5
 
     /// Fixed, and needed by the bubble's width calculation so adding the meter can't push
     /// the "Recording…" label onto a second line.
@@ -29,7 +31,9 @@ struct InputLevelMeter: View {
     var body: some View {
         HStack(alignment: .center, spacing: Self.barSpacing) {
             ForEach(0..<SpectrumBands.count, id: \.self) { index in
-                let level = CGFloat(index < bands.count ? bands[index] : 0)
+                let level = CGFloat(BarLevel.snapped(Double(index < bands.count ? bands[index] : 0),
+                                                     rest: Self.restHeight, height: height,
+                                                     displayScale: displayScale))
                 Capsule()
                     .fill(Color.secondary.opacity(0.3 + 0.6 * Double(level)))
                     .frame(width: Self.barWidth,
@@ -38,17 +42,6 @@ struct InputLevelMeter: View {
         }
         .frame(width: Self.width, height: height)
         .accessibilityHidden(true)
-    }
-}
-
-/// The meter following the microphone. It alone observes the analyser, so the bubble around it is
-/// not re-evaluated on every frame.
-struct LiveInputLevelMeter: View {
-    var height: CGFloat = 16
-    @ObservedObject private var spectrum = SpectrumAnalyzer.shared
-
-    var body: some View {
-        InputLevelMeter(bands: spectrum.bands, height: height)
     }
 }
 

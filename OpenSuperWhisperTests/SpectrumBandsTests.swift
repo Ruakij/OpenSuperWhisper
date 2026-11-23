@@ -1,3 +1,4 @@
+import LiquidGlass
 import XCTest
 
 @testable import OpenSuperWhisper
@@ -68,6 +69,19 @@ final class SpectrumBandsTests: XCTestCase {
         XCTAssertGreaterThan(rising, 1 - falling,
                              "a jump up should move further than the same jump down")
         XCTAssertGreaterThan(falling, 0, "bars must not snap straight to silence")
+    }
+
+    /// A change below one device pixel must not change the bar, or a quiet meter renders again.
+    func testBarLevelsSnapToDevicePixels() {
+        func snap(_ level: Double, _ scale: CGFloat) -> Double {
+            BarLevel.snapped(level, rest: 2.5, height: 30, displayScale: scale)
+        }
+        XCTAssertEqual(snap(0.300, 2), snap(0.304, 2))
+        XCTAssertNotEqual(snap(0.30, 2), snap(0.34, 2))
+        XCTAssertEqual(snap(0, 2), 0)
+        XCTAssertEqual(snap(1, 2), 1)
+        // Half the pixels on a 1x display, so twice the change is absorbed.
+        XCTAssertEqual(snap(0.30, 1), snap(0.32, 1))
     }
 
     func testSmoothingConvergesAndStaysInRange() {

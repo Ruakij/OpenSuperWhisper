@@ -1,3 +1,4 @@
+import LiquidGlass
 import SwiftUI
 
 /// A transcript in the feed: long ones fold to three lines with Show more / Show less, and the
@@ -91,24 +92,8 @@ struct CollapsibleTranscript: View {
 
 /// The sweep over a transcript being regenerated.
 struct ShimmerOverlay: View {
-    @State private var phase: CGFloat = 0
-
     var body: some View {
-        GeometryReader { geometry in
-            RoundedRectangle(cornerRadius: 6)
-                .fill(STheme.fill.opacity(0.5))
-                .overlay(
-                    LinearGradient(colors: [.clear, STheme.windowBg.opacity(0.7), .clear],
-                                   startPoint: .leading, endPoint: .trailing)
-                        .offset(x: -geometry.size.width + phase * geometry.size.width * 2)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .allowsHitTesting(false)
-        .onAppear {
-            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                phase = 1
-            }
-        }
+        AmbientShimmer(base: STheme.fill.opacity(0.5), highlight: STheme.windowBg.opacity(0.7), cornerRadius: 6)
+            .allowsHitTesting(false)
     }
 }

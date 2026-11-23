@@ -158,6 +158,7 @@ public struct RecordingBubble: View {
     // Quick and a little springy: the bubble is a transient HUD, it should snap into place.
     static let emerge = Animation.spring(duration: 0.34, bounce: 0.2)
     private static let stagger: Double = 0.04
+
     static let morphDuration: TimeInterval = 0.3
     static let morph = Animation.spring(duration: morphDuration, bounce: 0.12)
 
@@ -270,14 +271,18 @@ public struct RecordingBubble: View {
                         recordDot
                     case .waveform:
                         if phase == .processing {
-                            ProgressView()
-                                .controlSize(.small)
+                            // As large as the system's small spinner.
+                            AmbientSpinner(diameter: 16)
                                 .frame(width: WaveformMeter.width(bands: bandsFeed?.levels.count ?? bands?.count ?? 7), height: meterHeight)
                                 .transition(.opacity)
                         } else {
                             Group {
                                 if let bandsFeed {
-                                    LiveWaveformMeter(height: meterHeight, feed: bandsFeed)
+                                    // Only this view follows the feed, and only a frame that moves a bar by a whole device
+                                    // pixel invalidates it, so the bubble around it is not re-evaluated.
+                                    SnappedBands(feed: bandsFeed, rest: WaveformMeter.restHeight, height: meterHeight) { bands in
+                                        WaveformMeter(height: meterHeight, bands: bands)
+                                    }
                                 } else {
                                     WaveformMeter(height: meterHeight, bands: bands)
                                 }
@@ -374,32 +379,14 @@ public struct RecordingBubble: View {
     /// While listening the dot breathes and casts a soft red glow onto the glass around it. The
     /// glow is part of the glass view's content (not an overlay), so it moves and materialises
     /// with the glass; `.plusLighter` makes it read as light on the glass rather than paint. It
-    /// runs on its own smooth clock (one breath per 1.6s, the app's blink rhythm) instead of
-    /// following `blinking`, which the app flips on a timer and which made the pulse stutter.
+    /// runs on its own clock (one breath per 1.6s, the app's blink rhythm), independent of
+    /// `blinking`.
     private var recordDot: some View {
         let dotSize = (bar * 0.22).rounded()
         let live = phase == .recording
-        return TimelineView(.animation(paused: !live || reduceMotion)) { timeline in
-            // 0…1, eased at both ends by the sine.
-            let breath = live
-                ? (reduceMotion ? 0.6 : (sin(timeline.date.timeIntervalSinceReferenceDate * 2 * .pi / 1.6) + 1) / 2)
-                : 0
-            ZStack {
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: dotSize * 2.2, height: dotSize * 2.2)
-                    .blur(radius: dotSize * 0.9)
-                    .scaleEffect(0.85 + 0.3 * breath)
-                    .opacity(live ? 0.035 + 0.085 * breath : 0)
-                    .blendMode(.plusLighter)
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: dotSize, height: dotSize)
-                    .opacity(live ? 0.75 + 0.25 * breath : 0.55)
-            }
-        }
-        .frame(width: glyphSize, height: glyphSize)
-        .accessibilityHidden(true)
+        return PulsingDot(dotSize: dotSize, live: live, reduceMotion: reduceMotion)
+            .frame(width: glyphSize, height: glyphSize)
+            .accessibilityHidden(true)
     }
 
     /// A control glass circle on the right. `tuck` is how many slots it travels left to hide in

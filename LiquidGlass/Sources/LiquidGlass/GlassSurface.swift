@@ -350,21 +350,6 @@ public final class BandsFeed: ObservableObject {
     }
 }
 
-/// A `WaveformMeter` that follows a `BandsFeed`; only this view is invalidated by a new frame.
-public struct LiveWaveformMeter: View {
-    var height: CGFloat
-    @ObservedObject var feed: BandsFeed
-
-    public init(height: CGFloat = 18, feed: BandsFeed) {
-        self.height = height
-        self.feed = feed
-    }
-
-    public var body: some View {
-        WaveformMeter(height: height, bands: feed.levels)
-    }
-}
-
 /// The live mic spectrum — the "audiform" — faithful to the app's `InputLevelMeter`: seven capsule
 /// bars, `Color.secondary` brightening with each band's level. There is no mic in a preview, so the
 /// levels are synthesised (layered sines, phase-shifted per band, weighted toward the middle bands
@@ -381,6 +366,7 @@ public struct WaveformMeter: View {
     /// Real spectrum levels (0…1) from the app. When nil, the levels are synthesised so previews
     /// still move; when set, the bars follow the mic and one bar is drawn per band.
     var bands: [Float]?
+    @Environment(\.displayScale) private var displayScale
 
     public init(height: CGFloat = 18, bands: [Float]? = nil) {
         self.height = height
@@ -391,7 +377,7 @@ public struct WaveformMeter: View {
 
     private static let barWidth: CGFloat = 2.5
     private static let barSpacing: CGFloat = 2.5
-    private static let restHeight: CGFloat = 2.5
+    static let restHeight: CGFloat = 2.5
 
     /// The meter's footprint for `bands` bars, so a stand-in (the transcribing spinner) can take
     /// exactly its place.
@@ -402,8 +388,8 @@ public struct WaveformMeter: View {
     public var body: some View {
         Group {
             if bands == nil {
-                // No microphone: the display-linked timeline keeps the synthesised bars moving.
-                TimelineView(.animation) { timeline in
+                // No microphone: a timeline keeps the synthesised bars moving, at the ambient rate.
+                TimelineView(.animation(minimumInterval: 1 / Double(AmbientMotion.smallFrameRate))) { timeline in
                     bars(at: timeline.date.timeIntervalSinceReferenceDate)
                 }
             } else {
@@ -418,7 +404,8 @@ public struct WaveformMeter: View {
     private func bars(at t: Double) -> some View {
         HStack(alignment: .center, spacing: Self.barSpacing) {
             ForEach(0..<bandCount, id: \.self) { band in
-                let level = level(band: band, t: t)
+                let level = BarLevel.snapped(level(band: band, t: t), rest: Self.restHeight,
+                                             height: height, displayScale: displayScale)
                 Capsule()
                     .fill(Color.primary.opacity(0.55 + 0.45 * level))
                     .frame(width: Self.barWidth,

@@ -1,4 +1,5 @@
 import SwiftUI
+import LiquidGlass
 
 /// Draws one element of the recording bubble. Shared by the bubble itself and by the layout
 /// editor's preview, so what the editor shows is the thing that will appear on screen rather
@@ -38,16 +39,16 @@ struct IndicatorElementView: View {
                 // as a dot in the middle of a 30pt-tall gap, which read as something broken
                 // rather than something working. The frame keeps the meter's exact footprint,
                 // so only the drawing changes size, never the bubble.
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .controlSize(.regular)
-                    .scaleEffect(spinnerScale)
+                AmbientSpinner(diameter: spinnerDiameter)
                     .frame(width: InputLevelMeter.width, height: meterHeight * scale)
             } else {
                 if let bands {
                     InputLevelMeter(bands: bands, height: meterHeight * scale)
                 } else {
-                    LiveInputLevelMeter(height: meterHeight * scale)
+                    // Only this view follows the analyser, so the bubble around it is not re-evaluated.
+                    SnappedBands(feed: SpectrumAnalyzer.shared.feed, rest: InputLevelMeter.restHeight, height: meterHeight * scale) { bands in
+                        InputLevelMeter(bands: bands, height: meterHeight * scale)
+                    }
                 }
             }
         case .label:
@@ -85,21 +86,15 @@ struct IndicatorElementView: View {
         }
     }
 
-    /// A circular `ProgressView` draws at 16pt whatever frame it is given, so matching the meter
-    /// means scaling the drawing itself.
-    private static let spinnerIntrinsicSize: CGFloat = 16
-
-    /// Well short of the meter's full height on purpose. A disc filling all 30pt looks heavier
-    /// than the bars beside it, which only reach the top on peaks. Settled by eye at a little
-    /// over a third, which sits level with them rather than above.
-    private static let spinnerHeightRatio: CGFloat = 0.38
+    /// Short of the meter's full height on purpose: a disc filling all 30pt looks heavier than the
+    /// bars beside it, which only reach the top on peaks. Settled by eye at about three quarters.
+    private static let spinnerHeightRatio: CGFloat = 0.76
 
     /// Below this it stops reading as a spinner and starts reading as a speck.
-    private static let spinnerMinimumSize: CGFloat = 10
+    private static let spinnerMinimumSize: CGFloat = 20
 
-    private var spinnerScale: CGFloat {
-        let target = max(Self.spinnerMinimumSize, meterHeight * scale * Self.spinnerHeightRatio)
-        return target / Self.spinnerIntrinsicSize
+    private var spinnerDiameter: CGFloat {
+        max(Self.spinnerMinimumSize, meterHeight * scale * Self.spinnerHeightRatio)
     }
 
     private var labelText: String {

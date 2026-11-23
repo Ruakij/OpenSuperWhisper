@@ -1,4 +1,5 @@
 import AppKit
+import LiquidGlass
 import SwiftUI
 import UniformTypeIdentifiers
 import OpenSuperWhisperCore
@@ -156,17 +157,8 @@ private struct RecordButtonFace: View {
 }
 
 private struct Spinner: View {
-    @State private var spinning = false
-
     var body: some View {
-        Circle()
-            .trim(from: 0, to: 0.7)
-            .stroke(STheme.onAccent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-            .frame(width: 24, height: 24)
-            .rotationEffect(.degrees(spinning ? 360 : 0))
-            .onAppear {
-                withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) { spinning = true }
-            }
+        AmbientArcSpinner(color: STheme.onAccent, diameter: 24, lineWidth: 2.5)
     }
 }
 
