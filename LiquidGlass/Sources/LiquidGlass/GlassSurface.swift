@@ -339,15 +339,43 @@ public struct BubbleView: View {
 
 // MARK: - Audiform
 
+/// The live levels of the microphone, observed by the meter alone. A bubble that held the levels
+/// itself would re-evaluate its whole glass on every analyser frame.
+@MainActor
+public final class BandsFeed: ObservableObject {
+    @Published public var levels: [Float]
+
+    public init(levels: [Float] = []) {
+        self.levels = levels
+    }
+}
+
+/// A `WaveformMeter` that follows a `BandsFeed`; only this view is invalidated by a new frame.
+public struct LiveWaveformMeter: View {
+    var height: CGFloat
+    @ObservedObject var feed: BandsFeed
+
+    public init(height: CGFloat = 18, feed: BandsFeed) {
+        self.height = height
+        self.feed = feed
+    }
+
+    public var body: some View {
+        WaveformMeter(height: height, bands: feed.levels)
+    }
+}
+
 /// The live mic spectrum — the "audiform" — faithful to the app's `InputLevelMeter`: seven capsule
 /// bars, `Color.secondary` brightening with each band's level. There is no mic in a preview, so the
 /// levels are synthesised (layered sines, phase-shifted per band, weighted toward the middle bands
 /// the way a voice is) and driven by a `TimelineView(.animation)` so the bars flow continuously.
+/// With real `bands` there is no timeline: the meter redraws once per analyser frame.
 ///
-/// The motion is the liquid part: the levels are smooth continuous functions of time, so each
-/// frame's heights differ only slightly and the bars swell and settle like fluid rather than
-/// snapping — and the whole meter breathes with a slow amplitude envelope so it never reads as a
-/// fixed loop. The bars are content, so they carry no glass of their own; they sit inside the bar.
+/// The synthesised motion is the liquid part: the levels are smooth continuous functions of time,
+/// so each frame's heights differ only slightly and the bars swell and settle like fluid rather
+/// than snapping — and the whole meter breathes with a slow amplitude envelope so it never reads
+/// as a fixed loop. The bars are content, so they carry no glass of their own; they sit inside
+/// the bar.
 public struct WaveformMeter: View {
     var height: CGFloat
     /// Real spectrum levels (0…1) from the app. When nil, the levels are synthesised so previews
@@ -372,22 +400,32 @@ public struct WaveformMeter: View {
     }
 
     public var body: some View {
-        TimelineView(.animation) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            HStack(alignment: .center, spacing: Self.barSpacing) {
-                ForEach(0..<bandCount, id: \.self) { band in
-                    let level = level(band: band, t: t)
-                    Capsule()
-                        .fill(Color.primary.opacity(0.55 + 0.45 * level))
-                        .frame(width: Self.barWidth,
-                               height: Self.restHeight + (height - Self.restHeight) * level)
+        Group {
+            if bands == nil {
+                // No microphone: the display-linked timeline keeps the synthesised bars moving.
+                TimelineView(.animation) { timeline in
+                    bars(at: timeline.date.timeIntervalSinceReferenceDate)
                 }
+            } else {
+                // Real bands change only when the analyser delivers a frame, so the meter redraws
+                // then and not on every display refresh.
+                bars(at: 0)
             }
-            .frame(height: height)
-            // Ease real-band changes like the app's own meter; the synth path is already continuous.
-            .animation(.linear(duration: 0.08), value: bands)
         }
         .accessibilityHidden(true)
+    }
+
+    private func bars(at t: Double) -> some View {
+        HStack(alignment: .center, spacing: Self.barSpacing) {
+            ForEach(0..<bandCount, id: \.self) { band in
+                let level = level(band: band, t: t)
+                Capsule()
+                    .fill(Color.primary.opacity(0.55 + 0.45 * level))
+                    .frame(width: Self.barWidth,
+                           height: Self.restHeight + (height - Self.restHeight) * level)
+            }
+        }
+        .frame(height: height)
     }
 
     /// Real band level when driven by the mic, otherwise a synthesised one: two sines at different

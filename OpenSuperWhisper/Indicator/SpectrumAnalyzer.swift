@@ -1,6 +1,7 @@
 import Accelerate
 import Combine
 import Foundation
+import LiquidGlass
 
 /// Live spectrum of the microphone, driving the indicator's visualiser.
 ///
@@ -11,7 +12,13 @@ final class SpectrumAnalyzer: ObservableObject {
     static let shared = SpectrumAnalyzer()
 
     /// Per-band levels, 0...1, oldest-to-highest frequency. All zeros while stopped.
-    @Published private(set) var bands: [Float] = Array(repeating: 0, count: SpectrumBands.count)
+    @Published private(set) var bands: [Float] = Array(repeating: 0, count: SpectrumBands.count) {
+        didSet { feed.levels = bands }
+    }
+
+    /// The same levels for the bubble's meter, which observes it instead of this object so the
+    /// bubble around the meter is not re-evaluated on every frame.
+    let feed = BandsFeed(levels: Array(repeating: 0, count: SpectrumBands.count))
 
     #if DEBUG
     /// Stages levels without a microphone, for the indicator probe's screenshots and GIFs.

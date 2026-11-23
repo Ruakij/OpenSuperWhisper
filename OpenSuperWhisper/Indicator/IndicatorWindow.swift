@@ -582,7 +582,7 @@ struct IndicatorWindow: View {
     // Surfaces how many earlier clips are still transcribing in the background, so starting a new
     // recording while others are queued shows the backlog. (parallel-recording #3)
     @ObservedObject private var pipeline = DictationPipeline.shared
-    @ObservedObject private var spectrum = SpectrumAnalyzer.shared
+    private let spectrum = SpectrumAnalyzer.shared
     @Environment(\.colorScheme) private var colorScheme
     /// The resolved UI theme (legacy | liquidGlass), injected once at the hosting root by
     /// `IndicatorWindowManager`. Drives the surface seam and the on-bubble button style.
@@ -830,7 +830,7 @@ struct IndicatorWindow: View {
             center: center,
             labelText: glassLabel,
             caption: showsCaption ? (warnsOfSilence ? silenceWarning : liveCaption) : nil,
-            bands: spectrum.bands,
+            bandsFeed: spectrum.feed,
             blinking: viewModel.isBlinking,
             waveformHeight: meterHeight,
             size: glassBubbleSize,
@@ -920,7 +920,6 @@ struct IndicatorWindow: View {
                     HStack(alignment: .center, spacing: 10) {
                         ForEach(layout.leading) { element in
                             IndicatorElementView(element: element,
-                                                 bands: spectrum.bands,
                                                  meterHeight: meterHeight,
                                                  isBlinking: viewModel.isBlinking,
                                                  isLatched: viewModel.isLatched,
@@ -931,7 +930,6 @@ struct IndicatorWindow: View {
                             HStack(spacing: 8) {
                                 ForEach(layout.trailing) { element in
                                     IndicatorElementView(element: element,
-                                                         bands: spectrum.bands,
                                                          meterHeight: meterHeight,
                                                          isBlinking: viewModel.isBlinking,
                                                          isLatched: viewModel.isLatched,
@@ -1212,7 +1210,6 @@ struct IndicatorWindow: View {
         HStack(spacing: NotchGeometry.elementSpacing) {
             ForEach(elements) { element in
                 IndicatorElementView(element: element,
-                                     bands: spectrum.bands,
                                      meterHeight: notchMeterHeight(geometry),
                                      isBlinking: viewModel.isBlinking,
                                      isLatched: viewModel.isLatched,

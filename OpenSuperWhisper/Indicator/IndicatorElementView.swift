@@ -5,7 +5,8 @@ import SwiftUI
 /// than an approximation of it.
 struct IndicatorElementView: View {
     let element: IndicatorElement
-    var bands: [Float] = []
+    /// nil follows the live microphone; the layout editor passes fixed levels.
+    var bands: [Float]? = nil
     var meterHeight: CGFloat = 30
     var isBlinking = false
     /// Hands-free (Space-latched) recording: the dot swells, goes solid and pulses.
@@ -43,7 +44,11 @@ struct IndicatorElementView: View {
                     .scaleEffect(spinnerScale)
                     .frame(width: InputLevelMeter.width, height: meterHeight * scale)
             } else {
-                InputLevelMeter(bands: bands, height: meterHeight * scale)
+                if let bands {
+                    InputLevelMeter(bands: bands, height: meterHeight * scale)
+                } else {
+                    LiveInputLevelMeter(height: meterHeight * scale)
+                }
             }
         case .label:
             Text(labelText)

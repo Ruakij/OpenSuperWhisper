@@ -56,6 +56,8 @@ public struct RecordingBubble: View {
     var labelText: String
     var caption: AttributedString?
     var bands: [Float]?
+    /// Live levels, observed by the meter alone. Wins over `bands`.
+    var bandsFeed: BandsFeed?
     var blinking: Bool
     var waveformHeight: CGFloat
     /// Overall size factor for the whole family (pill, controls, glyphs, text, waveform). 1 is
@@ -99,6 +101,7 @@ public struct RecordingBubble: View {
                 labelText: String = "Recording…",
                 caption: AttributedString? = nil,
                 bands: [Float]? = nil,
+                bandsFeed: BandsFeed? = nil,
                 blinking: Bool = true,
                 waveformHeight: CGFloat = 18,
                 size: CGFloat = 1,
@@ -119,6 +122,7 @@ public struct RecordingBubble: View {
         self.labelText = labelText
         self.caption = caption
         self.bands = bands
+        self.bandsFeed = bandsFeed
         self.blinking = blinking
         self.waveformHeight = waveformHeight
         self.size = size
@@ -268,11 +272,17 @@ public struct RecordingBubble: View {
                         if phase == .processing {
                             ProgressView()
                                 .controlSize(.small)
-                                .frame(width: WaveformMeter.width(bands: bands?.count ?? 7), height: meterHeight)
+                                .frame(width: WaveformMeter.width(bands: bandsFeed?.levels.count ?? bands?.count ?? 7), height: meterHeight)
                                 .transition(.opacity)
                         } else {
-                            WaveformMeter(height: meterHeight, bands: bands)
-                                .transition(.opacity)
+                            Group {
+                                if let bandsFeed {
+                                    LiveWaveformMeter(height: meterHeight, feed: bandsFeed)
+                                } else {
+                                    WaveformMeter(height: meterHeight, bands: bands)
+                                }
+                            }
+                            .transition(.opacity)
                         }
                     case .label:
                         if let caption {

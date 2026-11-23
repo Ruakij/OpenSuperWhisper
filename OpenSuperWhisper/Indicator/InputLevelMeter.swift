@@ -37,8 +37,18 @@ struct InputLevelMeter: View {
             }
         }
         .frame(width: Self.width, height: height)
-        .animation(.linear(duration: 0.06), value: bands)
         .accessibilityHidden(true)
+    }
+}
+
+/// The meter following the microphone. It alone observes the analyser, so the bubble around it is
+/// not re-evaluated on every frame.
+struct LiveInputLevelMeter: View {
+    var height: CGFloat = 16
+    @ObservedObject private var spectrum = SpectrumAnalyzer.shared
+
+    var body: some View {
+        InputLevelMeter(bands: spectrum.bands, height: height)
     }
 }
 
