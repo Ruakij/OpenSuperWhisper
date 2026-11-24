@@ -256,7 +256,7 @@ class AudioRecorder: NSObject, ObservableObject {
         updateRecordingState(isRecording: false, isConnecting: requiresConnection)
         let started = startRecordingWithRecorder(
             fileURL: fileURL, channelCount: channels.recorded, device: inputDevice,
-            monitorConnection: requiresConnection)
+            monitorConnection: requiresConnection, pressedAt: pressedAt)
 
         // After the mic is open: the chime and the duck cost ~100ms that would otherwise sit
         // between the key press and the first captured sample. A start that failed or was ended
@@ -328,8 +328,28 @@ class AudioRecorder: NSObject, ObservableObject {
             reported: reported, isBuiltIn: isBuiltIn)
     }
 
+    /// Silence at the head of a take is also what a gated input (Voice Isolation) delivers while
+    /// nobody speaks, so the log names the mic mode next to the silence.
+    private static func logStart(_ start: InputQueueRecorder.StartMeasurement, pressedAt: DispatchTime) {
+        let first = start.firstSampleNanos.map {
+            "\(Int((Double($0) - Double(pressedAt.uptimeNanoseconds)) / 1_000_000)) ms"
+        } ?? "an unknown time"
+        let silence = "\(start.silenceReachedCap ? ">=" : "")\(Int((start.silence * 1000).rounded())) ms"
+        Diag.mark("key press -> first sample after \(first), then \(silence) below "
+            + "\(InputQueueRecorder.silenceThreshold) (mic mode: \(micModeName(AVCaptureDevice.activeMicrophoneMode)))")
+    }
+
+    private static func micModeName(_ mode: AVCaptureDevice.MicrophoneMode) -> String {
+        switch mode {
+        case .standard: return "standard"
+        case .wideSpectrum: return "wide spectrum"
+        case .voiceIsolation: return "voice isolation"
+        @unknown default: return "unknown (\(mode.rawValue))"
+        }
+    }
+
     private func startRecordingWithRecorder(fileURL: URL, channelCount: Int, device: InputDeviceChoice,
-                                            monitorConnection: Bool) -> Bool {
+                                            monitorConnection: Bool, pressedAt: DispatchTime?) -> Bool {
         var published: InputQueueRecorder?
         do {
             let (recorder, running) = try Diag.measure("InputQueueRecorder init+record") { () throws -> (InputQueueRecorder, Bool) in
@@ -338,6 +358,9 @@ class AudioRecorder: NSObject, ObservableObject {
                     guard let self, let recorder else { return }
                     // On the main thread, where `stopRecording` runs: both own the same state.
                     DispatchQueue.main.async { self.recorderDidFail(recorder, error: error) }
+                }
+                if let pressedAt, Diag.isEnabled {
+                    recorder.onStartMeasured = { Self.logStart($0, pressedAt: pressedAt) }
                 }
                 recorder.onSamples = { [weak self] in self?.deliverSamples($0) }
                 // Published before `record()` so a stop landing meanwhile can reach it.

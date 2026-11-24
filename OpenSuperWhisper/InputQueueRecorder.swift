@@ -166,6 +166,23 @@ final class InputQueueRecorder {
     /// when a failure beats a concurrent `stop()`; the file is closed by then.
     var onFailure: ((Error) -> Void)?
 
+    /// When the take's first sample was captured (host time in nanoseconds; nil when the queue
+    /// gave no time) and how long the take then stayed below `silenceThreshold`, capped at
+    /// `silenceCap`. Measured, not judged: a gated input (Voice Isolation) is silent by design.
+    struct StartMeasurement {
+        let firstSampleNanos: UInt64?
+        let silence: TimeInterval
+        let silenceReachedCap: Bool
+    }
+
+    /// The level below which a sample counts as digital silence.
+    static let silenceThreshold: Float = 1e-7
+    static let silenceCap: TimeInterval = 2
+
+    /// Set before `record()`. Called once on the writer queue, when the first sample at or above
+    /// `silenceThreshold` arrives or the silence reaches `silenceCap`.
+    var onStartMeasured: ((StartMeasurement) -> Void)?
+
     /// Set before `record()`. Called with each buffer's samples, mono and 16 kHz, on the writer
     /// queue, so it must hand off quickly.
     var onSamples: (([Float]) -> Void)?
@@ -182,6 +199,10 @@ final class InputQueueRecorder {
         initialState: PeakWindow(bufferDuration: InputQueueRecorder.bufferDuration))
     private let writerQueue = DispatchQueue(label: "InputQueueRecorder.writer", qos: .userInitiated)
     private let bytesPerFrame: UInt32
+    /// Writer-queue state of the start measurement, which runs while `onStartMeasured` is set.
+    private var sawFirstBuffer = false
+    private var firstSampleNanos: UInt64?
+    private var silentFrames = 0
 
     private final class WeakBox {
         weak var recorder: InputQueueRecorder?
@@ -294,6 +315,7 @@ final class InputQueueRecorder {
                 start: buffer.pointee.mAudioData.assumingMemoryBound(to: Float.self),
                 count: Int(byteCount) / MemoryLayout<Float>.size)
             let peak = Self.peak(of: samples)
+            if onStartMeasured != nil { measureStart(samples, capturedAt: time) }
             var packets = byteCount / bytesPerFrame
             let status = AudioFileWritePackets(file, false, byteCount, nil, framesWritten, &packets, buffer.pointee.mAudioData)
             guard status == noErr else {
@@ -305,6 +327,24 @@ final class InputQueueRecorder {
             onSamples?(Self.monitorSamples(samples, channelCount: channelCount))
         }
         if lifecycle.reenqueues { AudioQueueEnqueueBuffer(queue, buffer, 0, nil) }
+    }
+
+    /// Runs on `writerQueue` for each buffer until the measurement is done.
+    private func measureStart(_ samples: UnsafeBufferPointer<Float>, capturedAt time: AudioTimeStamp) {
+        if !sawFirstBuffer {
+            sawFirstBuffer = true
+            if time.mFlags.contains(.hostTimeValid) { firstSampleNanos = AudioConvertHostTimeToNanos(time.mHostTime) }
+        }
+        let firstSignal = samples.firstIndex { abs($0) >= Self.silenceThreshold }
+        silentFrames += (firstSignal ?? samples.count) / channelCount
+        let cap = Int(Self.silenceCap * Self.sampleRate)
+        guard firstSignal != nil || silentFrames >= cap else { return }
+        let report = onStartMeasured
+        onStartMeasured = nil
+        report?(StartMeasurement(
+            firstSampleNanos: firstSampleNanos,
+            silence: Double(min(silentFrames, cap)) / Self.sampleRate,
+            silenceReachedCap: firstSignal == nil))
     }
 
     // MARK: - Failure and teardown
